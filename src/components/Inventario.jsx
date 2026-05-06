@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Package, Plus, Filter, Loader2 } from 'lucide-react';
+import { Search, Package, Plus, Filter, Loader2, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import ProductModal from './ProductModal';
 
 export default function Inventario() {
   const [searchTerm, setSearchTerm] = useState('');
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const fetchProductos = async () => {
     setLoading(true);
@@ -28,6 +31,41 @@ export default function Inventario() {
     fetchProductos();
   }, []);
 
+  const handleSaveProduct = async (productData) => {
+    try {
+      if (selectedProduct) {
+        // Update
+        const { error } = await supabase
+          .from('productos')
+          .update(productData)
+          .eq('id', selectedProduct.id);
+        if (error) throw error;
+      } else {
+        // Create
+        const { error } = await supabase
+          .from('productos')
+          .insert([productData]);
+        if (error) throw error;
+      }
+      
+      setIsModalOpen(false);
+      setSelectedProduct(null);
+      fetchProductos();
+    } catch (error) {
+      alert('Error al guardar el producto: ' + error.message);
+    }
+  };
+
+  const handleEdit = (product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleNew = () => {
+    setSelectedProduct(null);
+    setIsModalOpen(true);
+  };
+
   const filteredProducts = productos.filter(p => 
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.sku.includes(searchTerm)
@@ -46,7 +84,10 @@ export default function Inventario() {
             </h1>
             <p className="text-sm lg:text-base text-slate-500 mt-1">Gestiona tu catálogo y existencias</p>
           </div>
-          <button className="bg-primary-600 hover:bg-primary-700 text-white px-4 lg:px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors w-full sm:w-auto">
+          <button 
+            onClick={handleNew}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 lg:px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-lg shadow-primary-600/30"
+          >
             <Plus className="w-5 h-5" /> Nuevo Producto
           </button>
         </div>
@@ -87,6 +128,7 @@ export default function Inventario() {
                   <th className="p-3 lg:p-4 font-semibold">Categoría</th>
                   <th className="p-3 lg:p-4 font-semibold text-right">Precio</th>
                   <th className="p-3 lg:p-4 font-semibold text-right">Stock</th>
+                  <th className="p-3 lg:p-4 font-semibold text-center">Acción</th>
                 </tr>
               </thead>
               <tbody className="text-sm lg:text-base">
@@ -111,11 +153,19 @@ export default function Inventario() {
                         {product.stock} un.
                       </span>
                     </td>
+                    <td className="p-3 lg:p-4 text-center">
+                      <button 
+                        onClick={() => handleEdit(product)}
+                        className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="p-8 text-center text-slate-400">
+                    <td colSpan="6" className="p-8 text-center text-slate-400">
                       No se encontraron productos con "{searchTerm}"
                     </td>
                   </tr>
@@ -126,7 +176,16 @@ export default function Inventario() {
         </div>
 
       </div>
+
+      {isModalOpen && (
+        <ProductModal 
+          product={selectedProduct}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveProduct}
+        />
+      )}
     </div>
   );
 }
+
 
