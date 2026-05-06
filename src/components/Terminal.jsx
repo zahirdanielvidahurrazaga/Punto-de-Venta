@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X } from 'lucide-react';
-import { mockProducts } from '../data/mockData';
+import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 import CheckoutModal from './CheckoutModal';
 import TicketModal from './TicketModal';
 
 export default function Terminal({ onRegisterSale, cart, setCart }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
@@ -14,6 +16,26 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
   const [isCartMobileOpen, setIsCartMobileOpen] = useState(false);
   
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    fetchProductos();
+  }, []);
+
+  const fetchProductos = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('productos')
+        .select('*')
+        .order('nombre', { ascending: true });
+      if (error) throw error;
+      setProductos(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Solo hacer autofocus si no hay modales abiertos
@@ -27,7 +49,7 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
       e.preventDefault();
       const skuOrName = searchTerm.trim().toLowerCase();
       
-      const product = mockProducts.find(
+      const product = productos.find(
         p => p.sku === skuOrName || p.nombre.toLowerCase().includes(skuOrName)
       );
 
@@ -65,7 +87,7 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
     }));
   };
 
-  const total = cart.reduce((acc, item) => acc + (item.precio * item.quantity), 0);
+  const total = cart.reduce((acc, item) => acc + (Number(item.precio) * item.quantity), 0);
   const itemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   const handleStartCheckout = () => {
@@ -75,20 +97,23 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
     }
   };
 
-  const handleCheckoutComplete = (data) => {
+  const handleCheckoutComplete = async (data) => {
     setPaymentData(data);
     setIsCheckoutOpen(false);
-    setIsTicketOpen(true);
     
-    // Registrar la venta en App
+    // Registrar la venta en App (que ahora manejará Supabase)
     if (onRegisterSale) {
-      onRegisterSale({
-        id: (Math.floor(Math.random() * 10000)).toString().padStart(4, '0'),
-        fecha: new Date().toISOString(),
+      const success = await onRegisterSale({
         total,
         items: cart,
         pagos: data
       });
+      
+      if (success) {
+        setIsTicketOpen(true);
+      } else {
+        alert("Hubo un error al registrar la venta en la base de datos.");
+      }
     }
   };
 
@@ -97,6 +122,7 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
     setIsTicketOpen(false);
     setCart([]); // Vaciar el carrito hasta que cerremos el ticket
     inputRef.current?.focus();
+    fetchProductos(); // Refrescar stock
   };
 
   // Contenido del Carrito (reutilizable para Desktop y Mobile)
@@ -126,7 +152,7 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-slate-800 truncate leading-tight">{item.nombre}</h3>
                 <div className="text-xs lg:text-sm text-slate-500 font-mono mt-1">{item.sku}</div>
-                <div className="text-primary-600 font-bold mt-1">${item.precio.toFixed(2)} c/u</div>
+                <div className="text-primary-600 font-bold mt-1">${Number(item.precio).toFixed(2)} c/u</div>
               </div>
               <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                 <div className="flex items-center bg-slate-100 rounded-lg p-1">
@@ -191,25 +217,32 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
           <h2 className="text-base lg:text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
             <Box className="w-5 h-5 text-primary-600" /> Productos Frecuentes
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-            {mockProducts.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                className="bg-white p-3 lg:p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary-300 hover:shadow-md transition-all flex flex-col items-start gap-2 group text-left h-full"
-              >
-                <div className="bg-primary-50 p-2 rounded-lg group-hover:bg-primary-100 transition-colors">
-                  <Tag className="w-5 h-5 lg:w-6 lg:h-6 text-primary-600" />
-                </div>
-                <div className="font-semibold text-slate-800 text-sm lg:text-base line-clamp-2 leading-tight">
-                  {product.nombre}
-                </div>
-                <div className="text-primary-600 font-bold mt-auto text-base lg:text-lg">
-                  ${product.precio.toFixed(2)}
-                </div>
-              </button>
-            ))}
-          </div>
+          {loading ? (
+             <div className="flex flex-col items-center justify-center p-10 text-slate-400">
+               <Loader2 className="w-8 h-8 animate-spin mb-4" />
+               <p>Cargando productos...</p>
+             </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+              {productos.slice(0, 12).map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  className="bg-white p-3 lg:p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary-300 hover:shadow-md transition-all flex flex-col items-start gap-2 group text-left h-full"
+                >
+                  <div className="bg-primary-50 p-2 rounded-lg group-hover:bg-primary-100 transition-colors">
+                    <Tag className="w-5 h-5 lg:w-6 lg:h-6 text-primary-600" />
+                  </div>
+                  <div className="font-semibold text-slate-800 text-sm lg:text-base line-clamp-2 leading-tight">
+                    {product.nombre}
+                  </div>
+                  <div className="text-primary-600 font-bold mt-auto text-base lg:text-lg">
+                    ${Number(product.precio).toFixed(2)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -276,3 +309,4 @@ export default function Terminal({ onRegisterSale, cart, setCart }) {
     </div>
   );
 }
+

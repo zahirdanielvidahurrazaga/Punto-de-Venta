@@ -1,17 +1,93 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Package, BarChart3, ClipboardList } from 'lucide-react';
 import Terminal from './components/Terminal';
 import Inventario from './components/Inventario';
 import Dashboard from './components/Dashboard';
 import Pedidos from './components/Pedidos';
+import { supabase } from './lib/supabaseClient';
 
 function App() {
   const [activeTab, setActiveTab] = useState('terminal');
   const [ventas, setVentas] = useState([]);
-  const [cart, setCart] = useState([]); // <--- Estado del carrito levantado para que no se borre
+  const [cart, setCart] = useState([]);
 
-  const handleRegisterSale = (nuevaVenta) => {
-    setVentas(prev => [nuevaVenta, ...prev]);
+  const fetchVentas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ventas')
+        .select(`
+          *,
+          venta_detalles (
+            *,
+            productos (*)
+          )
+        `)
+        .order('fecha', { ascending: false });
+
+      if (error) throw error;
+      
+      // Mapear datos para que coincidan con lo que esperan los componentes
+      const mappedVentas = (data || []).map(v => ({
+        ...v,
+        items: v.venta_detalles.map(d => ({
+          ...d.productos,
+          quantity: d.cantidad,
+          precio_unitario: d.precio_unitario
+        })),
+        pagos: {
+          efectivo: v.pago_efectivo,
+          tarjeta: v.pago_tarjeta,
+          transferencia: v.pago_transferencia
+        }
+      }));
+
+      setVentas(mappedVentas);
+    } catch (error) {
+      console.error('Error fetching sales:', error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchVentas();
+  }, []);
+
+  const handleRegisterSale = async (saleData) => {
+    try {
+      // 1. Insertar la venta principal
+      const { data: venta, error: ventaError } = await supabase
+        .from('ventas')
+        .insert([{ 
+          total: saleData.total,
+          pago_efectivo: saleData.pagos.efectivo,
+          pago_tarjeta: saleData.pagos.tarjeta,
+          pago_transferencia: saleData.pagos.transferencia
+        }])
+        .select()
+        .single();
+
+      if (ventaError) throw ventaError;
+
+      // 2. Insertar los detalles de la venta
+      const detalles = saleData.items.map(item => ({
+        venta_id: venta.id,
+        producto_id: item.id,
+        cantidad: item.quantity,
+        precio_unitario: item.precio
+      }));
+
+      const { error: detallesError } = await supabase
+        .from('venta_detalles')
+        .insert(detalles);
+
+      if (detallesError) throw detallesError;
+
+      // 3. Refrescar lista de ventas
+      fetchVentas();
+      return true;
+    } catch (error) {
+      console.error('Error registering sale:', error.message);
+      return false;
+    }
   };
 
   return (
@@ -32,7 +108,7 @@ function App() {
           {/* Branding Usuario Móvil */}
           <div className="text-xs font-medium text-slate-400 flex items-center gap-1 sm:hidden">
             <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-            Local
+            Cloud Sync
           </div>
         </div>
 
@@ -85,7 +161,7 @@ function App() {
         {/* Branding Usuario Desktop */}
         <div className="hidden sm:flex text-sm font-medium text-slate-400 items-center gap-2">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          Sistema Local
+          Conectado a Supabase
         </div>
       </nav>
 
@@ -94,7 +170,7 @@ function App() {
         {activeTab === 'terminal' && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} />}
         {activeTab === 'pedidos' && <Pedidos ventas={ventas} />}
         {activeTab === 'inventario' && <Inventario />}
-        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'dashboard' && <Dashboard ventas={ventas} />}
       </main>
 
       {/* Footer Branding Obligatorio */}
@@ -108,3 +184,4 @@ function App() {
 }
 
 export default App;
+

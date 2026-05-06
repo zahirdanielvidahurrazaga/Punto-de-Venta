@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS productos (
 CREATE TABLE IF NOT EXISTS ventas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     total DECIMAL(10, 2) NOT NULL CHECK (total >= 0),
+    pago_efectivo DECIMAL(10, 2) DEFAULT 0 CHECK (pago_efectivo >= 0),
+    pago_tarjeta DECIMAL(10, 2) DEFAULT 0 CHECK (pago_tarjeta >= 0),
+    pago_transferencia DECIMAL(10, 2) DEFAULT 0 CHECK (pago_transferencia >= 0),
     user_id UUID DEFAULT auth.uid(), -- Referencia al usuario de Supabase
     fecha TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

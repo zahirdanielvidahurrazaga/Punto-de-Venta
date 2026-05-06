@@ -1,12 +1,22 @@
 import React from 'react';
-import { TrendingUp, Users, DollarSign, Package, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, AlertTriangle, ArrowUpRight, CreditCard, Banknote, Building } from 'lucide-react';
 
-export default function Dashboard() {
+export default function Dashboard({ ventas = [] }) {
+  // Cálculos dinámicos
+  const totalSales = ventas.reduce((acc, v) => acc + Number(v.total), 0);
+  const totalOrders = ventas.length;
+  const avgTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
+  
+  // Métodos de pago
+  const ef = ventas.reduce((acc, v) => acc + Number(v.pagos?.efectivo || 0), 0);
+  const tar = ventas.reduce((acc, v) => acc + Number(v.pagos?.tarjeta || 0), 0);
+  const trans = ventas.reduce((acc, v) => acc + Number(v.pagos?.transferencia || 0), 0);
+
   const stats = [
-    { label: 'Ventas del Día', value: '$4,250.00', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100', trend: '+12.5%' },
-    { label: 'Órdenes', value: '48', icon: Package, color: 'text-blue-600', bg: 'bg-blue-100', trend: '+5.2%' },
-    { label: 'Clientes Nuevos', value: '12', icon: Users, color: 'text-purple-600', bg: 'bg-purple-100', trend: '+2.1%' },
-    { label: 'Ingresos Semanales', value: '$28,450.00', icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-100', trend: '+15.3%' },
+    { label: 'Ventas Totales', value: `$${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100', trend: 'Actualizado' },
+    { label: 'Órdenes Totales', value: totalOrders.toString(), icon: Package, color: 'text-blue-600', bg: 'bg-blue-100', trend: 'Hoy' },
+    { label: 'Ticket Promedio', value: `$${avgTicket.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-100', trend: 'Promedio' },
+    { label: 'Efectivo Acumulado', value: `$${ef.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: Banknote, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: 'Caja' },
   ];
 
   return (
@@ -16,7 +26,7 @@ export default function Dashboard() {
         {/* Header Dashboard */}
         <div>
           <h1 className="text-2xl lg:text-3xl font-black text-slate-800">Dashboard Financiero</h1>
-          <p className="text-sm lg:text-base text-slate-500 mt-1">Resumen general de tu negocio de plásticos.</p>
+          <p className="text-sm lg:text-base text-slate-500 mt-1">Análisis en tiempo real con datos de Supabase.</p>
         </div>
 
         {/* Tarjetas de Métricas */}
@@ -27,8 +37,7 @@ export default function Dashboard() {
                 <div className={`${stat.bg} p-3 rounded-2xl`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
-                <div className="flex items-center gap-1 text-xs lg:text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                  <ArrowUpRight className="w-3 h-3 lg:w-4 lg:h-4" />
+                <div className="flex items-center gap-1 text-xs lg:text-sm font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full">
                   {stat.trend}
                 </div>
               </div>
@@ -38,63 +47,56 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Sección Inferior: Gráficos y Alertas */}
+        {/* Sección Inferior: Gráficos y Métodos de Pago */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Simulación de Gráfico de Barras */}
+          {/* Métricas de Métodos de Pago */}
           <div className="lg:col-span-2 bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-100">
-            <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-6">Ventas de la Semana</h2>
-            <div className="h-48 lg:h-64 flex items-end justify-between gap-2 lg:gap-4">
-              {/* Barras Mock */}
-              {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day, i) => {
-                const height = Math.floor(Math.random() * 60) + 20;
-                return (
-                  <div key={day} className="flex flex-col items-center flex-1 group">
-                    <div 
-                      className="w-full bg-primary-100 rounded-t-lg group-hover:bg-primary-500 transition-colors relative"
-                      style={{ height: `${height}%` }}
-                    >
-                      <div className="opacity-0 lg:group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded transition-opacity hidden md:block">
-                        ${(height * 100).toFixed(0)}
-                      </div>
-                    </div>
-                    <span className="text-xs lg:text-sm text-slate-500 mt-2 lg:mt-3 font-medium">{day}</span>
+            <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-6">Distribución por Método de Pago</h2>
+            <div className="space-y-6">
+               <div className="flex items-center gap-4">
+                  <div className="bg-green-100 p-3 rounded-xl"><Banknote className="text-green-600" /></div>
+                  <div className="flex-1">
+                     <div className="flex justify-between mb-1"><span className="font-bold">Efectivo</span><span className="text-slate-500">${ef.toFixed(2)}</span></div>
+                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div className="bg-green-500 h-full transition-all" style={{ width: `${(ef / totalSales) * 100 || 0}%` }}></div>
+                     </div>
                   </div>
-                );
-              })}
+               </div>
+               <div className="flex items-center gap-4">
+                  <div className="bg-blue-100 p-3 rounded-xl"><CreditCard className="text-blue-600" /></div>
+                  <div className="flex-1">
+                     <div className="flex justify-between mb-1"><span className="font-bold">Tarjeta</span><span className="text-slate-500">${tar.toFixed(2)}</span></div>
+                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div className="bg-blue-500 h-full transition-all" style={{ width: `${(tar / totalSales) * 100 || 0}%` }}></div>
+                     </div>
+                  </div>
+               </div>
+               <div className="flex items-center gap-4">
+                  <div className="bg-purple-100 p-3 rounded-xl"><Building className="text-purple-600" /></div>
+                  <div className="flex-1">
+                     <div className="flex justify-between mb-1"><span className="font-bold">Transferencia</span><span className="text-slate-500">${trans.toFixed(2)}</span></div>
+                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div className="bg-purple-500 h-full transition-all" style={{ width: `${(trans / totalSales) * 100 || 0}%` }}></div>
+                     </div>
+                  </div>
+               </div>
             </div>
           </div>
 
-          {/* Alertas de Inventario */}
-          <div className="bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col">
-            <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-4 lg:mb-6 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
-              Alertas de Stock
-            </h2>
-            <div className="space-y-3 lg:space-y-4 flex-1">
-              <div className="bg-orange-50 border border-orange-100 p-3 lg:p-4 rounded-2xl flex justify-between items-center">
-                <div>
-                  <div className="font-bold text-orange-800 text-sm lg:text-base">Rollo Fleje Plástico</div>
-                  <div className="text-orange-600 text-xs lg:text-sm mt-1">Stock Crítico</div>
-                </div>
-                <div className="bg-white text-orange-700 font-black px-2 py-1 lg:px-3 rounded-lg border border-orange-200 text-sm lg:text-base">
-                  20 un.
-                </div>
-              </div>
-              
-              <div className="bg-orange-50 border border-orange-100 p-3 lg:p-4 rounded-2xl flex justify-between items-center">
-                <div>
-                  <div className="font-bold text-orange-800 text-sm lg:text-base">Contenedor Un Litro</div>
-                  <div className="text-orange-600 text-xs lg:text-sm mt-1">Reponer pronto</div>
-                </div>
-                <div className="bg-white text-orange-700 font-black px-2 py-1 lg:px-3 rounded-lg border border-orange-200 text-sm lg:text-base">
-                  150 un.
-                </div>
-              </div>
+          {/* Estado de conexión */}
+          <div className="bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
+            <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+               <TrendingUp className="w-10 h-10 text-primary-600" />
             </div>
-            <button className="w-full mt-4 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors text-sm lg:text-base">
-              Ver todo el inventario
-            </button>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Cloud Sync Activo</h2>
+            <p className="text-slate-500 text-sm">Tus datos están protegidos y sincronizados en tiempo real con Supabase.</p>
+            <div className="mt-6 w-full pt-6 border-t border-slate-50">
+               <div className="flex justify-between text-sm text-slate-400 mb-2">
+                  <span>Última venta</span>
+                  <span>{ventas[0] ? new Date(ventas[0].fecha).toLocaleTimeString() : 'N/A'}</span>
+               </div>
+            </div>
           </div>
           
         </div>
@@ -102,3 +104,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
