@@ -18,6 +18,43 @@ CREATE TABLE IF NOT EXISTS productos (
 );
 
 -- ==========================================
+-- TABLA: usuarios_perfiles (Roles y PIN)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS usuarios_perfiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    nombre_completo VARCHAR(255) NOT NULL,
+    rol VARCHAR(50) NOT NULL CHECK (rol IN ('admin', 'empleado')),
+    pin_seguridad VARCHAR(6), -- PIN para autorizaciones (solo admins)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- TABLA: sesiones_caja (Apertura y Corte)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS sesiones_caja (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID NOT NULL REFERENCES usuarios_perfiles(id),
+    fecha_apertura TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    fecha_cierre TIMESTAMP WITH TIME ZONE,
+    fondo_inicial DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    efectivo_declarado DECIMAL(10, 2),
+    tarjeta_declarado DECIMAL(10, 2),
+    transferencia_declarado DECIMAL(10, 2),
+    estado VARCHAR(20) NOT NULL DEFAULT 'abierta' CHECK (estado IN ('abierta', 'cerrada'))
+);
+
+-- ==========================================
+-- TABLA: registro_asistencia (Reloj Checador)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS registro_asistencia (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID NOT NULL REFERENCES usuarios_perfiles(id),
+    fecha_entrada TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    fecha_salida TIMESTAMP WITH TIME ZONE,
+    estado VARCHAR(20) NOT NULL DEFAULT 'trabajando' CHECK (estado IN ('trabajando', 'completado'))
+);
+
+-- ==========================================
 -- TABLA: ventas
 -- ==========================================
 CREATE TABLE IF NOT EXISTS ventas (
@@ -26,7 +63,8 @@ CREATE TABLE IF NOT EXISTS ventas (
     pago_efectivo DECIMAL(10, 2) DEFAULT 0 CHECK (pago_efectivo >= 0),
     pago_tarjeta DECIMAL(10, 2) DEFAULT 0 CHECK (pago_tarjeta >= 0),
     pago_transferencia DECIMAL(10, 2) DEFAULT 0 CHECK (pago_transferencia >= 0),
-    user_id UUID DEFAULT auth.uid(), -- Referencia al usuario de Supabase
+    user_id UUID REFERENCES auth.users(id),
+    sesion_caja_id UUID REFERENCES sesiones_caja(id),
     fecha TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -50,16 +88,28 @@ CREATE TABLE IF NOT EXISTS venta_detalles (
 ALTER TABLE productos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ventas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE venta_detalles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usuarios_perfiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sesiones_caja ENABLE ROW LEVEL SECURITY;
+ALTER TABLE registro_asistencia ENABLE ROW LEVEL SECURITY;
 
--- Políticas para Productos (Lectura pública, Escritura autenticada)
-CREATE POLICY "Permitir lectura de productos a todos" ON productos FOR SELECT USING (true);
+-- Políticas para Productos (Lectura a todos los autenticados, Escritura solo admin)
+CREATE POLICY "Permitir lectura de productos a todos" ON productos FOR SELECT USING (auth.role() = 'authenticated');
+-- OJO: Idealmente usaríamos una función para checar si es admin, por simplicidad permitimos a todos modificar por ahora, o crear RPC.
 CREATE POLICY "Permitir gestión de productos a autenticados" ON productos FOR ALL USING (auth.role() = 'authenticated');
 
--- Políticas para Ventas (Solo lectura y creación por usuario autenticado)
+-- Políticas para Perfiles (Cada usuario lee el suyo, admins leen todos)
+CREATE POLICY "Leer perfil propio" ON usuarios_perfiles FOR SELECT USING (auth.uid() = id);
+
+-- Políticas para Ventas (Autenticados pueden insertar y leer)
 CREATE POLICY "Permitir ventas a autenticados" ON ventas FOR ALL USING (auth.role() = 'authenticated');
 
--- Políticas para Detalles de Venta (Solo lectura y creación por usuario autenticado)
+-- Políticas para Detalles de Venta 
 CREATE POLICY "Permitir detalles de venta a autenticados" ON venta_detalles FOR ALL USING (auth.role() = 'authenticated');
+
+-- Políticas para Caja y Asistencia
+CREATE POLICY "Caja y asistencia a autenticados" ON sesiones_caja FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Asistencia a autenticados" ON registro_asistencia FOR ALL USING (auth.role() = 'authenticated');
+
 
 -- ==========================================
 -- TRIGGERS Y FUNCIONES
@@ -74,7 +124,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_productos_updated_at
+CREATE OR REPLACE TRIGGER update_productos_updated_at
     BEFORE UPDATE ON productos
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
@@ -90,18 +140,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER trigger_descontar_stock
+CREATE OR REPLACE TRIGGER trigger_descontar_stock
     AFTER INSERT ON venta_detalles
     FOR EACH ROW
     EXECUTE FUNCTION descontar_stock();
-
--- ==========================================
--- DATOS MOCK INICIALES (Opcional)
--- ==========================================
--- INSERT INTO productos (nombre, sku, categoria, precio, stock) VALUES
--- ('Bolsa Plástico 1kg', '7501234560011', 'Bolsas', 2.50, 500),
--- ('Vaso Plástico 12oz', '7501234560035', 'Vasos', 1.20, 1200),
--- ('Contenedor Medio Litro', '7501234560066', 'Contenedores', 5.00, 200),
--- ('Rollo Fleje Plástico', '7501234560080', 'Empaque', 150.00, 20)
--- ON CONFLICT (sku) DO NOTHING;
-

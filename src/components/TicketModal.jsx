@@ -170,16 +170,29 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
         </div>
 
         {/* Acciones */}
-        <div className="p-4 md:p-6 bg-white border-t border-slate-200 flex flex-col sm:flex-row gap-3 shrink-0 z-10">
-          <button
-            onClick={() => { window.print(); onClose(); }}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-bold text-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Printer className="w-5 h-5" /> IMPRIMIR TICKET
-          </button>
+        <div className="p-4 md:p-6 bg-white border-t border-slate-200 flex flex-col gap-3 shrink-0 z-10">
+          <div className="flex gap-3">
+            <button
+              onClick={() => { window.print(); onClose(); }}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border border-slate-300"
+            >
+              <Printer className="w-5 h-5" /> Web Print
+            </button>
+            <button
+              onClick={async () => {
+                // Abstracción para futura implementación de Bluetooth con Capacitor
+                console.log("Intentando conectar a impresora Bluetooth (Capacitor/WebBluetooth)...");
+                alert("La impresión por Bluetooth está en preparación para la App Nativa (Capacitor).");
+                onClose();
+              }}
+              className="flex-1 bg-primary-900 hover:bg-primary-800 text-white py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary-900/20"
+            >
+              <Printer className="w-5 h-5" /> Bluetooth
+            </button>
+          </div>
           <button
             onClick={onClose}
-            className="flex-1 bg-primary-50 text-primary-700 hover:bg-primary-100 hover:text-primary-800 py-4 rounded-2xl font-bold text-lg transition-colors flex items-center justify-center gap-2 border border-primary-200"
+            className="w-full bg-slate-800 text-white hover:bg-slate-700 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 shadow-lg mt-2"
           >
             NUEVA VENTA
           </button>

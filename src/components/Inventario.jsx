@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Package, Plus, Filter, Loader2, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Package, Plus, Filter, Loader2, Edit2, Upload, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
 
-export default function Inventario() {
+export default function Inventario({ isAdmin }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [uploadingCSV, setUploadingCSV] = useState(false);
+  const fileInputRef = useRef(null);
 
   const fetchProductos = async () => {
     setLoading(true);
@@ -34,14 +36,12 @@ export default function Inventario() {
   const handleSaveProduct = async (productData) => {
     try {
       if (selectedProduct) {
-        // Update
         const { error } = await supabase
           .from('productos')
           .update(productData)
           .eq('id', selectedProduct.id);
         if (error) throw error;
       } else {
-        // Create
         const { error } = await supabase
           .from('productos')
           .insert([productData]);
@@ -57,13 +57,77 @@ export default function Inventario() {
   };
 
   const handleEdit = (product) => {
+    if (!isAdmin) return;
     setSelectedProduct(product);
     setIsModalOpen(true);
   };
 
   const handleNew = () => {
+    if (!isAdmin) return;
     setSelectedProduct(null);
     setIsModalOpen(true);
+  };
+
+  const handleCSVUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingCSV(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const rows = text.split('\n').filter(row => row.trim() !== '');
+      
+      // Asumimos formato: Nombre, SKU, Categoria, Precio, Stock
+      // La primera fila suele ser encabezado, la saltamos si contiene 'nombre'
+      let startIndex = 0;
+      if (rows[0].toLowerCase().includes('nombre')) startIndex = 1;
+
+      const newProducts = [];
+      for (let i = startIndex; i < rows.length; i++) {
+        // Regex para manejar comas dentro de comillas (CSV estándar)
+        const cols = rows[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || rows[i].split(',');
+        
+        if (cols.length >= 4) {
+          let nombre = cols[0]?.replace(/"/g, '').trim() || 'Sin Nombre';
+          let sku = cols[1]?.replace(/"/g, '').trim();
+          let categoria = cols[2]?.replace(/"/g, '').trim() || 'General';
+          let precio = parseFloat(cols[3]?.replace(/"/g, '').trim()) || 0;
+          let stock = parseInt(cols[4]?.replace(/"/g, '').trim()) || 0;
+
+          // Si no hay SKU (ej. escobas sin código), generamos uno interno
+          if (!sku || sku === '') {
+            sku = `INT-${Math.floor(100000 + Math.random() * 900000)}`;
+          }
+
+          newProducts.push({ nombre, sku, categoria, precio, stock });
+        }
+      }
+
+      if (newProducts.length > 0) {
+        try {
+          const { error } = await supabase.from('productos').insert(newProducts);
+          if (error) {
+            // Manejar error de SKU duplicado u otros
+            alert('Error al subir CSV. Algunos SKU ya podrían existir.\nDetalle: ' + error.message);
+          } else {
+            alert(`Se importaron ${newProducts.length} productos correctamente.`);
+            fetchProductos();
+          }
+        } catch (err) {
+          alert('Error de conexión al importar: ' + err.message);
+        }
+      } else {
+        alert('No se encontraron productos válidos en el CSV. El formato debe ser: Nombre,SKU,Categoria,Precio,Stock');
+      }
+      setUploadingCSV(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.onerror = () => {
+      alert('Error leyendo el archivo CSV');
+      setUploadingCSV(false);
+    };
+    reader.readAsText(file);
   };
 
   const filteredProducts = productos.filter(p => 
@@ -79,17 +143,37 @@ export default function Inventario() {
         <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-white p-4 lg:p-6 rounded-2xl shadow-sm border border-slate-100 gap-4">
           <div>
             <h1 className="text-xl lg:text-2xl font-bold text-slate-800 flex items-center gap-2 lg:gap-3">
-              <Package className="w-6 h-6 lg:w-8 lg:h-8 text-primary-600" />
+              <Package className="w-6 h-6 lg:w-8 lg:h-8 text-primary-900" />
               Inventario de Productos
             </h1>
             <p className="text-sm lg:text-base text-slate-500 mt-1">Gestiona tu catálogo y existencias</p>
           </div>
-          <button 
-            onClick={handleNew}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-4 lg:px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-lg shadow-primary-600/30"
-          >
-            <Plus className="w-5 h-5" /> Nuevo Producto
-          </button>
+          
+          {isAdmin && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef}
+                style={{ display: 'none' }} 
+                onChange={handleCSVUpload}
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingCSV}
+                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-sm"
+              >
+                {uploadingCSV ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5 text-green-600" />}
+                Importar CSV
+              </button>
+              <button 
+                onClick={handleNew}
+                className="bg-primary-900 hover:bg-primary-700 text-white px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-lg shadow-primary-900/20"
+              >
+                <Plus className="w-5 h-5" /> Nuevo
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Buscador y Filtros */}
@@ -99,14 +183,14 @@ export default function Inventario() {
             <input 
               type="text"
               placeholder="Buscar por nombre o SKU..."
-              className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all text-sm lg:text-base"
+              className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all text-sm lg:text-base bg-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <button 
             onClick={fetchProductos}
-            className="bg-white border border-slate-200 px-4 py-3 rounded-xl text-slate-600 font-medium flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors w-full sm:w-auto"
+            className="bg-white border border-slate-200 px-4 py-3 rounded-xl text-slate-600 font-medium flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors w-full sm:w-auto shadow-sm"
           >
             <Filter className="w-5 h-5" /> Refrescar
           </button>
@@ -116,56 +200,58 @@ export default function Inventario() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto min-h-[400px]">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-20 text-slate-400">
-              <Loader2 className="w-10 h-10 animate-spin mb-4" />
+              <Loader2 className="w-10 h-10 animate-spin mb-4 text-primary-900" />
               <p>Cargando productos...</p>
             </div>
           ) : (
             <table className="w-full min-w-[800px] text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 text-xs lg:text-sm">
-                  <th className="p-3 lg:p-4 font-semibold">SKU / Código</th>
-                  <th className="p-3 lg:p-4 font-semibold">Producto</th>
-                  <th className="p-3 lg:p-4 font-semibold">Categoría</th>
-                  <th className="p-3 lg:p-4 font-semibold text-right">Precio</th>
-                  <th className="p-3 lg:p-4 font-semibold text-right">Stock</th>
-                  <th className="p-3 lg:p-4 font-semibold text-center">Acción</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs lg:text-sm uppercase tracking-wider">
+                  <th className="p-4 font-bold">SKU / Código</th>
+                  <th className="p-4 font-bold">Producto</th>
+                  <th className="p-4 font-bold">Categoría</th>
+                  <th className="p-4 font-bold text-right">Precio</th>
+                  <th className="p-4 font-bold text-right">Stock</th>
+                  {isAdmin && <th className="p-4 font-bold text-center">Acción</th>}
                 </tr>
               </thead>
               <tbody className="text-sm lg:text-base">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
-                    <td className="p-3 lg:p-4 text-slate-500 font-mono">{product.sku}</td>
-                    <td className="p-3 lg:p-4 font-medium text-slate-800">{product.nombre}</td>
-                    <td className="p-3 lg:p-4">
-                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-medium">
+                  <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                    <td className="p-4 text-slate-500 font-mono text-sm">{product.sku}</td>
+                    <td className="p-4 font-bold text-slate-800">{product.nombre}</td>
+                    <td className="p-4">
+                      <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">
                         {product.categoria}
                       </span>
                     </td>
-                    <td className="p-3 lg:p-4 text-right font-semibold text-primary-600">
+                    <td className="p-4 text-right font-black text-slate-800">
                       ${Number(product.precio).toFixed(2)}
                     </td>
-                    <td className="p-3 lg:p-4 text-right">
-                      <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                        product.stock > 100 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-orange-100 text-orange-700'
+                    <td className="p-4 text-right">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                        product.stock > 20 
+                          ? 'bg-green-50 text-green-700 border-green-200' 
+                          : 'bg-red-50 text-red-700 border-red-200'
                       }`}>
                         {product.stock} un.
                       </span>
                     </td>
-                    <td className="p-3 lg:p-4 text-center">
-                      <button 
-                        onClick={() => handleEdit(product)}
-                        className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td className="p-4 text-center">
+                        <button 
+                          onClick={() => handleEdit(product)}
+                          className="p-2 text-slate-400 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400">
+                    <td colSpan={isAdmin ? "6" : "5"} className="p-12 text-center text-slate-400 font-medium">
                       No se encontraron productos con "{searchTerm}"
                     </td>
                   </tr>
@@ -187,5 +273,3 @@ export default function Inventario() {
     </div>
   );
 }
-
-
