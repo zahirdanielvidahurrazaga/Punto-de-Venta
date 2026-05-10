@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clock, Loader2, ScanLine, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-export default function RelojChecador({ userProfile }) {
+export default function RelojChecador({ userProfile, onStatusChange }) {
   const [asistenciaActual, setAsistenciaActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -85,6 +85,7 @@ export default function RelojChecador({ userProfile }) {
         if (error) throw error;
         setSuccessMessage('¡Entrada registrada con éxito!');
         await fetchAsistenciaActual();
+        if (onStatusChange) onStatusChange();
       } catch (error) {
         setScanError("Error al registrar entrada: " + error.message);
         setLoading(false);
@@ -103,6 +104,7 @@ export default function RelojChecador({ userProfile }) {
         if (error) throw error;
         setAsistenciaActual(null);
         setSuccessMessage('¡Salida registrada con éxito. Buen descanso!');
+        if (onStatusChange) onStatusChange();
       } catch (error) {
         setScanError("Error al registrar salida: " + error.message);
       } finally {

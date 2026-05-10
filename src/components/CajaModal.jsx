@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Wallet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-export default function CajaModal({ userProfile }) {
+export default function CajaModal({ userProfile, onStatusChange }) {
   const [sessionCaja, setSessionCaja] = useState(null);
   const [loading, setLoading] = useState(true);
   
@@ -56,6 +56,7 @@ export default function CajaModal({ userProfile }) {
 
       if (error) throw error;
       await fetchSessionCaja();
+      if (onStatusChange) onStatusChange();
     } catch (error) {
       alert("Error al abrir caja: " + error.message);
     } finally {
@@ -85,6 +86,7 @@ export default function CajaModal({ userProfile }) {
       setTarjetaDeclarado('');
       setObservaciones('');
       alert("Corte de caja realizado con éxito.");
+      if (onStatusChange) onStatusChange();
     } catch (error) {
       alert("Error al cerrar caja: " + error.message);
     } finally {
