@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Loader2, QrCode, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import QRCode from 'react-qr-code';
+import QRCodeLib from 'react-qr-code';
+
+const QRCode = QRCodeLib.default || QRCodeLib.QRCode || QRCodeLib;
 
 export default function Equipo() {
   const [empleados, setEmpleados] = useState([]);

@@ -99,8 +99,8 @@ CREATE POLICY "Permitir lectura de productos a todos" ON productos FOR SELECT US
 -- OJO: Idealmente usaríamos una función para checar si es admin, por simplicidad permitimos a todos modificar por ahora, o crear RPC.
 CREATE POLICY "Permitir gestión de productos a autenticados" ON productos FOR ALL USING (auth.role() = 'authenticated');
 
--- Políticas para Perfiles (Cada usuario lee el suyo, admins leen todos)
-CREATE POLICY "Leer perfil propio" ON usuarios_perfiles FOR SELECT USING (auth.uid() = id);
+-- Políticas para Perfiles 
+CREATE POLICY "Leer perfiles por autenticados" ON usuarios_perfiles FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Políticas para Ventas (Autenticados pueden insertar y leer)
 CREATE POLICY "Permitir ventas a autenticados" ON ventas FOR ALL USING (auth.role() = 'authenticated');
