@@ -12,14 +12,14 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
       <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh]">
         
         {/* Header Modal - Éxito */}
-        <div className="bg-primary-600 px-6 py-5 flex justify-between items-center text-white shrink-0 shadow-md z-10">
+        <div className="bg-slate-900 px-6 py-5 flex justify-between items-center text-white shrink-0 shadow-md z-10">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-full">
+            <div className="bg-white/10 p-2 rounded-full">
               <CheckCircle className="w-6 h-6 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold leading-tight">¡Cobro Exitoso!</h2>
-              <p className="text-primary-100 text-xs font-medium">Ticket #{ticketNumber}</p>
+              <p className="text-slate-300 text-xs font-medium">Ticket #{ticketNumber}</p>
             </div>
           </div>
           <button 

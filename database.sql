@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS usuarios_perfiles (
     nombre_completo VARCHAR(255) NOT NULL,
     rol VARCHAR(50) NOT NULL CHECK (rol IN ('admin', 'empleado')),
     pin_seguridad VARCHAR(6), -- PIN para autorizaciones (solo admins)
+    codigo_gafete VARCHAR(100) UNIQUE, -- Código de barras del gafete físico
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS sesiones_caja (
     efectivo_declarado DECIMAL(10, 2),
     tarjeta_declarado DECIMAL(10, 2),
     transferencia_declarado DECIMAL(10, 2),
+    observaciones TEXT, -- Notas sobre caja chica
     estado VARCHAR(20) NOT NULL DEFAULT 'abierta' CHECK (estado IN ('abierta', 'cerrada'))
 );
 
