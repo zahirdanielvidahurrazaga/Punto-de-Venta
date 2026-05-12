@@ -98,24 +98,25 @@ export default function Dashboard({ ventas = [] }) {
               <CalendarDays className="w-5 h-5 text-primary-900" />
               Ventas Últimos 7 Días
             </h2>
-            <div className="flex items-end justify-between h-48 gap-2 mt-4 px-2">
+            <div className="flex items-end justify-between gap-2 mt-4 px-2" style={{height: '200px'}}>
               {salesByDay.map((day, idx) => {
-                const heightPercentage = (day.sum / maxDailySale) * 100;
+                const barHeight = maxDailySale > 0 ? Math.round((day.sum / maxDailySale) * 160) : 0;
+                const finalHeight = day.sum > 0 ? Math.max(barHeight, 8) : 0;
                 return (
-                  <div key={idx} className="flex flex-col items-center flex-1 group cursor-pointer">
-                    <div className="opacity-0 group-hover:opacity-100 text-xs font-bold text-slate-600 mb-2 transition-opacity">
+                  <div key={idx} className="flex flex-col items-center flex-1 group cursor-pointer" style={{height: '100%', justifyContent: 'flex-end'}}>
+                    <div className="text-xs font-bold mb-2 transition-opacity" style={{color: '#475569', opacity: day.sum > 0 ? 1 : 0}}>
                       ${day.sum.toFixed(0)}
                     </div>
-                    <div className="w-full max-w-[40px] rounded-t-xl relative overflow-hidden h-full flex items-end" style={{backgroundColor: '#e2e8f0'}}>
-                      <div 
-                        className="w-full rounded-t-xl transition-all duration-500"
-                        style={{ 
-                          height: `${heightPercentage}%`, 
-                          minHeight: day.sum > 0 ? '5%' : '0',
-                          backgroundColor: '#4f46e5'
-                        }}
-                      ></div>
-                    </div>
+                    <div 
+                      style={{ 
+                        width: '100%',
+                        maxWidth: '40px',
+                        height: `${finalHeight}px`,
+                        backgroundColor: finalHeight > 0 ? '#4f46e5' : '#e2e8f0',
+                        borderRadius: '8px 8px 0 0',
+                        transition: 'height 0.5s ease'
+                      }}
+                    ></div>
                     <div className="mt-3 text-xs lg:text-sm font-bold text-slate-400 capitalize">
                       {day.dayName}
                     </div>
