@@ -54,6 +54,9 @@ function App() {
       if (error && error.code !== 'PGRST116') throw error;
       
       setUserProfile(data);
+      if (!data) {
+        setLoadingAuth(false);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error.message);
       setLoadingAuth(false);
@@ -218,7 +221,7 @@ function App() {
     }
   };
 
-  if (loadingAuth || isClockedIn === null) {
+  if (loadingAuth || (session && userProfile && isClockedIn === null)) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 text-slate-400">
         <Loader2 className="w-10 h-10 animate-spin text-primary-900 mb-4" />
