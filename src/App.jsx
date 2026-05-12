@@ -150,12 +150,15 @@ function App() {
         items: v.venta_detalles.map(d => ({
           ...d.productos,
           quantity: d.cantidad,
-          precio_unitario: d.precio_unitario
+          precio_unitario: d.precio_unitario,
+          precio: Number(d.precio_unitario)
         })),
         pagos: {
-          efectivo: v.pago_efectivo,
-          tarjeta: v.pago_tarjeta,
-          transferencia: v.pago_transferencia
+          efectivo: Number(v.pago_efectivo) || 0,
+          tarjeta: Number(v.pago_tarjeta) || 0,
+          transferencia: Number(v.pago_transferencia) || 0,
+          totalPagado: Number(v.pago_efectivo || 0) + Number(v.pago_tarjeta || 0) + Number(v.pago_transferencia || 0),
+          cambio: 0
         }
       }));
 

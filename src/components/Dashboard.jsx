@@ -33,18 +33,23 @@ export default function Dashboard({ ventas = [] }) {
   const tar = ventas.reduce((acc, v) => acc + Number(v.pagos?.tarjeta || 0), 0);
   const trans = ventas.reduce((acc, v) => acc + Number(v.pagos?.transferencia || 0), 0);
 
+  // Helper para obtener fecha local como string YYYY-MM-DD
+  const toLocalDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+
   // Agrupar ventas por día (últimos 7 días)
   const last7Days = Array.from({length: 7}, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().split('T')[0];
+    return toLocalDate(d);
   }).reverse();
 
   const salesByDay = last7Days.map(dateStr => {
-    const daySales = ventas.filter(v => v.fecha && v.fecha.startsWith(dateStr));
+    const daySales = ventas.filter(v => v.fecha && toLocalDate(v.fecha) === dateStr);
     const sum = daySales.reduce((acc, v) => acc + Number(v.total), 0);
-    // Parse to short weekday name
-    const dateObj = new Date(dateStr + 'T12:00:00'); // Evitar timezone issues
+    const dateObj = new Date(dateStr + 'T12:00:00');
     const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'short' });
     return { date: dateStr, dayName, sum };
   });
