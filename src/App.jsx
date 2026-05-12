@@ -20,7 +20,7 @@ function App() {
   const [isClockedIn, setIsClockedIn] = useState(null);
   const [isCajaOpen, setIsCajaOpen] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('asistencia');
+  const [activeTab, setActiveTab] = useState(null);
   const [ventas, setVentas] = useState([]);
   const [cart, setCart] = useState([]);
 
@@ -107,8 +107,8 @@ function App() {
           }
         }
       } else {
-         // Si es admin y acaba de entrar, enviarlo a dashboard por defecto si estaba en estado inicial
-         if (isClockedIn === null) setActiveTab('dashboard');
+         // Admin: siempre empezar en dashboard
+         if (isClockedIn === null || activeTab === null) setActiveTab('dashboard');
       }
 
     } catch (error) {

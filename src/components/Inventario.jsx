@@ -35,7 +35,22 @@ export default function Inventario({ isAdmin }) {
 
   const handleSaveProduct = async (productData) => {
     try {
-      if (selectedProduct) {
+      if (productData._addStock && productData._existingId) {
+        // Producto existente: sumar stock
+        const { _existingId, _addStock, ...cleanData } = productData;
+        const { data: existing } = await supabase
+          .from('productos')
+          .select('stock')
+          .eq('id', _existingId)
+          .single();
+        
+        const newStock = (existing?.stock || 0) + cleanData.stock;
+        const { error } = await supabase
+          .from('productos')
+          .update({ stock: newStock })
+          .eq('id', _existingId);
+        if (error) throw error;
+      } else if (selectedProduct) {
         const { error } = await supabase
           .from('productos')
           .update(productData)

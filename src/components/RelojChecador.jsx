@@ -119,10 +119,10 @@ export default function RelojChecador({ userProfile, onStatusChange }) {
         setAsistenciaActual(null);
         setSuccessMessage('¡Salida registrada con éxito. Buen descanso! Cerrando sesión...');
         
-        // Auto-logout tras 1.5 segundos
+        // Auto-logout tras 4 segundos para que el mensaje sea legible
         setTimeout(async () => {
           await supabase.auth.signOut();
-        }, 1500);
+        }, 4000);
         
         if (onStatusChange) onStatusChange();
       } catch (error) {
