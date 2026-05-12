@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ClipboardList, Search, FileText, Calendar, DollarSign, TrendingUp, Banknote, CreditCard, Building, ChevronDown } from 'lucide-react';
 import TicketModal from './TicketModal';
 
-export default function Pedidos({ ventas }) {
+export default function Pedidos({ ventas, isAdmin }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [dateFilter, setDateFilter] = useState('hoy');
@@ -100,7 +100,7 @@ export default function Pedidos({ ventas }) {
             <ClipboardList className="w-7 h-7 lg:w-8 lg:h-8 text-primary-600" />
             Pedidos Realizados
           </h1>
-          <p className="text-sm lg:text-base text-slate-500 mt-1">Historial completo de ventas y métricas financieras</p>
+          <p className="text-sm lg:text-base text-slate-500 mt-1">{isAdmin ? 'Historial completo de ventas y métricas financieras' : 'Historial de ventas de tu sesión'}</p>
         </div>
 
         {/* Filtros de Fecha */}
@@ -139,7 +139,8 @@ export default function Pedidos({ ventas }) {
           </div>
         </div>
 
-        {/* Métricas del Periodo */}
+        {/* Métricas del Periodo (solo Admin) */}
+        {isAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           <div className="bg-white p-4 lg:p-5 rounded-2xl shadow-sm border border-slate-100">
             <div className="flex items-center gap-2 mb-2">
@@ -170,8 +171,10 @@ export default function Pedidos({ ventas }) {
             <p className="text-xl lg:text-2xl font-black text-slate-800">${totalTarjeta.toLocaleString('en-US', {minimumFractionDigits:2})}</p>
           </div>
         </div>
+        )}
 
-        {/* Desglose rápido de métodos de pago */}
+        {/* Desglose rápido de métodos de pago (solo Admin) */}
+        {isAdmin && (
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-4 lg:gap-8 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-slate-700"></div>
@@ -186,6 +189,7 @@ export default function Pedidos({ ventas }) {
             <span className="text-slate-600">Transf.: <strong className="text-slate-800">${totalTransferencia.toFixed(2)}</strong></span>
           </div>
         </div>
+        )}
 
         {/* Buscador */}
         <div className="relative">

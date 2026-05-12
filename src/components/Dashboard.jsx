@@ -102,14 +102,18 @@ export default function Dashboard({ ventas = [] }) {
               {salesByDay.map((day, idx) => {
                 const heightPercentage = (day.sum / maxDailySale) * 100;
                 return (
-                  <div key={idx} className="flex flex-col items-center flex-1 group">
+                  <div key={idx} className="flex flex-col items-center flex-1 group cursor-pointer">
                     <div className="opacity-0 group-hover:opacity-100 text-xs font-bold text-slate-600 mb-2 transition-opacity">
                       ${day.sum.toFixed(0)}
                     </div>
-                    <div className="w-full max-w-[40px] bg-slate-100 rounded-t-xl relative overflow-hidden h-full flex items-end">
+                    <div className="w-full max-w-[40px] rounded-t-xl relative overflow-hidden h-full flex items-end" style={{backgroundColor: '#e2e8f0'}}>
                       <div 
-                        className="w-full bg-primary-600 transition-all duration-500 rounded-t-xl group-hover:bg-primary-500" 
-                        style={{ height: `${heightPercentage}%`, minHeight: day.sum > 0 ? '5%' : '0' }}
+                        className="w-full rounded-t-xl transition-all duration-500"
+                        style={{ 
+                          height: `${heightPercentage}%`, 
+                          minHeight: day.sum > 0 ? '5%' : '0',
+                          backgroundColor: '#4f46e5'
+                        }}
                       ></div>
                     </div>
                     <div className="mt-3 text-xs lg:text-sm font-bold text-slate-400 capitalize">
