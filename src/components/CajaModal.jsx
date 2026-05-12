@@ -56,7 +56,7 @@ export default function CajaModal({ userProfile, onStatusChange }) {
 
       if (error) throw error;
       await fetchSessionCaja();
-      if (onStatusChange) onStatusChange();
+      if (onStatusChange) onStatusChange('terminal');
     } catch (error) {
       alert("Error al abrir caja: " + error.message);
     } finally {
@@ -86,7 +86,7 @@ export default function CajaModal({ userProfile, onStatusChange }) {
       setTarjetaDeclarado('');
       setObservaciones('');
       alert("Corte de caja realizado con éxito.");
-      if (onStatusChange) onStatusChange();
+      if (onStatusChange) onStatusChange('asistencia');
     } catch (error) {
       alert("Error al cerrar caja: " + error.message);
     } finally {
@@ -107,8 +107,12 @@ export default function CajaModal({ userProfile, onStatusChange }) {
               <Wallet className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-800 tracking-tight">Caja Operativa</h2>
-              <p className="text-slate-500 text-sm font-medium">Apertura y Corte de Turno</p>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+                {!sessionCaja ? 'Apertura de Caja' : 'Corte de Turno'}
+              </h2>
+              <p className="text-slate-500 text-sm font-medium">
+                {!sessionCaja ? 'Ingresa el fondo inicial para comenzar a operar' : 'Cierre de operaciones y declaración de efectivo'}
+              </p>
             </div>
           </div>
 

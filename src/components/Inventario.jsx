@@ -204,60 +204,100 @@ export default function Inventario({ isAdmin }) {
               <p>Cargando productos...</p>
             </div>
           ) : (
-            <table className="w-full min-w-[800px] text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs lg:text-sm uppercase tracking-wider">
-                  <th className="p-4 font-bold">SKU / Código</th>
-                  <th className="p-4 font-bold">Producto</th>
-                  <th className="p-4 font-bold">Categoría</th>
-                  <th className="p-4 font-bold text-right">Precio</th>
-                  <th className="p-4 font-bold text-right">Stock</th>
-                  {isAdmin && <th className="p-4 font-bold text-center">Acción</th>}
-                </tr>
-              </thead>
-              <tbody className="text-sm lg:text-base">
+            <>
+              {/* Vista Mobile (Tarjetas) */}
+              <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
-                    <td className="p-4 text-slate-500 font-mono text-sm">{product.sku}</td>
-                    <td className="p-4 font-bold text-slate-800">{product.nombre}</td>
-                    <td className="p-4">
-                      <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">
-                        {product.categoria}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right font-black text-slate-800">
-                      ${Number(product.precio).toFixed(2)}
-                    </td>
-                    <td className="p-4 text-right">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                        product.stock > 20 
-                          ? 'bg-green-50 text-green-700 border-green-200' 
-                          : 'bg-red-50 text-red-700 border-red-200'
-                      }`}>
-                        {product.stock} un.
-                      </span>
-                    </td>
-                    {isAdmin && (
-                      <td className="p-4 text-center">
+                  <div key={product.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-slate-800 leading-tight">{product.nombre}</h3>
+                        <p className="text-xs text-slate-400 font-mono mt-1">{product.sku}</p>
+                      </div>
+                      {isAdmin && (
                         <button 
                           onClick={() => handleEdit(product)}
-                          className="p-2 text-slate-400 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors shrink-0"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                      </td>
-                    )}
-                  </tr>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end border-t border-slate-50 pt-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold border ${
+                          product.stock > 20 
+                            ? 'bg-green-50 text-green-700 border-green-200' 
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}>
+                          Stock: {product.stock}
+                        </span>
+                        <span className="font-black text-slate-800 text-sm">
+                          ${Number(product.precio).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
                 {filteredProducts.length === 0 && (
-                  <tr>
-                    <td colSpan={isAdmin ? "6" : "5"} className="p-12 text-center text-slate-400 font-medium">
-                      No se encontraron productos con "{searchTerm}"
-                    </td>
-                  </tr>
+                  <div className="p-8 text-center text-slate-400 font-medium bg-white rounded-2xl border border-slate-100">
+                    No se encontraron productos con "{searchTerm}"
+                  </div>
                 )}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Vista Desktop (Tabla) */}
+              <div className="hidden md:block overflow-x-auto min-h-[400px]">
+                <table className="w-full min-w-[800px] text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs lg:text-sm uppercase tracking-wider">
+                      <th className="p-4 font-bold">SKU / Código</th>
+                      <th className="p-4 font-bold">Producto</th>
+                      <th className="p-4 font-bold text-right">Precio</th>
+                      <th className="p-4 font-bold text-right">Stock</th>
+                      {isAdmin && <th className="p-4 font-bold text-center">Acción</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm lg:text-base">
+                    {filteredProducts.map((product) => (
+                      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                        <td className="p-4 text-slate-500 font-mono text-sm">{product.sku}</td>
+                        <td className="p-4 font-bold text-slate-800">{product.nombre}</td>
+                        <td className="p-4 text-right font-black text-slate-800">
+                          ${Number(product.precio).toFixed(2)}
+                        </td>
+                        <td className="p-4 text-right">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                            product.stock > 20 
+                              ? 'bg-green-50 text-green-700 border-green-200' 
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            {product.stock} un.
+                          </span>
+                        </td>
+                        {isAdmin && (
+                          <td className="p-4 text-center">
+                            <button 
+                              onClick={() => handleEdit(product)}
+                              className="p-2 text-slate-400 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    {filteredProducts.length === 0 && (
+                      <tr>
+                        <td colSpan={isAdmin ? "5" : "4"} className="p-12 text-center text-slate-400 font-medium">
+                          No se encontraron productos con "{searchTerm}"
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 

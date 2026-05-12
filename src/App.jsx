@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText } from 'lucide-react';
 import Terminal from './components/Terminal';
 import Inventario from './components/Inventario';
 import Dashboard from './components/Dashboard';
@@ -8,6 +8,7 @@ import Login from './components/Login';
 import CajaModal from './components/CajaModal';
 import RelojChecador from './components/RelojChecador';
 import Equipo from './components/Equipo';
+import Reportes from './components/Reportes';
 import { supabase } from './lib/supabaseClient';
 
 function App() {
@@ -63,7 +64,7 @@ function App() {
     }
   };
 
-  const checkWorkStatus = async () => {
+  const checkWorkStatus = async (targetTab = null) => {
     if (!userProfile) return;
     
     try {
@@ -93,16 +94,21 @@ function App() {
 
       // Enrutamiento Forzado para Empleados
       if (userProfile.rol === 'empleado') {
-        if (!currentlyClockedIn) {
-          setActiveTab('asistencia');
-        } else if (currentlyClockedIn && !currentlyCajaOpen) {
-          setActiveTab('caja');
-        } else if (currentlyClockedIn && currentlyCajaOpen && (activeTab === 'asistencia' || activeTab === 'caja')) {
-          setActiveTab('terminal');
+        if (targetTab) {
+          setActiveTab(targetTab);
+        } else if (isClockedIn === null) {
+          // Solo forzar routing en la carga inicial
+          if (!currentlyClockedIn) {
+            setActiveTab('asistencia');
+          } else if (currentlyClockedIn && !currentlyCajaOpen) {
+            setActiveTab('caja');
+          } else if (currentlyClockedIn && currentlyCajaOpen) {
+            setActiveTab('terminal');
+          }
         }
       } else {
-         // Si es admin y acaba de entrar, enviarlo a terminal por defecto si estaba en estado inicial
-         if (isClockedIn === null) setActiveTab('terminal');
+         // Si es admin y acaba de entrar, enviarlo a dashboard por defecto si estaba en estado inicial
+         if (isClockedIn === null) setActiveTab('dashboard');
       }
 
     } catch (error) {
@@ -237,10 +243,12 @@ function App() {
   const role = userProfile?.rol || 'empleado';
   const userName = userProfile?.nombre_completo || session.user.email.split('@')[0];
   const isAdmin = role === 'admin';
+  const isEmpleado = role === 'empleado';
 
   // Lógica de visualización del Sidebar (Guardián)
-  const canOperate = isAdmin || (isClockedIn && isCajaOpen);
-  const canSeeCaja = isAdmin || isClockedIn;
+  const canOperateTerminal = isEmpleado && isClockedIn && isCajaOpen;
+  const canOperate = isAdmin || canOperateTerminal;
+  const canSeeCaja = isEmpleado && isClockedIn;
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-100 flex font-sans">
@@ -258,9 +266,9 @@ function App() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-          {canOperate && (
+          {canOperateTerminal && (
             <>
-              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Principal</p>
+              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Operación</p>
               <button 
                 onClick={() => setActiveTab('terminal')}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
@@ -269,6 +277,12 @@ function App() {
               >
                 <ShoppingCart className="w-5 h-5 shrink-0" /> Terminal
               </button>
+            </>
+          )}
+
+          {canOperate && (
+            <>
+              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">General</p>
               <button 
                 onClick={() => setActiveTab('pedidos')}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
@@ -307,28 +321,46 @@ function App() {
               >
                 <Users className="w-5 h-5 shrink-0" /> Equipo
               </button>
+              <button 
+                onClick={() => setActiveTab('reportes')}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
+                  activeTab === 'reportes' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <FileText className="w-5 h-5 shrink-0" /> Reportes
+              </button>
             </>
           )}
 
-          <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Operativa</p>
-          {canSeeCaja && (
-            <button 
-              onClick={() => setActiveTab('caja')}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                activeTab === 'caja' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-              }`}
-            >
-              <Wallet className="w-5 h-5 shrink-0" /> Caja
-            </button>
+          {isEmpleado && (
+            <>
+              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Flujo de Turno</p>
+              
+              {/* Mostrar Caja solo si ya checó entrada */}
+              {isClockedIn && (
+                <button 
+                  onClick={() => setActiveTab('caja')}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'caja' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                  }`}
+                >
+                  <Wallet className="w-5 h-5 shrink-0" /> {isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'}
+                </button>
+              )}
+              
+              {/* Mostrar Asistencia si NO ha checado entrada, o si ya tiene la caja abierta y quiere salir */}
+              {(!isClockedIn || isCajaOpen) && (
+                <button 
+                  onClick={() => setActiveTab('asistencia')}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'asistencia' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                  }`}
+                >
+                  <Clock className="w-5 h-5 shrink-0" /> {isClockedIn ? 'Registrar Salida' : 'Checar Entrada'}
+                </button>
+              )}
+            </>
           )}
-          <button 
-            onClick={() => setActiveTab('asistencia')}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-              activeTab === 'asistencia' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-            }`}
-          >
-            <Clock className="w-5 h-5 shrink-0" /> Asistencia
-          </button>
         </div>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50/50">
@@ -362,10 +394,10 @@ function App() {
       </div>
 
       <div className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-20 flex justify-around p-2 pb-safe">
-          {canOperate && <button onClick={() => setActiveTab('terminal')} className={`p-2 ${activeTab === 'terminal' ? 'text-primary-900' : 'text-slate-400'}`}><ShoppingCart className="w-6 h-6" /></button>}
+          {canOperateTerminal && <button onClick={() => setActiveTab('terminal')} className={`p-2 ${activeTab === 'terminal' ? 'text-primary-900' : 'text-slate-400'}`}><ShoppingCart className="w-6 h-6" /></button>}
           {canOperate && <button onClick={() => setActiveTab('inventario')} className={`p-2 ${activeTab === 'inventario' ? 'text-primary-900' : 'text-slate-400'}`}><Package className="w-6 h-6" /></button>}
-          {canSeeCaja && <button onClick={() => setActiveTab('caja')} className={`p-2 ${activeTab === 'caja' ? 'text-primary-900' : 'text-slate-400'}`}><Wallet className="w-6 h-6" /></button>}
-          <button onClick={() => setActiveTab('asistencia')} className={`p-2 ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-6 h-6" /></button>
+          {isEmpleado && isClockedIn && <button onClick={() => setActiveTab('caja')} className={`p-2 ${activeTab === 'caja' ? 'text-primary-900' : 'text-slate-400'}`}><Wallet className="w-6 h-6" /></button>}
+          {isEmpleado && (!isClockedIn || isCajaOpen) && <button onClick={() => setActiveTab('asistencia')} className={`p-2 ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-6 h-6" /></button>}
           {isAdmin && <button onClick={() => setActiveTab('dashboard')} className={`p-2 ${activeTab === 'dashboard' ? 'text-primary-900' : 'text-slate-400'}`}><BarChart3 className="w-6 h-6" /></button>}
       </div>
 
@@ -376,6 +408,7 @@ function App() {
         {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} />}
         {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} />}
         {activeTab === 'equipo' && isAdmin && <Equipo />}
+        {activeTab === 'reportes' && isAdmin && <Reportes />}
         {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
         {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
       </main>

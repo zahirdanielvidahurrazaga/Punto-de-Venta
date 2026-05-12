@@ -1,7 +1,28 @@
-import React from 'react';
-import { TrendingUp, DollarSign, Package, AlertTriangle, ArrowUpRight, CreditCard, Banknote, Building } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, DollarSign, Package, AlertTriangle, CreditCard, Banknote, Building, CalendarDays, Wallet } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Dashboard({ ventas = [] }) {
+  const [cajasAbiertas, setCajasAbiertas] = useState([]);
+
+  useEffect(() => {
+    fetchCajasAbiertas();
+  }, []);
+
+  const fetchCajasAbiertas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sesiones_caja')
+        .select(`*, usuarios_perfiles(nombre_completo)`)
+        .eq('estado', 'abierta');
+      if (!error && data) {
+        setCajasAbiertas(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Cálculos dinámicos
   const totalSales = ventas.reduce((acc, v) => acc + Number(v.total), 0);
   const totalOrders = ventas.length;
@@ -11,6 +32,24 @@ export default function Dashboard({ ventas = [] }) {
   const ef = ventas.reduce((acc, v) => acc + Number(v.pagos?.efectivo || 0), 0);
   const tar = ventas.reduce((acc, v) => acc + Number(v.pagos?.tarjeta || 0), 0);
   const trans = ventas.reduce((acc, v) => acc + Number(v.pagos?.transferencia || 0), 0);
+
+  // Agrupar ventas por día (últimos 7 días)
+  const last7Days = Array.from({length: 7}, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().split('T')[0];
+  }).reverse();
+
+  const salesByDay = last7Days.map(dateStr => {
+    const daySales = ventas.filter(v => v.fecha && v.fecha.startsWith(dateStr));
+    const sum = daySales.reduce((acc, v) => acc + Number(v.total), 0);
+    // Parse to short weekday name
+    const dateObj = new Date(dateStr + 'T12:00:00'); // Evitar timezone issues
+    const dayName = dateObj.toLocaleDateString('es-MX', { weekday: 'short' });
+    return { date: dateStr, dayName, sum };
+  });
+
+  const maxDailySale = Math.max(...salesByDay.map(s => s.sum), 1); // Evitar dividir por 0
 
   const stats = [
     { label: 'Ventas Totales', value: `$${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100', trend: 'Actualizado' },
@@ -47,7 +86,68 @@ export default function Dashboard({ ventas = [] }) {
           ))}
         </div>
 
-        {/* Sección Inferior: Gráficos y Métodos de Pago */}
+        {/* Gráfica de Ventas y Cajas Activas */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-100">
+            <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-primary-900" />
+              Ventas Últimos 7 Días
+            </h2>
+            <div className="flex items-end justify-between h-48 gap-2 mt-4 px-2">
+              {salesByDay.map((day, idx) => {
+                const heightPercentage = (day.sum / maxDailySale) * 100;
+                return (
+                  <div key={idx} className="flex flex-col items-center flex-1 group">
+                    <div className="opacity-0 group-hover:opacity-100 text-xs font-bold text-slate-600 mb-2 transition-opacity">
+                      ${day.sum.toFixed(0)}
+                    </div>
+                    <div className="w-full max-w-[40px] bg-slate-100 rounded-t-xl relative overflow-hidden h-full flex items-end">
+                      <div 
+                        className="w-full bg-primary-600 transition-all duration-500 rounded-t-xl group-hover:bg-primary-500" 
+                        style={{ height: `${heightPercentage}%`, minHeight: day.sum > 0 ? '5%' : '0' }}
+                      ></div>
+                    </div>
+                    <div className="mt-3 text-xs lg:text-sm font-bold text-slate-400 capitalize">
+                      {day.dayName}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Cajas Abiertas Widget */}
+          <div className="bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col">
+            <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-primary-900" />
+              Cajas Activas
+            </h2>
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {cajasAbiertas.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-sm p-4 text-center">
+                  <AlertTriangle className="w-8 h-8 mb-2 opacity-50" />
+                  No hay cajas abiertas en este momento.
+                </div>
+              ) : (
+                cajasAbiertas.map(caja => (
+                  <div key={caja.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <p className="font-bold text-slate-800 text-sm">{caja.usuarios_perfiles?.nombre_completo || 'Empleado'}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100">
+                        {new Date(caja.fecha_apertura).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                      <span className="text-sm font-black text-green-600">
+                        Fondo: ${Number(caja.fondo_inicial).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sección Inferior: Métodos de Pago y Sync */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Métricas de Métodos de Pago */}

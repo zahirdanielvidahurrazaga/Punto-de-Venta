@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { X, Save, Package, Tag, Hash, DollarSign, Box } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Package, Tag, Hash, DollarSign, Box, ScanLine } from 'lucide-react';
+import QRScannerModal from './QRScannerModal';
+import { supabase } from '../lib/supabaseClient';
 
 export default function ProductModal({ onClose, onSave, product = null }) {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [formData, setFormData] = useState(product || {
     nombre: '',
     sku: '',
@@ -24,6 +27,40 @@ export default function ProductModal({ onClose, onSave, product = null }) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Efecto para autocompletar si se detecta un SKU que ya existe
+  useEffect(() => {
+    const checkSku = async () => {
+      if (formData.sku && formData.sku.length > 3 && !product) {
+        try {
+          const { data, error } = await supabase
+            .from('productos')
+            .select('*')
+            .eq('sku', formData.sku)
+            .maybeSingle();
+
+          if (data && !error) {
+            setFormData(prev => ({
+              ...prev,
+              nombre: data.nombre,
+              categoria: data.categoria || 'General',
+              precio: data.precio.toString()
+              // No sobreescribimos el stock para que el usuario pueda ingresar el nuevo ingreso
+            }));
+          }
+        } catch (error) {
+          console.error("Error buscando SKU:", error);
+        }
+      }
+    };
+    
+    // Pequeño debounce manual
+    const timeoutId = setTimeout(() => {
+      checkSku();
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [formData.sku, product]);
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -32,7 +69,7 @@ export default function ProductModal({ onClose, onSave, product = null }) {
         <div className="bg-primary-600 p-5 flex justify-between items-center text-white">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Package className="w-6 h-6" />
-            {product ? 'Editar Producto' : 'Nuevo Producto'}
+            {product ? 'Editar Producto' : 'Añadir Producto / Stock'}
           </h2>
           <button onClick={onClose} className="text-primary-200 hover:text-white transition-colors">
             <X className="w-6 h-6" />
@@ -59,34 +96,31 @@ export default function ProductModal({ onClose, onSave, product = null }) {
           {/* SKU */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">SKU / Código</label>
-            <div className="relative">
-              <Hash className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                required
-                name="sku"
-                value={formData.sku}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 outline-none"
-                placeholder="Código de barras"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Hash className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  required
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 outline-none"
+                  placeholder="Código de barras"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 rounded-xl flex items-center justify-center transition-colors"
+                title="Escanear con cámara"
+              >
+                <ScanLine className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
-          {/* Categoría */}
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Categoría</label>
-            <div className="relative">
-              <Box className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                required
-                name="categoria"
-                value={formData.categoria}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 outline-none"
-                placeholder="Ej. Bolsas, Vasos..."
-              />
-            </div>
-          </div>
+          {/* Categoría Oculta */}
+          <input type="hidden" name="categoria" value="General" />
 
           <div className="grid grid-cols-2 gap-4">
             {/* Precio */}
@@ -136,6 +170,15 @@ export default function ProductModal({ onClose, onSave, product = null }) {
           </div>
         </form>
       </div>
+
+      <QRScannerModal 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScan={(decodedText) => {
+          setFormData(prev => ({ ...prev, sku: decodedText }));
+          setIsScannerOpen(false);
+        }} 
+      />
     </div>
   );
 }

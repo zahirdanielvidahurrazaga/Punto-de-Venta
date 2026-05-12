@@ -85,14 +85,28 @@ export default function RelojChecador({ userProfile, onStatusChange }) {
         if (error) throw error;
         setSuccessMessage('¡Entrada registrada con éxito!');
         await fetchAsistenciaActual();
-        if (onStatusChange) onStatusChange();
+        if (onStatusChange) onStatusChange('caja');
       } catch (error) {
         setScanError("Error al registrar entrada: " + error.message);
         setLoading(false);
       }
     } else {
-      // Registrar Salida
+      // Registrar Salida (Validar Caja Primero)
       try {
+        const { data: cajaAbierta } = await supabase
+          .from('sesiones_caja')
+          .select('id')
+          .eq('usuario_id', userProfile.id)
+          .eq('estado', 'abierta')
+          .limit(1)
+          .maybeSingle();
+
+        if (cajaAbierta) {
+          setScanError('Debes realizar el corte de caja antes de registrar tu salida.');
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase
           .from('registro_asistencia')
           .update({
