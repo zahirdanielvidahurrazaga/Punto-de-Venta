@@ -52,10 +52,10 @@ export default function Dashboard({ ventas = [] }) {
   const maxDailySale = Math.max(...salesByDay.map(s => s.sum), 1); // Evitar dividir por 0
 
   const stats = [
-    { label: 'Ventas Totales', value: `$${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100', trend: 'Actualizado' },
+    { label: 'Ventas Totales', value: `$${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-primary-600', bg: 'bg-primary-100', trend: 'Actualizado' },
     { label: 'Órdenes Totales', value: totalOrders.toString(), icon: Package, color: 'text-blue-600', bg: 'bg-blue-100', trend: 'Hoy' },
-    { label: 'Ticket Promedio', value: `$${avgTicket.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-100', trend: 'Promedio' },
-    { label: 'Efectivo Acumulado', value: `$${ef.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: Banknote, color: 'text-emerald-600', bg: 'bg-emerald-100', trend: 'Caja' },
+    { label: 'Ticket Promedio', value: `$${avgTicket.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Promedio' },
+    { label: 'Efectivo Acumulado', value: `$${ef.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: Banknote, color: 'text-slate-700', bg: 'bg-slate-100', trend: 'Caja' },
   ];
 
   return (
@@ -136,7 +136,7 @@ export default function Dashboard({ ventas = [] }) {
                       <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100">
                         {new Date(caja.fecha_apertura).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </span>
-                      <span className="text-sm font-black text-green-600">
+                      <span className="text-sm font-black text-primary-600">
                         Fondo: ${Number(caja.fondo_inicial).toFixed(2)}
                       </span>
                     </div>
@@ -155,11 +155,11 @@ export default function Dashboard({ ventas = [] }) {
             <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-6">Distribución por Método de Pago</h2>
             <div className="space-y-6">
                <div className="flex items-center gap-4">
-                  <div className="bg-green-100 p-3 rounded-xl"><Banknote className="text-green-600" /></div>
+                  <div className="bg-slate-100 p-3 rounded-xl"><Banknote className="text-slate-700" /></div>
                   <div className="flex-1">
                      <div className="flex justify-between mb-1"><span className="font-bold">Efectivo</span><span className="text-slate-500">${ef.toFixed(2)}</span></div>
                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className="bg-green-500 h-full transition-all" style={{ width: `${(ef / totalSales) * 100 || 0}%` }}></div>
+                        <div className="bg-slate-700 h-full transition-all" style={{ width: `${(ef / totalSales) * 100 || 0}%` }}></div>
                      </div>
                   </div>
                </div>

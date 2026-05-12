@@ -54,12 +54,12 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[95vh]">
         
         {/* Header */}
-        <div className="bg-primary-600 p-5 md:p-6 flex justify-between items-center text-white shrink-0">
+        <div className="bg-slate-900 p-5 md:p-6 flex justify-between items-center text-white shrink-0">
           <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
             <Wallet className="w-6 h-6" />
             Método de Pago
           </h2>
-          <button onClick={onClose} className="text-primary-200 hover:text-white transition-colors p-1">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -75,9 +75,9 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
             <div className="space-y-6">
               {/* Pagos Rápidos Exactos */}
               <div className="grid grid-cols-3 gap-3">
-                <button onClick={() => handleQuickPay('efectivo')} className="flex flex-col items-center p-4 bg-slate-50 hover:bg-green-50 text-slate-700 hover:text-green-700 rounded-2xl border border-slate-200 hover:border-green-300 transition-all shadow-sm hover:shadow-md group">
+                <button onClick={() => handleQuickPay('efectivo')} className="flex flex-col items-center p-4 bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-700 rounded-2xl border border-slate-200 hover:border-amber-300 transition-all shadow-sm hover:shadow-md group">
                   <div className="bg-white p-2 rounded-xl mb-2 group-hover:scale-110 transition-transform">
-                    <Banknote className="w-7 h-7 text-green-600" />
+                    <Banknote className="w-7 h-7 text-amber-600" />
                   </div>
                   <span className="text-xs lg:text-sm font-bold text-center leading-tight">Efectivo<br/>Exacto</span>
                 </button>
@@ -120,8 +120,8 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
 
               {/* Inputs de Pago Dividido */}
               <div className="space-y-4">
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100 focus-within:border-green-300 focus-within:bg-white transition-colors">
-                  <div className="w-12 h-12 rounded-xl bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100 focus-within:border-amber-300 focus-within:bg-white transition-colors">
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                     <Banknote className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -167,7 +167,7 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
                   <span className={restante > 0 ? "text-orange-400 font-bold" : "text-slate-400"}>${restante.toFixed(2)}</span>
                 </div>
                 {cambio > 0 && (
-                  <div className="flex justify-between text-green-400 font-bold text-xl pt-3 border-t border-slate-700">
+                  <div className="flex justify-between text-amber-400 font-bold text-xl pt-3 border-t border-slate-700">
                     <span>Cambio a devolver:</span>
                     <span>${cambio.toFixed(2)}</span>
                   </div>
@@ -188,7 +188,7 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
             <button 
               onClick={handleConfirm}
               disabled={!isComplete}
-              className="flex-[2] bg-primary-600 hover:bg-primary-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-3 md:py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-primary-600/50"
+              className="flex-[2] bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-3 md:py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-slate-900/50"
             >
               Confirmar División <ArrowRight className="w-5 h-5" />
             </button>

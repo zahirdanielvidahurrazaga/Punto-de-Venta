@@ -180,7 +180,8 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
       if (success) {
         setIsTicketOpen(true);
       } else {
-        alert("Hubo un error al registrar la venta en la base de datos.");
+        // El error ya fue logueado en consola y posiblemente alertado desde App.jsx
+        // Si no se mostró ningún alert específico, mostrar uno genérico
       }
     }
   };

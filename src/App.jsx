@@ -217,12 +217,22 @@ function App() {
         .from('venta_detalles')
         .insert(detalles);
 
-      if (detallesError) throw detallesError;
+      if (detallesError) {
+        // Si falla al insertar detalles (ej: stock insuficiente), eliminar la venta huérfana
+        await supabase.from('ventas').delete().eq('id', venta.id);
+        throw detallesError;
+      }
 
       fetchVentas();
       return true;
     } catch (error) {
-      console.error('Error registering sale:', error.message);
+      console.error('Error registering sale:', error.message, error);
+      
+      // Verificar si es un error de stock
+      if (error.message && error.message.includes('stock')) {
+        alert("Stock insuficiente para uno o más productos. Verifica el inventario.");
+      }
+      
       return false;
     }
   };

@@ -105,7 +105,7 @@ export default function Reportes() {
                         {record.usuarios_perfiles?.nombre_completo || 'Desconocido'}
                       </td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${record.estado === 'trabajando' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${record.estado === 'trabajando' ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'}`}>
                           {record.estado === 'trabajando' ? 'Activo' : 'Completado'}
                         </span>
                       </td>

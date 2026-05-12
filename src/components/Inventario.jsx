@@ -163,7 +163,7 @@ export default function Inventario({ isAdmin }) {
                 disabled={uploadingCSV}
                 className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-sm"
               >
-                {uploadingCSV ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5 text-green-600" />}
+                {uploadingCSV ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5 text-primary-600" />}
                 Importar CSV
               </button>
               <button 
@@ -227,7 +227,7 @@ export default function Inventario({ isAdmin }) {
                       <div className="flex items-center gap-3">
                         <span className={`px-2 py-1 rounded-md text-[10px] font-bold border ${
                           product.stock > 20 
-                            ? 'bg-green-50 text-green-700 border-green-200' 
+                            ? 'bg-primary-50 text-primary-700 border-primary-200' 
                             : 'bg-red-50 text-red-700 border-red-200'
                         }`}>
                           Stock: {product.stock}
@@ -269,7 +269,7 @@ export default function Inventario({ isAdmin }) {
                         <td className="p-4 text-right">
                           <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
                             product.stock > 20 
-                              ? 'bg-green-50 text-green-700 border-green-200' 
+                              ? 'bg-primary-50 text-primary-700 border-primary-200' 
                               : 'bg-red-50 text-red-700 border-red-200'
                           }`}>
                             {product.stock} un.

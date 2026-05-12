@@ -57,7 +57,7 @@ export default function Pedidos({ ventas }) {
                 </div>
                 
                 <div className="flex flex-wrap gap-2 text-xs">
-                  {venta.pagos?.efectivo > 0 && <span className="bg-green-100 text-green-700 px-2 py-1 rounded">Efectivo</span>}
+                  {venta.pagos?.efectivo > 0 && <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">Efectivo</span>}
                   {venta.pagos?.tarjeta > 0 && <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Tarjeta</span>}
                   {venta.pagos?.transferencia > 0 && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">Transferencia</span>}
                 </div>
@@ -95,7 +95,7 @@ export default function Pedidos({ ventas }) {
                     </td>
                     <td className="p-4">
                       <div className="flex gap-1 text-xs font-semibold">
-                        {venta.pagos?.efectivo > 0 && <span className="bg-green-100 text-green-700 px-2 py-1 rounded">Efectivo</span>}
+                        {venta.pagos?.efectivo > 0 && <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">Efectivo</span>}
                         {venta.pagos?.tarjeta > 0 && <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Tarjeta</span>}
                         {venta.pagos?.transferencia > 0 && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">Transf.</span>}
                       </div>
@@ -106,10 +106,9 @@ export default function Pedidos({ ventas }) {
                     <td className="p-4 text-center">
                       <button 
                         onClick={() => setSelectedVenta(venta)}
-                        className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors inline-block"
-                        title="Ver Ticket"
+                        className="px-3 py-2 text-sm font-bold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors inline-flex items-center gap-1.5"
                       >
-                        <FileText className="w-5 h-5" />
+                        <FileText className="w-4 h-4" /> Ticket
                       </button>
                     </td>
                   </tr>
