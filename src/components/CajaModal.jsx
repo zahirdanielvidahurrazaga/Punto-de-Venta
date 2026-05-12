@@ -5,11 +5,17 @@ import { supabase } from '../lib/supabaseClient';
 export default function CajaModal({ userProfile, onStatusChange }) {
   const [sessionCaja, setSessionCaja] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [successMsg, setSuccessMsg] = useState('');
   
-  const [fondoInicial, setFondoInicial] = useState('');
+  // Campos de Apertura
+  const [billetes, setBilletes] = useState('');
+  const [monedas, setMonedas] = useState('');
+  const [observacionesApertura, setObservacionesApertura] = useState('');
+  
+  // Campos de Cierre
   const [efectivoDeclarado, setEfectivoDeclarado] = useState('');
   const [tarjetaDeclarado, setTarjetaDeclarado] = useState('');
-  const [observaciones, setObservaciones] = useState('');
+  const [observacionesCierre, setObservacionesCierre] = useState('');
 
   useEffect(() => {
     fetchSessionCaja();
@@ -46,20 +52,30 @@ export default function CajaModal({ userProfile, onStatusChange }) {
     e.preventDefault();
     setLoading(true);
     try {
+      const b = parseFloat(billetes) || 0;
+      const m = parseFloat(monedas) || 0;
+      const totalFondo = b + m;
+
       const { error } = await supabase
         .from('sesiones_caja')
         .insert([{
           usuario_id: userProfile.id,
-          fondo_inicial: parseFloat(fondoInicial) || 0,
-          estado: 'abierta'
+          fondo_inicial: totalFondo,
+          estado: 'abierta',
+          observaciones: observacionesApertura
         }]);
 
       if (error) throw error;
-      await fetchSessionCaja();
-      if (onStatusChange) onStatusChange('terminal');
+      
+      setSuccessMsg('¡Apertura de caja exitosa!');
+      // NO llamamos fetchSessionCaja aquí para evitar el "flash" del formulario de cierre
+      // Simplemente saltamos a terminal tras 1 segundo para mostrar el msj de éxito
+      setTimeout(() => {
+        if (onStatusChange) onStatusChange('terminal');
+      }, 1000);
+      
     } catch (error) {
       alert("Error al abrir caja: " + error.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -76,27 +92,49 @@ export default function CajaModal({ userProfile, onStatusChange }) {
           efectivo_declarado: parseFloat(efectivoDeclarado) || 0,
           tarjeta_declarado: parseFloat(tarjetaDeclarado) || 0,
           transferencia_declarado: 0,
-          observaciones: observaciones
+          observaciones: observacionesCierre
         })
         .eq('id', sessionCaja.id);
 
       if (error) throw error;
-      setSessionCaja(null);
-      setEfectivoDeclarado('');
-      setTarjetaDeclarado('');
-      setObservaciones('');
-      alert("Corte de caja realizado con éxito.");
-      if (onStatusChange) onStatusChange('asistencia');
+      
+      setSuccessMsg('¡Corte de caja realizado con éxito!');
+      // Saltamos a asistencia tras 1.5 segundos
+      setTimeout(() => {
+        if (onStatusChange) onStatusChange('asistencia');
+      }, 1500);
+
     } catch (error) {
       alert("Error al cerrar caja: " + error.message);
-    } finally {
       setLoading(false);
     }
   };
 
-  if (loading && !sessionCaja) {
+  if (loading && !sessionCaja && !successMsg) {
     return <div className="p-8 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-primary-900" /></div>;
   }
+
+  // Vista de Éxito Inline (reemplaza el formulario completo)
+  if (successMsg) {
+    return (
+      <div className="p-4 lg:p-8 h-full bg-slate-50 flex justify-center items-center">
+        <div className="w-full max-w-lg">
+          <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
+            <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-6 shadow-sm border border-green-100">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">¡Todo Listo!</h2>
+            <p className="text-slate-500 font-medium">{successMsg}</p>
+            <Loader2 className="w-5 h-5 text-slate-300 animate-spin mt-6" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const bVal = parseFloat(billetes) || 0;
+  const mVal = parseFloat(monedas) || 0;
+  const totalFondo = bVal + mVal;
 
   return (
     <div className="p-4 lg:p-8 h-full bg-slate-50 flex justify-center">
@@ -121,29 +159,61 @@ export default function CajaModal({ userProfile, onStatusChange }) {
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex gap-3">
                 <AlertCircle className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
                 <p className="text-sm text-slate-600 font-medium">
-                  Actualmente no tienes una caja abierta. Ingresa el fondo con el que iniciarás tu turno.
+                  Actualmente no tienes una caja abierta. Registra tu fondo inicial.
                 </p>
               </div>
               
-              <div>
-                <label className="block text-sm font-bold text-slate-800 mb-2">Fondo Inicial (Efectivo en Caja)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={fondoInicial}
-                    onChange={(e) => setFondoInicial(e.target.value)}
-                    className="w-full pl-8 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white font-bold text-xl transition-all placeholder:text-slate-300"
-                    placeholder="0.00"
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 mb-2">Billetes</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={billetes}
+                      onChange={(e) => setBilletes(e.target.value)}
+                      className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white font-bold text-lg transition-all"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 mb-2">Monedas</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={monedas}
+                      onChange={(e) => setMonedas(e.target.value)}
+                      className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white font-bold text-lg transition-all"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-colors mt-2 text-lg">
-                Abrir Caja
+              <div className="flex justify-between items-center bg-slate-800 text-white p-4 rounded-xl shadow-inner">
+                <span className="font-bold text-sm text-slate-300 uppercase tracking-wider">Fondo Inicial Total:</span>
+                <span className="font-black text-2xl">${totalFondo.toFixed(2)}</span>
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-sm font-bold text-slate-800 mb-2">Observaciones de Apertura</label>
+                <textarea
+                  value={observacionesApertura}
+                  onChange={(e) => setObservacionesApertura(e.target.value)}
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white text-sm transition-all resize-none font-medium placeholder:text-slate-400"
+                  placeholder="Ej: Billete de $500 rayado, faltan monedas de $1..."
+                  rows={2}
+                ></textarea>
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-colors mt-2 text-lg flex justify-center items-center gap-2">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Abrir Caja'}
               </button>
             </form>
           ) : (
@@ -199,8 +269,8 @@ export default function CajaModal({ userProfile, onStatusChange }) {
               <div className="pt-2">
                 <label className="block text-sm font-bold text-slate-800 mb-2">Observaciones / Caja Chica</label>
                 <textarea
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
+                  value={observacionesCierre}
+                  onChange={(e) => setObservacionesCierre(e.target.value)}
                   className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white text-sm transition-all resize-none font-medium placeholder:text-slate-400"
                   placeholder="Ej: Se tomaron $50 para agua, faltó ticket #4..."
                   rows={3}

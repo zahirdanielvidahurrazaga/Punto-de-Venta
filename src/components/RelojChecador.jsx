@@ -117,7 +117,13 @@ export default function RelojChecador({ userProfile, onStatusChange }) {
 
         if (error) throw error;
         setAsistenciaActual(null);
-        setSuccessMessage('¡Salida registrada con éxito. Buen descanso!');
+        setSuccessMessage('¡Salida registrada con éxito. Buen descanso! Cerrando sesión...');
+        
+        // Auto-logout tras 1.5 segundos
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+        }, 1500);
+        
         if (onStatusChange) onStatusChange();
       } catch (error) {
         setScanError("Error al registrar salida: " + error.message);

@@ -348,8 +348,8 @@ function App() {
                 </button>
               )}
               
-              {/* Mostrar Asistencia si NO ha checado entrada, o si ya tiene la caja abierta y quiere salir */}
-              {(!isClockedIn || isCajaOpen) && (
+              {/* Mostrar Asistencia si NO ha checado entrada, o si ya cerró la caja y está en la pantalla de salida */}
+              {(!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
                 <button 
                   onClick={() => setActiveTab('asistencia')}
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
@@ -397,7 +397,7 @@ function App() {
           {canOperateTerminal && <button onClick={() => setActiveTab('terminal')} className={`p-2 ${activeTab === 'terminal' ? 'text-primary-900' : 'text-slate-400'}`}><ShoppingCart className="w-6 h-6" /></button>}
           {canOperate && <button onClick={() => setActiveTab('inventario')} className={`p-2 ${activeTab === 'inventario' ? 'text-primary-900' : 'text-slate-400'}`}><Package className="w-6 h-6" /></button>}
           {isEmpleado && isClockedIn && <button onClick={() => setActiveTab('caja')} className={`p-2 ${activeTab === 'caja' ? 'text-primary-900' : 'text-slate-400'}`}><Wallet className="w-6 h-6" /></button>}
-          {isEmpleado && (!isClockedIn || isCajaOpen) && <button onClick={() => setActiveTab('asistencia')} className={`p-2 ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-6 h-6" /></button>}
+          {isEmpleado && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && <button onClick={() => setActiveTab('asistencia')} className={`p-2 ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-6 h-6" /></button>}
           {isAdmin && <button onClick={() => setActiveTab('dashboard')} className={`p-2 ${activeTab === 'dashboard' ? 'text-primary-900' : 'text-slate-400'}`}><BarChart3 className="w-6 h-6" /></button>}
       </div>
 
