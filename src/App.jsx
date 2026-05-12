@@ -198,8 +198,7 @@ function App() {
           pago_efectivo: saleData.pagos.efectivo,
           pago_tarjeta: saleData.pagos.tarjeta,
           pago_transferencia: saleData.pagos.transferencia,
-          user_id: session.user.id,
-          sesion_caja_id: cajaVerificacion ? cajaVerificacion.id : null
+          user_id: session.user.id
         }])
         .select()
         .single();
