@@ -406,11 +406,14 @@ function App() {
       </div>
 
       <div className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-20 flex justify-around p-2 pb-safe">
-          {canOperateTerminal && <button onClick={() => setActiveTab('terminal')} className={`p-2 ${activeTab === 'terminal' ? 'text-primary-900' : 'text-slate-400'}`}><ShoppingCart className="w-6 h-6" /></button>}
-          {canOperate && <button onClick={() => setActiveTab('inventario')} className={`p-2 ${activeTab === 'inventario' ? 'text-primary-900' : 'text-slate-400'}`}><Package className="w-6 h-6" /></button>}
-          {isEmpleado && isClockedIn && <button onClick={() => setActiveTab('caja')} className={`p-2 ${activeTab === 'caja' ? 'text-primary-900' : 'text-slate-400'}`}><Wallet className="w-6 h-6" /></button>}
-          {isEmpleado && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && <button onClick={() => setActiveTab('asistencia')} className={`p-2 ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-6 h-6" /></button>}
-          {isAdmin && <button onClick={() => setActiveTab('dashboard')} className={`p-2 ${activeTab === 'dashboard' ? 'text-primary-900' : 'text-slate-400'}`}><BarChart3 className="w-6 h-6" /></button>}
+          {canOperateTerminal && <button onClick={() => setActiveTab('terminal')} className={`p-2 flex flex-col items-center ${activeTab === 'terminal' ? 'text-primary-900' : 'text-slate-400'}`}><ShoppingCart className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Terminal</span></button>}
+          {canOperate && <button onClick={() => setActiveTab('pedidos')} className={`p-2 flex flex-col items-center ${activeTab === 'pedidos' ? 'text-primary-900' : 'text-slate-400'}`}><ClipboardList className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Pedidos</span></button>}
+          {canOperate && <button onClick={() => setActiveTab('inventario')} className={`p-2 flex flex-col items-center ${activeTab === 'inventario' ? 'text-primary-900' : 'text-slate-400'}`}><Package className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Inventario</span></button>}
+          {isAdmin && <button onClick={() => setActiveTab('dashboard')} className={`p-2 flex flex-col items-center ${activeTab === 'dashboard' ? 'text-primary-900' : 'text-slate-400'}`}><BarChart3 className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Dashboard</span></button>}
+          {isAdmin && <button onClick={() => setActiveTab('equipo')} className={`p-2 flex flex-col items-center ${activeTab === 'equipo' ? 'text-primary-900' : 'text-slate-400'}`}><Users className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Equipo</span></button>}
+          {isAdmin && <button onClick={() => setActiveTab('reportes')} className={`p-2 flex flex-col items-center ${activeTab === 'reportes' ? 'text-primary-900' : 'text-slate-400'}`}><FileText className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Reportes</span></button>}
+          {isEmpleado && isClockedIn && <button onClick={() => setActiveTab('caja')} className={`p-2 flex flex-col items-center ${activeTab === 'caja' ? 'text-primary-900' : 'text-slate-400'}`}><Wallet className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Caja</span></button>}
+          {isEmpleado && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && <button onClick={() => setActiveTab('asistencia')} className={`p-2 flex flex-col items-center ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Entrada</span></button>}
       </div>
 
       {/* Contenido Principal */}
