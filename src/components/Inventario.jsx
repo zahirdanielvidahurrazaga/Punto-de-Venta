@@ -9,21 +9,20 @@ import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
 import QRScannerModal from './QRScannerModal';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 
 function stockInfo(stock) {
-  if (stock === 0)  return { cls: 'bg-red-100 text-red-700 border-red-200',         dot: 'bg-red-500',     label: 'Agotado',   barColor: '#ef4444' };
-  if (stock <= 5)   return { cls: 'bg-red-50 text-red-600 border-red-100',           dot: 'bg-red-400',     label: 'Crítico',   barColor: '#f87171' };
-  if (stock <= 20)  return { cls: 'bg-amber-50 text-amber-700 border-amber-200',     dot: 'bg-amber-400',   label: 'Bajo',      barColor: '#fbbf24' };
-  return               { cls: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-400', label: 'OK',        barColor: '#34d399' };
+  if (stock === 0)  return { cls: 'bg-rose-50 text-rose-700 border-rose-200',     dot: 'bg-rose-500',    label: 'Agotado',  barColor: '#f43f5e' };
+  if (stock <= 5)   return { cls: 'bg-rose-50 text-rose-600 border-rose-100',     dot: 'bg-rose-400',    label: 'Crítico',  barColor: '#fb7185' };
+  if (stock <= 20)  return { cls: 'bg-amber-50 text-amber-700 border-amber-100',  dot: 'bg-amber-400',   label: 'Bajo',     barColor: '#fbbf24' };
+  return               { cls: 'bg-emerald-50 text-emerald-700 border-emerald-100',dot: 'bg-emerald-400', label: 'OK',       barColor: '#34d399' };
 }
 
 const TIPO_META = {
-  entrada:      { label: 'Entrada',   icon: ArrowUpRight,   cls: 'bg-blue-100 text-blue-700',    sign: '+' },
-  salida_venta: { label: 'Venta',     icon: ArrowDownRight, cls: 'bg-amber-100 text-amber-700',  sign: '-' },
-  ajuste:       { label: 'Ajuste',    icon: Settings2,      cls: 'bg-purple-100 text-purple-700',sign: '±' },
-  inicial:      { label: 'Inicial',   icon: CheckCircle,    cls: 'bg-emerald-100 text-emerald-700',sign:'+' },
+  entrada:      { label: 'Entrada', icon: ArrowUpRight,   cls: 'bg-accent-50 text-accent-700',    sign: '+' },
+  salida_venta: { label: 'Venta',   icon: ArrowDownRight, cls: 'bg-amber-50 text-amber-700',      sign: '-' },
+  ajuste:       { label: 'Ajuste',  icon: Settings2,      cls: 'bg-violet-50 text-violet-700',    sign: '±' },
+  inicial:      { label: 'Inicial', icon: CheckCircle,    cls: 'bg-emerald-50 text-emerald-700',  sign: '+' },
 };
 
 function fmtRelative(dateStr) {
@@ -41,11 +40,11 @@ function fmtRelative(dateStr) {
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 }
 
-// ─── Sub-tab: Catálogo ─────────────────────────────────────────────────────
+// ─── Catálogo ───────────────────────────────────────────────────────────────
 function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, onCSV, uploadingCSV, fileInputRef }) {
-  const [search,      setSearch]      = useState('');
-  const [catFiltro,   setCatFiltro]   = useState('todas');
-  const [orden,       setOrden]       = useState('nombre'); // nombre | stock_asc | stock_desc | precio
+  const [search, setSearch] = useState('');
+  const [catFiltro, setCatFiltro] = useState('todas');
+  const [orden, setOrden] = useState('nombre');
 
   const maxStock = useMemo(() => Math.max(...productos.map(p => p.stock), 1), [productos]);
 
@@ -65,11 +64,10 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
 
   return (
     <div className="space-y-4">
-      {/* Alert de stock bajo */}
       {stockBajos > 0 && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-          <p className="text-sm font-bold text-red-700">
+        <div className="flex items-center gap-3 bg-rose-50/70 border border-rose-100 rounded-2xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+          <p className="text-sm font-bold text-rose-700">
             {stockBajos} producto{stockBajos > 1 ? 's' : ''} con stock crítico o agotado.
             <button onClick={() => setOrden('stock_asc')} className="underline ml-1 hover:no-underline">Ver primero</button>
           </p>
@@ -77,14 +75,16 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
       )}
 
       {/* Barra de herramientas */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" placeholder="Buscar por nombre o SKU…" value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:border-slate-400 focus:outline-none text-sm transition-all" />
+          <input
+            type="text" placeholder="Buscar por nombre o SKU…"
+            value={search} onChange={e => setSearch(e.target.value)}
+            className="neb-input pl-10"
+          />
         </div>
-        <select value={orden} onChange={e => setOrden(e.target.value)}
-          className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:outline-none text-slate-600">
+        <select value={orden} onChange={e => setOrden(e.target.value)} className="neb-input w-auto !pr-3">
           <option value="nombre">A–Z</option>
           <option value="stock_asc">Stock: menor primero</option>
           <option value="stock_desc">Stock: mayor primero</option>
@@ -93,13 +93,11 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
         {isAdmin && (
           <>
             <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={onCSV} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingCSV}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-sm font-bold transition-colors">
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingCSV} className="neb-btn neb-btn-ghost">
               {uploadingCSV ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
               CSV
             </button>
-            <button onClick={onNew}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold transition-colors shadow-md">
+            <button onClick={onNew} className="neb-btn neb-btn-primary">
               <Plus className="w-4 h-4" /> Nuevo
             </button>
           </>
@@ -110,26 +108,28 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
       <div className="flex gap-2 flex-wrap">
         {['todas', ...categorias].map(c => (
           <button key={c} onClick={() => setCatFiltro(c)}
-            className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${
-              catFiltro === c ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+              catFiltro === c
+                ? 'neb-grad-primary text-white border-transparent'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-accent-300 hover:text-slate-800'
             }`}>
             {c === 'todas' ? 'Todas' : c}
-            {c !== 'todas' && <span className="ml-1 opacity-60">{productos.filter(p => p.categoria === c).length}</span>}
+            {c !== 'todas' && <span className="ml-1 opacity-60">·{productos.filter(p => p.categoria === c).length}</span>}
           </button>
         ))}
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="neb-card overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <Loader2 className="w-8 h-8 animate-spin mb-3" />
-            <p className="text-sm font-medium">Cargando productos…</p>
+            <Loader2 className="w-7 h-7 animate-spin mb-3 text-accent-500" />
+            <p className="text-sm font-bold">Cargando productos…</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center text-slate-400">
-            <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="font-medium">Sin productos{search ? ` para "${search}"` : ''}</p>
+            <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="font-bold text-sm">Sin productos{search ? ` para "${search}"` : ''}</p>
           </div>
         ) : (
           <>
@@ -141,15 +141,15 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                   <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${si.dot}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm truncate">{p.nombre}</p>
-                      <p className="text-xs text-slate-400 font-mono">{p.sku} · {p.categoria}</p>
+                      <p className="font-extrabold text-slate-900 text-sm truncate">{p.nombre}</p>
+                      <p className="text-[11px] text-slate-400 font-mono">{p.sku} · {p.categoria}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-black text-slate-800 text-sm">{fmt(p.precio)}</p>
-                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md border ${si.cls}`}>{p.stock} un.</span>
+                      <p className="font-extrabold text-slate-900 text-sm">{fmt(p.precio)}</p>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${si.cls}`}>{p.stock} un.</span>
                     </div>
                     {isAdmin && (
-                      <button onClick={() => onEdit(p)} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                      <button onClick={() => onEdit(p)} className="p-2 text-slate-400 hover:text-accent-600 hover:bg-accent-50 rounded-xl transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
                     )}
@@ -159,10 +159,10 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
             </div>
 
             {/* Desktop */}
-            <div className="hidden lg:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto neb-scroll">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-200">
+                  <tr className="bg-slate-50/60 text-slate-400 text-[10px] uppercase tracking-[0.15em] border-b border-slate-100">
                     <th className="px-5 py-3 font-bold">Producto</th>
                     <th className="px-5 py-3 font-bold">Categoría</th>
                     <th className="px-5 py-3 font-bold text-right">Precio</th>
@@ -170,22 +170,22 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                     {isAdmin && <th className="px-5 py-3 font-bold text-center">Acción</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {filtered.map(p => {
                     const si = stockInfo(p.stock);
                     const barPct = Math.min(100, (p.stock / maxStock) * 100);
                     return (
-                      <tr key={p.id} className="hover:bg-slate-50/60 transition-colors group">
+                      <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="px-5 py-3.5">
-                          <p className="font-bold text-slate-800 text-sm">{p.nombre}</p>
-                          <p className="text-xs text-slate-400 font-mono mt-0.5">{p.sku}</p>
+                          <p className="font-extrabold text-slate-900 text-sm">{p.nombre}</p>
+                          <p className="text-[11px] text-slate-400 font-mono mt-0.5">{p.sku}</p>
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                          <span className="neb-chip neb-chip-neutral">
                             <Layers className="w-3 h-3" />{p.categoria || 'General'}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-right font-black text-slate-800">{fmt(p.precio)}</td>
+                        <td className="px-5 py-3.5 text-right font-extrabold text-slate-900">{fmt(p.precio)}</td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center justify-end gap-3">
                             <div className="flex-1 max-w-[80px]">
@@ -193,7 +193,7 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${barPct}%`, background: si.barColor }} />
                               </div>
                             </div>
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg border shrink-0 ${si.cls}`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border shrink-0 ${si.cls}`}>
                               {p.stock === 0 ? 'Agotado' : `${p.stock} un.`}
                             </span>
                           </div>
@@ -201,7 +201,7 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                         {isAdmin && (
                           <td className="px-5 py-3.5 text-center">
                             <button onClick={() => onEdit(p)}
-                              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                              className="p-2 text-slate-400 hover:text-accent-700 hover:bg-accent-50 rounded-xl transition-colors">
                               <Edit2 className="w-4 h-4" />
                             </button>
                           </td>
@@ -219,15 +219,15 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
   );
 }
 
-// ─── Sub-tab: Recepción de Mercancía ─────────────────────────────────────
+// ─── Recepción ─────────────────────────────────────────────────────────────
 function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
-  const [search,      setSearch]      = useState('');
-  const [searchOpen,  setSearchOpen]  = useState(false);
-  const [selected,    setSelected]    = useState(null);
-  const [cantidad,    setCantidad]    = useState('');
-  const [batch,       setBatch]       = useState([]);
-  const [notas,       setNotas]       = useState('');
-  const [saving,      setSaving]      = useState(false);
+  const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [cantidad, setCantidad] = useState('');
+  const [batch, setBatch] = useState([]);
+  const [notas, setNotas] = useState('');
+  const [saving, setSaving] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const searchRef = useRef(null);
 
@@ -311,10 +311,9 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
 
-      {/* Buscador */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
-        <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
-          <Search className="w-5 h-5 text-slate-400" /> Buscar Producto
+      <div className="neb-card p-5 space-y-4">
+        <h3 className="font-extrabold text-slate-900 text-[15px] flex items-center gap-2">
+          <Search className="w-4 h-4 text-accent-600" /> Buscar Producto
         </h3>
 
         <div className="flex gap-2">
@@ -325,22 +324,21 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
               type="text" placeholder="Nombre o SKU…"
               value={search} onChange={e => { setSearch(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-slate-400 focus:outline-none text-sm transition-all"
+              className="neb-input pl-10"
               autoComplete="off"
             />
-            {/* Dropdown de resultados */}
             {searchOpen && resultados.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white rounded-2xl border border-slate-200 neb-shadow overflow-hidden">
                 {resultados.map(p => (
                   <button key={p.id} type="button" onClick={() => selectProduct(p)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 text-left transition-colors">
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 text-left transition-colors">
                     <div>
-                      <p className="font-bold text-slate-800 text-sm">{p.nombre}</p>
-                      <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
+                      <p className="font-extrabold text-slate-900 text-sm">{p.nombre}</p>
+                      <p className="text-[11px] text-slate-400 font-mono">{p.sku}</p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
                       <p className="font-bold text-slate-600 text-sm">{fmt(p.precio)}</p>
-                      <p className={`text-xs font-bold ${p.stock === 0 ? 'text-red-500' : p.stock <= 5 ? 'text-red-400' : 'text-slate-400'}`}>
+                      <p className={`text-[10px] font-bold ${p.stock === 0 ? 'text-rose-500' : p.stock <= 5 ? 'text-rose-400' : 'text-slate-400'}`}>
                         stock: {p.stock}
                       </p>
                     </div>
@@ -349,58 +347,52 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
               </div>
             )}
           </div>
-          <button onClick={() => setScannerOpen(true)}
-            className="px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors flex items-center gap-2 text-sm font-bold">
+          <button onClick={() => setScannerOpen(true)} className="neb-btn neb-btn-ghost">
             <ScanLine className="w-4 h-4" /> Escanear
           </button>
         </div>
 
-        {/* Producto seleccionado + cantidad */}
         {selected && (
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <div className="neb-card-soft p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-black text-slate-800">{selected.nombre}</p>
-                <p className="text-xs text-slate-400 font-mono">{selected.sku} · Stock actual: <strong>{selected.stock}</strong></p>
+                <p className="font-extrabold text-slate-900">{selected.nombre}</p>
+                <p className="text-[11px] text-slate-400 font-mono">{selected.sku} · Stock actual: <strong>{selected.stock}</strong></p>
               </div>
-              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <input
-                  type="number" min="1" placeholder="¿Cuántas unidades llegaron?"
-                  value={cantidad} onChange={e => setCantidad(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addToBatch()}
-                  autoFocus
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:border-slate-400 focus:outline-none text-lg font-bold transition-all"
-                />
-              </div>
-              <button onClick={addToBatch} disabled={!cantidad || parseInt(cantidad) <= 0}
-                className="px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm transition-colors disabled:bg-slate-300 flex items-center gap-2">
+            <div className="flex gap-2">
+              <input
+                type="number" min="1" placeholder="¿Cuántas unidades llegaron?"
+                value={cantidad} onChange={e => setCantidad(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addToBatch()}
+                autoFocus
+                className="neb-input !text-lg !font-extrabold"
+              />
+              <button onClick={addToBatch} disabled={!cantidad || parseInt(cantidad) <= 0} className="neb-btn neb-btn-primary disabled:opacity-50">
                 <Plus className="w-4 h-4" /> Agregar
               </button>
             </div>
             {cantidad && parseInt(cantidad) > 0 && (
-              <p className="text-xs text-emerald-600 font-bold">
+              <p className="text-[11px] text-emerald-600 font-bold">
                 Stock después de recibir: {selected.stock} + {cantidad} = <strong>{selected.stock + parseInt(cantidad)}</strong> unidades
               </p>
             )}
           </div>
         )}
 
-        {/* Sugeridos: stock bajo */}
         {!selected && sugeridos.length > 0 && (
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" /> Stock bajo — sugeridos para reponer
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-2 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> Stock bajo — sugeridos
             </p>
             <div className="flex flex-wrap gap-2">
               {sugeridos.map(p => (
                 <button key={p.id} onClick={() => selectProduct(p)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all hover:shadow-sm ${
-                    p.stock === 0 ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all hover:-translate-y-0.5 ${
+                    p.stock === 0 ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-amber-50 border-amber-100 text-amber-700'
                   }`}>
                   <span>{p.nombre}</span>
                   <span className="opacity-70">{p.stock === 0 ? 'Agotado' : `${p.stock} un.`}</span>
@@ -411,54 +403,50 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
         )}
       </div>
 
-      {/* Lote acumulado */}
       {batch.length > 0 && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/60">
-            <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
-              <Truck className="w-5 h-5 text-slate-400" />
-              Lote de Entrada
-              <span className="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-full ml-1">{batch.length}</span>
+        <div className="neb-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/40">
+            <h3 className="font-extrabold text-slate-900 text-[15px] flex items-center gap-2">
+              <Truck className="w-4 h-4 text-accent-600" />
+              Lote de entrada
+              <span className="neb-chip neb-chip-info ml-1">{batch.length}</span>
             </h3>
-            <button onClick={() => setBatch([])} className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors flex items-center gap-1">
+            <button onClick={() => setBatch([])} className="text-[11px] text-slate-400 hover:text-rose-500 font-bold transition-colors flex items-center gap-1">
               <RotateCcw className="w-3 h-3" /> Limpiar
             </button>
           </div>
 
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-50">
             {batch.map(item => (
               <div key={item.productoId} className="flex items-center gap-3 px-5 py-3.5">
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 text-sm truncate">{item.nombre}</p>
-                  <p className="text-xs text-slate-400 font-mono">{item.sku}</p>
+                  <p className="font-extrabold text-slate-900 text-sm truncate">{item.nombre}</p>
+                  <p className="text-[11px] text-slate-400 font-mono">{item.sku}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-sm">
                   <span className="text-slate-500">{item.stockAnterior}</span>
                   <ChevronRight className="w-3 h-3 text-slate-300" />
-                  <span className="font-black text-emerald-600">{item.stockNuevo}</span>
-                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">+{item.cantidad}</span>
+                  <span className="font-extrabold text-emerald-600">{item.stockNuevo}</span>
+                  <span className="neb-chip neb-chip-positive">+{item.cantidad}</span>
                 </div>
-                <button onClick={() => removeFromBatch(item.productoId)} className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg transition-colors">
+                <button onClick={() => removeFromBatch(item.productoId)} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             ))}
           </div>
 
-          {/* Notas + confirmar */}
           <div className="px-5 py-4 border-t border-slate-100 space-y-3">
             <textarea
               value={notas} onChange={e => setNotas(e.target.value)} rows={2}
-              placeholder="Notas de la entrada: proveedor, número de factura, lote…"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:bg-white transition-all resize-none"
+              placeholder="Notas: proveedor, número de factura, lote…"
+              className="neb-input resize-none"
             />
-            <button
-              onClick={confirmarEntrada} disabled={saving}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md text-sm"
-            >
+            <button onClick={confirmarEntrada} disabled={saving}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold rounded-2xl transition-all flex items-center justify-center gap-2 text-sm">
               {saving
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando…</>
-                : <><CheckCircle className="w-4 h-4" /> Confirmar Entrada de Mercancía ({batch.length} productos)</>
+                : <><CheckCircle className="w-4 h-4" /> Confirmar entrada ({batch.length} productos)</>
               }
             </button>
           </div>
@@ -480,13 +468,13 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
   );
 }
 
-// ─── Sub-tab: Historial de Cambios ────────────────────────────────────────
+// ─── Historial ─────────────────────────────────────────────────────────────
 function HistorialTab() {
-  const [movimientos,  setMovimientos]  = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [tipoFiltro,   setTipoFiltro]   = useState('todos');
-  const [diasFiltro,   setDiasFiltro]   = useState(7);
-  const [searchProd,   setSearchProd]   = useState('');
+  const [movimientos, setMovimientos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tipoFiltro, setTipoFiltro] = useState('todos');
+  const [diasFiltro, setDiasFiltro] = useState(7);
+  const [searchProd, setSearchProd] = useState('');
 
   useEffect(() => { fetchMovimientos(); }, [diasFiltro]);
 
@@ -514,46 +502,52 @@ function HistorialTab() {
   };
 
   const filtrados = useMemo(() => movimientos.filter(m => {
-    const matchTipo   = tipoFiltro === 'todos' || m.tipo === tipoFiltro;
+    const matchTipo = tipoFiltro === 'todos' || m.tipo === tipoFiltro;
     const matchSearch = !searchProd || m.nombre_producto.toLowerCase().includes(searchProd.toLowerCase());
     return matchTipo && matchSearch;
   }), [movimientos, tipoFiltro, searchProd]);
 
   const resumen = useMemo(() => ({
-    entradas:    movimientos.filter(m => m.tipo === 'entrada').reduce((a, m) => a + m.cantidad, 0),
-    salidas:     movimientos.filter(m => m.tipo === 'salida_venta').reduce((a, m) => a + Math.abs(m.cantidad), 0),
-    ajustes:     movimientos.filter(m => m.tipo === 'ajuste').length,
+    entradas: movimientos.filter(m => m.tipo === 'entrada').reduce((a, m) => a + m.cantidad, 0),
+    salidas:  movimientos.filter(m => m.tipo === 'salida_venta').reduce((a, m) => a + Math.abs(m.cantidad), 0),
+    ajustes:  movimientos.filter(m => m.tipo === 'ajuste').length,
   }), [movimientos]);
 
   return (
     <div className="space-y-4">
-      {/* Resumen rápido */}
+      {/* Resumen */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
-          <ArrowUpRight className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-0.5">Entradas</p>
-          <p className="font-black text-xl text-blue-800">+{resumen.entradas} un.</p>
+        <div className="neb-card-soft p-4 text-center">
+          <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-accent-50 text-accent-700 flex items-center justify-center">
+            <ArrowUpRight className="w-4 h-4" />
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entradas</p>
+          <p className="font-extrabold text-lg text-slate-900 mt-0.5">+{resumen.entradas} un.</p>
         </div>
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center">
-          <ArrowDownRight className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-          <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-0.5">Salidas</p>
-          <p className="font-black text-xl text-amber-800">-{resumen.salidas} un.</p>
+        <div className="neb-card-soft p-4 text-center">
+          <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+            <ArrowDownRight className="w-4 h-4" />
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Salidas</p>
+          <p className="font-extrabold text-lg text-slate-900 mt-0.5">-{resumen.salidas} un.</p>
         </div>
-        <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 text-center">
-          <Settings2 className="w-5 h-5 text-purple-500 mx-auto mb-1" />
-          <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-0.5">Ajustes</p>
-          <p className="font-black text-xl text-purple-800">{resumen.ajustes}</p>
+        <div className="neb-card-soft p-4 text-center">
+          <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
+            <Settings2 className="w-4 h-4" />
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ajustes</p>
+          <p className="font-extrabold text-lg text-slate-900 mt-0.5">{resumen.ajustes}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" placeholder="Buscar producto…" value={searchProd} onChange={e => setSearchProd(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:border-slate-400 focus:outline-none text-sm transition-all" />
+            className="neb-input pl-10" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 p-1 bg-white border border-slate-200 rounded-xl">
           {[
             { key: 'todos', label: 'Todos' },
             { key: 'entrada', label: 'Entradas' },
@@ -561,32 +555,32 @@ function HistorialTab() {
             { key: 'ajuste', label: 'Ajustes' },
           ].map(f => (
             <button key={f.key} onClick={() => setTipoFiltro(f.key)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                tipoFiltro === f.key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                tipoFiltro === f.key ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
               }`}>{f.label}</button>
           ))}
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 p-1 bg-white border border-slate-200 rounded-xl">
           {[7, 14, 30].map(d => (
             <button key={d} onClick={() => setDiasFiltro(d)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                diasFiltro === d ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                diasFiltro === d ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
               }`}>{d}d</button>
           ))}
         </div>
       </div>
 
-      {/* Lista de movimientos */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Lista */}
+      <div className="neb-card overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="animate-spin w-7 h-7 text-primary-900" /></div>
+          <div className="flex justify-center py-12"><Loader2 className="animate-spin w-6 h-6 text-accent-500" /></div>
         ) : filtrados.length === 0 ? (
           <div className="py-14 text-center text-slate-400">
-            <History className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="font-medium">Sin movimientos en este período</p>
+            <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="font-bold text-sm">Sin movimientos en este período</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-50">
             {filtrados.map(m => {
               const meta  = TIPO_META[m.tipo] || TIPO_META.ajuste;
               const Icon  = meta.icon;
@@ -597,17 +591,17 @@ function HistorialTab() {
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-800 text-sm truncate">{m.nombre_producto}</p>
+                    <p className="font-extrabold text-slate-900 text-sm truncate">{m.nombre_producto}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${meta.cls}`}>{meta.label}</span>
                       {m.notas && <span className="text-[10px] text-slate-400 truncate">{m.notas}</span>}
                     </div>
                   </div>
-                  <div className="text-right shrink-0 space-y-0.5">
-                    <p className={`font-black text-base ${m.cantidad > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{delta} un.</p>
+                  <div className="text-right shrink-0">
+                    <p className={`font-extrabold text-sm ${m.cantidad > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{delta} un.</p>
                     <p className="text-[10px] text-slate-400 font-mono">{m.stock_anterior} → {m.stock_nuevo}</p>
                   </div>
-                  <div className="text-right text-xs text-slate-400 shrink-0 w-20 leading-tight">
+                  <div className="text-right text-[11px] text-slate-400 shrink-0 w-20 leading-tight">
                     <p className="font-medium">{fmtRelative(m.created_at)}</p>
                     {m.usuarios_perfiles && (
                       <p className="text-[10px] truncate max-w-[80px]">{m.usuarios_perfiles.nombre_completo.split(' ')[0]}</p>
@@ -625,12 +619,12 @@ function HistorialTab() {
 
 // ─── Componente principal ──────────────────────────────────────────────────
 export default function Inventario({ isAdmin, userProfile }) {
-  const [subTab,        setSubTab]        = useState('catalogo');
-  const [productos,     setProductos]     = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [isModalOpen,   setIsModalOpen]   = useState(false);
+  const [subTab, setSubTab] = useState('catalogo');
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [uploadingCSV,  setUploadingCSV]  = useState(false);
+  const [uploadingCSV, setUploadingCSV] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => { fetchProductos(); }, []);
@@ -689,7 +683,6 @@ export default function Inventario({ isAdmin, userProfile }) {
           stockNuevo:    nuevoStock,
           notas:         'Entrada manual desde inventario',
         });
-
       } else if (selectedProduct) {
         const { error } = await supabase
           .from('productos').update(productData).eq('id', selectedProduct.id);
@@ -705,7 +698,6 @@ export default function Inventario({ isAdmin, userProfile }) {
             notas:         'Ajuste manual',
           });
         }
-
       } else {
         const { data: newProd, error } = await supabase
           .from('productos').insert([productData]).select().single();
@@ -773,27 +765,30 @@ export default function Inventario({ isAdmin, userProfile }) {
   ];
 
   return (
-    <div className="p-4 lg:p-8 h-full overflow-y-auto bg-slate-50">
-      <div className="max-w-6xl mx-auto space-y-5">
+    <div className="h-full overflow-y-auto neb-scroll">
+      <div className="p-5 lg:p-7 max-w-6xl mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black text-slate-800">Inventario</h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              {productos.length} productos · {productos.reduce((a, p) => a + p.stock, 0)} unidades en total
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Catálogo</p>
+            <h1 className="text-2xl lg:text-[26px] font-extrabold text-slate-900 tracking-tight mt-1">
+              Inventario
+            </h1>
+            <p className="text-slate-400 text-[12px] font-bold mt-1">
+              {productos.length} productos · {productos.reduce((a, p) => a + p.stock, 0)} unidades totales
             </p>
           </div>
         </div>
 
         {/* Sub-tabs */}
-        <div className="flex bg-white rounded-2xl border border-slate-200 shadow-sm p-1 w-fit">
+        <div className="flex bg-white rounded-2xl border border-slate-200 neb-shadow-sm p-1 w-fit">
           {SUB_TABS.map(t => (
             <button key={t.key} onClick={() => setSubTab(t.key)}
-              className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${
-                subTab === t.key ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              className={`flex items-center gap-2 px-4 py-2 text-[13px] font-bold rounded-xl transition-all ${
+                subTab === t.key ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
               }`}>
-              <t.icon className="w-4 h-4" />
+              <t.icon className="w-3.5 h-3.5" />
               {t.label}
             </button>
           ))}

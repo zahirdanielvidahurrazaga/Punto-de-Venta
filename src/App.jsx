@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays, Sparkles } from 'lucide-react';
 import Terminal from './components/Terminal';
 import Inventario from './components/Inventario';
 import Dashboard from './components/Dashboard';
@@ -88,9 +88,9 @@ function App() {
         .select('*')
         .eq('id', userId)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') throw error;
-      
+
       setUserProfile(data);
       if (!data) {
         setLoadingAuth(false);
@@ -103,9 +103,8 @@ function App() {
 
   const checkWorkStatus = async (targetTab = null) => {
     if (!userProfile) return;
-    
+
     try {
-      // 1. Revisar Asistencia
       const { data: asistencia } = await supabase
         .from('registro_asistencia')
         .select('id')
@@ -113,11 +112,10 @@ function App() {
         .eq('estado', 'trabajando')
         .limit(1)
         .maybeSingle();
-      
+
       const currentlyClockedIn = !!asistencia;
       setIsClockedIn(currentlyClockedIn);
 
-      // 2. Revisar Caja
       const { data: caja } = await supabase
         .from('sesiones_caja')
         .select('id')
@@ -125,16 +123,14 @@ function App() {
         .eq('estado', 'abierta')
         .limit(1)
         .maybeSingle();
-      
+
       const currentlyCajaOpen = !!caja;
       setIsCajaOpen(currentlyCajaOpen);
 
-      // Enrutamiento Forzado para Empleados
       if (userProfile.rol === 'empleado') {
         if (targetTab) {
           setActiveTab(targetTab);
         } else if (isClockedIn === null) {
-          // Solo forzar routing en la carga inicial
           if (!currentlyClockedIn) {
             setActiveTab('asistencia');
           } else if (currentlyClockedIn && !currentlyCajaOpen) {
@@ -144,7 +140,6 @@ function App() {
           }
         }
       } else {
-         // Admin: siempre empezar en dashboard
          if (isClockedIn === null || activeTab === null) setActiveTab('dashboard');
       }
 
@@ -155,7 +150,6 @@ function App() {
     }
   };
 
-  // Se ejecuta cada vez que el perfil de usuario cambie o cargue
   useEffect(() => {
     if (userProfile) {
       checkWorkStatus();
@@ -182,7 +176,7 @@ function App() {
         .limit(50);
 
       if (error) throw error;
-      
+
       const mappedVentas = (data || []).map(v => ({
         ...v,
         items: v.venta_detalles.map(d => ({
@@ -208,7 +202,6 @@ function App() {
 
   useEffect(() => {
     if (session && userProfile) {
-      // Solo cargar ventas si el usuario tiene acceso (para ahorrar requests)
       if (userProfile.rol === 'admin' || (isClockedIn && isCajaOpen)) {
         fetchVentas();
       }
@@ -239,7 +232,7 @@ function App() {
       return true;
     } catch (error) {
       console.error('Error registering sale:', error.message, error);
-      
+
       if (error.message && error.message.toLowerCase().includes('stock')) {
         alert("Stock insuficiente para uno o más productos. Verifica el inventario.");
       } else if (error.message && error.message.includes('No tienes una caja abierta')) {
@@ -248,16 +241,19 @@ function App() {
       } else {
         alert(`Error al registrar la venta: ${error.message}`);
       }
-      
+
       return false;
     }
   };
 
   if (loadingAuth || (session && userProfile && isClockedIn === null)) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-        <Loader2 className="w-10 h-10 animate-spin text-primary-900 mb-4" />
-        <p className="font-medium animate-pulse">Validando credenciales...</p>
+      <div className="h-screen w-screen flex flex-col items-center justify-center text-slate-500">
+        <div className="neb-glass-strong rounded-3xl px-10 py-8 flex flex-col items-center">
+          <Loader2 className="w-9 h-9 animate-spin text-accent-600 mb-3" />
+          <p className="font-bold text-slate-700">Validando credenciales</p>
+          <p className="text-[11px] font-semibold text-slate-400 tracking-widest uppercase mt-1">Por favor espera</p>
+        </div>
       </div>
     );
   }
@@ -271,188 +267,202 @@ function App() {
   const isAdmin = role === 'admin';
   const isEmpleado = role === 'empleado';
 
-  // Lógica de visualización del Sidebar (Guardián)
   const canOperateTerminal = isEmpleado && isClockedIn && isCajaOpen;
   const canOperate = isAdmin || canOperateTerminal;
   const canSeeCaja = isEmpleado && isClockedIn;
 
+  // Helper para items de sidebar
+  const SideItem = ({ id, icon: Icon, label }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`neb-side-item ${activeTab === id ? 'active' : ''}`}
+    >
+      <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={2.2} />
+      <span className="truncate">{label}</span>
+      {activeTab === id && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-500" />}
+    </button>
+  );
+
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-100 flex font-sans">
+    <div className="h-screen w-screen overflow-hidden flex font-sans">
       {pinNeedsChange && (
         <CambiarPinModal onPinChanged={() => setPinNeedsChange(false)} />
       )}
-      
-      {/* Sidebar Lateral (Desktop) */}
-      <aside className="w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col z-20">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary-900 rounded-xl flex items-center justify-center shadow-lg shadow-primary-900/20 shrink-0">
-            <Box className="w-6 h-6 text-white" />
+
+      {/* ──────── Sidebar Desktop (Glass) ──────── */}
+      <aside className="w-[260px] hidden lg:flex flex-col z-20 m-3 mr-0 rounded-3xl neb-glass-strong overflow-hidden">
+        {/* Header con marca y avatar */}
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl neb-grad-primary flex items-center justify-center neb-shadow-sm">
+              <Box className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-extrabold text-[15px] tracking-tight text-slate-900 leading-none">Plásticos</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mt-1">POS System</p>
+            </div>
           </div>
-          <div>
-            <span className="font-black text-xl text-slate-800 tracking-tight block leading-none">Plásticos</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mt-1">POS System</span>
+
+          {/* Tarjeta de usuario tipo "Pro Plan" */}
+          <div className="mt-5 p-3 rounded-2xl neb-grad-pastel border border-white/70 flex items-center gap-3">
+            <div className="relative">
+              <div className="w-9 h-9 rounded-xl bg-white neb-ring flex items-center justify-center font-bold text-slate-700 text-sm">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-extrabold text-slate-900 truncate leading-none">{userName}</p>
+              <p className="text-[10px] font-bold text-accent-700 uppercase tracking-wider mt-1 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> {isAdmin ? 'Administrador' : 'Empleado'}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+        {/* Navegación */}
+        <div className="flex-1 overflow-y-auto neb-scroll px-3 py-2 space-y-4">
+
           {canOperateTerminal && (
-            <>
-              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Operación</p>
-              <button 
-                onClick={() => setActiveTab('terminal')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'terminal' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <ShoppingCart className="w-5 h-5 shrink-0" /> Terminal
-              </button>
-            </>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Operación</p>
+              <SideItem id="terminal" icon={ShoppingCart} label="Terminal" />
+            </div>
           )}
 
           {canOperate && (
-            <>
-              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">General</p>
-              <button
-                onClick={() => setActiveTab('pedidos')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'pedidos' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <ClipboardList className="w-5 h-5 shrink-0" /> Pedidos
-              </button>
-              <button
-                onClick={() => setActiveTab('inventario')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'inventario' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <Package className="w-5 h-5 shrink-0" /> Inventario
-              </button>
-              <button
-                onClick={() => setActiveTab('pedidos_programados')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'pedidos_programados' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <CalendarDays className="w-5 h-5 shrink-0" /><span className="truncate">Pedidos Programados</span>
-              </button>
-            </>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">General</p>
+              <div className="space-y-1">
+                <SideItem id="pedidos" icon={ClipboardList} label="Pedidos" />
+                <SideItem id="inventario" icon={Package} label="Inventario" />
+                <SideItem id="pedidos_programados" icon={CalendarDays} label="Pedidos Programados" />
+              </div>
+            </div>
           )}
 
           {isAdmin && (
-            <>
-              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Administración</p>
-              <button 
-                onClick={() => setActiveTab('dashboard')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <BarChart3 className="w-5 h-5 shrink-0" /> Dashboard
-              </button>
-              <button 
-                onClick={() => setActiveTab('equipo')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'equipo' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <Users className="w-5 h-5 shrink-0" /> Equipo
-              </button>
-              <button 
-                onClick={() => setActiveTab('reportes')}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                  activeTab === 'reportes' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                }`}
-              >
-                <FileText className="w-5 h-5 shrink-0" /> Reportes
-              </button>
-            </>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Administración</p>
+              <div className="space-y-1">
+                <SideItem id="dashboard" icon={BarChart3} label="Dashboard" />
+                <SideItem id="equipo" icon={Users} label="Equipo" />
+                <SideItem id="reportes" icon={FileText} label="Reportes" />
+              </div>
+            </div>
           )}
 
           {isEmpleado && (
-            <>
-              <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Flujo de Turno</p>
-              
-              {/* Mostrar Caja solo si ya checó entrada */}
-              {isClockedIn && (
-                <button 
-                  onClick={() => setActiveTab('caja')}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'caja' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                  }`}
-                >
-                  <Wallet className="w-5 h-5 shrink-0" /> {isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'}
-                </button>
-              )}
-              
-              {/* Mostrar Asistencia si NO ha checado entrada, o si ya cerró la caja y está en la pantalla de salida */}
-              {(!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
-                <button 
-                  onClick={() => setActiveTab('asistencia')}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all ${
-                    activeTab === 'asistencia' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                  }`}
-                >
-                  <Clock className="w-5 h-5 shrink-0" /> {isClockedIn ? 'Registrar Salida' : 'Checar Entrada'}
-                </button>
-              )}
-            </>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Flujo de Turno</p>
+              <div className="space-y-1">
+                {isClockedIn && (
+                  <SideItem id="caja" icon={Wallet} label={isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'} />
+                )}
+                {(!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
+                  <SideItem id="asistencia" icon={Clock} label={isClockedIn ? 'Registrar Salida' : 'Checar Entrada'} />
+                )}
+              </div>
+            </div>
           )}
         </div>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold text-slate-800 truncate">{userName}</p>
-              <p className="text-xs font-medium text-slate-500 capitalize">{role}</p>
-            </div>
-          </div>
-          <button 
+        {/* Footer del sidebar */}
+        <div className="p-3 border-t border-white/60">
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors text-sm font-semibold shadow-sm"
+            className="w-full neb-btn neb-btn-ghost text-[13px] hover:!text-rose-600 hover:!border-rose-200"
           >
             <LogOut className="w-4 h-4" /> Cerrar Sesión
           </button>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] text-center mt-3">
+            © Plásticos POS
+          </p>
         </div>
       </aside>
 
-      {/* Navegación Móvil */}
-      <div className="lg:hidden fixed top-0 w-full bg-white border-b border-slate-200 p-4 z-20 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Box className="w-6 h-6 text-primary-900" />
-          <span className="font-black text-lg text-slate-800">Plásticos POS</span>
+      {/* ──────── Mobile Top Bar ──────── */}
+      <div className="lg:hidden fixed top-0 w-full neb-glass-strong p-3 z-20 flex justify-between items-center rounded-b-2xl">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl neb-grad-primary flex items-center justify-center">
+            <Box className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <span className="font-extrabold text-[14px] text-slate-900 leading-none block">Plásticos</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">POS · {role}</span>
+          </div>
         </div>
-        <button onClick={handleLogout} className="text-slate-400 hover:text-red-500">
-          <LogOut className="w-6 h-6" />
+        <button onClick={handleLogout} className="w-9 h-9 rounded-xl bg-white/70 border border-white/60 flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-rose-50 transition-colors">
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-20 flex justify-around p-2 pb-safe">
-          {canOperateTerminal && <button onClick={() => setActiveTab('terminal')} className={`p-2 flex flex-col items-center ${activeTab === 'terminal' ? 'text-primary-900' : 'text-slate-400'}`}><ShoppingCart className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Terminal</span></button>}
-          {canOperate && <button onClick={() => setActiveTab('pedidos')} className={`p-2 flex flex-col items-center ${activeTab === 'pedidos' ? 'text-primary-900' : 'text-slate-400'}`}><ClipboardList className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Pedidos</span></button>}
-          {canOperate && <button onClick={() => setActiveTab('inventario')} className={`p-2 flex flex-col items-center ${activeTab === 'inventario' ? 'text-primary-900' : 'text-slate-400'}`}><Package className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Inventario</span></button>}
-          {canOperate && <button onClick={() => setActiveTab('pedidos_programados')} className={`p-2 flex flex-col items-center ${activeTab === 'pedidos_programados' ? 'text-primary-900' : 'text-slate-400'}`}><CalendarDays className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Prog.</span></button>}
-          {isAdmin && <button onClick={() => setActiveTab('dashboard')} className={`p-2 flex flex-col items-center ${activeTab === 'dashboard' ? 'text-primary-900' : 'text-slate-400'}`}><BarChart3 className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Dashboard</span></button>}
-          {isAdmin && <button onClick={() => setActiveTab('equipo')} className={`p-2 flex flex-col items-center ${activeTab === 'equipo' ? 'text-primary-900' : 'text-slate-400'}`}><Users className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Equipo</span></button>}
-          {isAdmin && <button onClick={() => setActiveTab('reportes')} className={`p-2 flex flex-col items-center ${activeTab === 'reportes' ? 'text-primary-900' : 'text-slate-400'}`}><FileText className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Reportes</span></button>}
-          {isEmpleado && isClockedIn && <button onClick={() => setActiveTab('caja')} className={`p-2 flex flex-col items-center ${activeTab === 'caja' ? 'text-primary-900' : 'text-slate-400'}`}><Wallet className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Caja</span></button>}
-          {isEmpleado && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && <button onClick={() => setActiveTab('asistencia')} className={`p-2 flex flex-col items-center ${activeTab === 'asistencia' ? 'text-primary-900' : 'text-slate-400'}`}><Clock className="w-5 h-5" /><span className="text-[10px] font-bold mt-0.5">Entrada</span></button>}
+      {/* ──────── Mobile Bottom Nav ──────── */}
+      <div className="lg:hidden fixed bottom-3 left-3 right-3 neb-glass-strong z-20 rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-1 p-1.5 overflow-x-auto scrollbar-hide">
+        {canOperateTerminal && (
+          <button onClick={() => setActiveTab('terminal')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'terminal' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <ShoppingCart className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Terminal</span>
+          </button>
+        )}
+        {canOperate && (
+          <button onClick={() => setActiveTab('pedidos')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'pedidos' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <ClipboardList className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Pedidos</span>
+          </button>
+        )}
+        {canOperate && (
+          <button onClick={() => setActiveTab('inventario')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'inventario' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <Package className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Inv.</span>
+          </button>
+        )}
+        {canOperate && (
+          <button onClick={() => setActiveTab('pedidos_programados')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'pedidos_programados' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <CalendarDays className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Prog.</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setActiveTab('dashboard')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'dashboard' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <BarChart3 className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Dash</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setActiveTab('equipo')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'equipo' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <Users className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Equipo</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setActiveTab('reportes')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'reportes' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <FileText className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Rep.</span>
+          </button>
+        )}
+        {isEmpleado && isClockedIn && (
+          <button onClick={() => setActiveTab('caja')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'caja' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <Wallet className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Caja</span>
+          </button>
+        )}
+        {isEmpleado && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
+          <button onClick={() => setActiveTab('asistencia')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'asistencia' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
+            <Clock className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Asis.</span>
+          </button>
+        )}
+        </div>
       </div>
 
-      {/* Contenido Principal */}
-      <main className="flex-1 overflow-hidden relative pt-[60px] lg:pt-0 pb-[60px] lg:pb-0 flex flex-col bg-slate-50">
-        {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
-        {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
-        {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
-        {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} />}
-        {activeTab === 'equipo' && isAdmin && <Equipo />}
-        {activeTab === 'reportes' && isAdmin && <Reportes />}
-        {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
-        {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
-        {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+      {/* ──────── Contenido principal ──────── */}
+      <main className="flex-1 overflow-hidden relative pt-[60px] lg:pt-3 pb-[80px] lg:pb-3 lg:pr-3 flex flex-col">
+        <div className="flex-1 overflow-hidden lg:ml-3 rounded-3xl neb-glass-strong">
+          <div className="h-full overflow-hidden">
+            {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
+            {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
+            {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
+            {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} userName={userName} />}
+            {activeTab === 'equipo' && isAdmin && <Equipo />}
+            {activeTab === 'reportes' && isAdmin && <Reportes />}
+            {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
+            {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+            {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+          </div>
+        </div>
       </main>
 
     </div>

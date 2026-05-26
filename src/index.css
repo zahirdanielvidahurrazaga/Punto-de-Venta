@@ -4,82 +4,460 @@
   /* Tipografía Principal */
   --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
 
-  /* Paleta de Colores Primarios (Deep Ocean / Slate Dark) */
-  --color-primary-50: #f8fafc;
-  --color-primary-100: #f1f5f9;
-  --color-primary-200: #e2e8f0;
-  --color-primary-300: #cbd5e1;
-  --color-primary-400: #94a3b8;
-  --color-primary-500: #64748b;
+  /* Paleta Primaria — Navy / Slate */
+  --color-primary-50:  #f6f8fb;
+  --color-primary-100: #eaeef5;
+  --color-primary-200: #d4dce8;
+  --color-primary-300: #aebdd1;
+  --color-primary-400: #8294b3;
+  --color-primary-500: #5d6f8f;
   --color-primary-600: #475569;
-  --color-primary-700: #334155;
-  --color-primary-800: #1e293b;
-  --color-primary-900: #0f172a;
-  --color-primary-950: #020617;
+  --color-primary-700: #2f3b52;
+  --color-primary-800: #1f2937;
+  --color-primary-900: #111827;
+  --color-primary-950: #0a0f1c;
 
-  /* Paleta de Colores Acento (Teal / Emerald Moderno) */
-  --color-accent-50: #f0fdfa;
-  --color-accent-100: #ccfbf1;
-  --color-accent-200: #99f6e4;
-  --color-accent-300: #5eead4;
-  --color-accent-400: #2dd4bf;
-  --color-accent-500: #14b8a6;
-  --color-accent-600: #0d9488;
-  --color-accent-700: #0f766e;
-  --color-accent-800: #115e59;
-  --color-accent-900: #134e4a;
+  /* Paleta Acento — Sky Pastel (azul cielo suave) */
+  --color-accent-50:  #f0f7ff;
+  --color-accent-100: #e0efff;
+  --color-accent-200: #c2dffe;
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+  --color-accent-800: #1e40af;
+  --color-accent-900: #1e3a8a;
+
+  /* Surface tones (fondo Nebula crema-azulado) */
+  --color-surface-base: #eef2f8;
+  --color-surface-soft: #f5f7fb;
+  --color-surface-card: #ffffff;
 }
 
 @layer base {
+  html, body {
+    height: 100%;
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    @apply text-slate-800 font-sans antialiased;
+    background:
+      radial-gradient(1100px 600px at 12% -10%, #dfe8f5 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #e8eef8 0%, transparent 55%),
+      radial-gradient(800px 600px at 50% 120%, #eaf0fa 0%, transparent 60%),
+      linear-gradient(180deg, #f4f7fc 0%, #eef2f8 100%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: #c2dffe;
+    color: #0a0f1c;
   }
 }
 
+/* ============================================================
+   COMPONENT LAYER — todas las clases compuestas viven aquí.
+   Esto permite que las utilidades de Tailwind (pl-11, mt-4, etc.)
+   siempre puedan sobrescribir el padding/margin/etc. por defecto.
+   ============================================================ */
+@layer components {
+
+  /* ──────── Glassmorphism Nebula ──────── */
+  .neb-glass {
+    background: linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.62) 100%);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.9) inset,
+      0 18px 40px -22px rgba(31,55,99,0.18),
+      0 4px 12px -6px rgba(31,55,99,0.06);
+  }
+
+  .neb-glass-strong {
+    background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 100%);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.85);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.95) inset,
+      0 30px 60px -30px rgba(31,55,99,0.25),
+      0 8px 20px -10px rgba(31,55,99,0.08);
+  }
+
+  /* Card sólida estilo Nebula */
+  .neb-card {
+    background: #ffffff;
+    border-radius: 1.5rem;
+    border: 1px solid #eaeef5;
+    box-shadow:
+      0 1px 0 0 #ffffff inset,
+      0 10px 30px -16px rgba(31,55,99,0.12),
+      0 2px 6px -2px rgba(31,55,99,0.04);
+  }
+
+  .neb-card-soft {
+    border-radius: 1.5rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+    border: 1px solid #eaeef5;
+    box-shadow:
+      0 1px 0 0 #ffffff inset,
+      0 8px 24px -16px rgba(31,55,99,0.10);
+  }
+
+  /* Píldoras y chips */
+  .neb-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .neb-chip-positive { background:#e6f7ee; color:#047857; }
+  .neb-chip-negative { background:#fde9ee; color:#be123c; }
+  .neb-chip-warning  { background:#fff4e0; color:#b45309; }
+  .neb-chip-neutral  { background:#eef2f8; color:#475569; }
+  .neb-chip-info     { background:#e0efff; color:#1d4ed8; }
+
+  /* Estados */
+  .neb-status-dot {
+    display: inline-block;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    margin-right: 0.25rem;
+  }
+
+  /* Inputs Nebula
+     Nota: el padding-left y padding-right están separados para que utilidades
+     como pl-9, pl-10, pl-11 puedan sobrescribirlos sin necesidad de !important. */
+  .neb-input {
+    width: 100%;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    outline: none;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px 0 rgba(31,55,99,0.04);
+  }
+  .neb-input::placeholder {
+    color: #94a3b8;
+  }
+  .neb-input:focus {
+    border-color: #93c5fd;
+    box-shadow:
+      0 0 0 4px rgba(147,197,253,0.25),
+      0 1px 2px 0 rgba(31,55,99,0.06);
+  }
+  .neb-input:disabled {
+    background: #f8fafc;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+
+  /* Botones */
+  .neb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-radius: 1rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    line-height: 1.2;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .neb-btn:active { transform: scale(0.98); }
+
+  .neb-btn-primary {
+    color: #ffffff;
+    background: linear-gradient(180deg, #1f2937 0%, #0a0f1c 100%);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.08) inset,
+      0 10px 24px -10px rgba(10,15,28,0.55),
+      0 2px 4px -1px rgba(10,15,28,0.25);
+  }
+  .neb-btn-primary:hover { filter: brightness(1.08); }
+
+  .neb-btn-accent {
+    color: #ffffff;
+    background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+    box-shadow:
+      0 10px 24px -10px rgba(29,78,216,0.55),
+      0 2px 4px -1px rgba(29,78,216,0.25);
+  }
+
+  .neb-btn-ghost {
+    color: #475569;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid #e2e8f0;
+  }
+  .neb-btn-ghost:hover { background: #ffffff; color:#0a0f1c; }
+
+  /* Item de sidebar */
+  .neb-side-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 1rem;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.3;
+    transition: all 0.15s ease;
+    color: #64748b;
+  }
+  .neb-side-item:hover { color: #1e293b; background: rgba(255,255,255,0.7); }
+  .neb-side-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
+    color: #0a0f1c;
+    border: 1px solid #e6eef9;
+    box-shadow:
+      0 1px 0 0 #ffffff inset,
+      0 6px 16px -10px rgba(31,55,99,0.18);
+  }
+
+  /* Anillo de avatar */
+  .neb-ring {
+    box-shadow:
+      0 0 0 2px #ffffff,
+      0 0 0 3px #d4dce8;
+  }
+}
+
+/* ============================================================
+   UTILITY LAYER — utilidades verdaderamente atómicas y efectos.
+   ============================================================ */
 @layer utilities {
-  /* Efecto Glassmorphism Premium */
-  .glass-panel {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl;
-  }
-  
-  .glass-dark {
-    @apply bg-slate-900/80 backdrop-blur-md border border-slate-800/30 shadow-2xl rounded-2xl;
+
+  /* Sombras semánticas */
+  .neb-shadow-sm { box-shadow: 0 4px 14px -8px rgba(31,55,99,0.10); }
+  .neb-shadow    { box-shadow: 0 10px 30px -14px rgba(31,55,99,0.16); }
+  .neb-shadow-lg { box-shadow: 0 30px 60px -28px rgba(31,55,99,0.30); }
+  .neb-shadow-glow {
+    box-shadow:
+      0 12px 30px -10px rgba(59,130,246,0.30),
+      0 4px 12px -4px rgba(59,130,246,0.18);
   }
 
-  /* Gradientes de Marca */
-  .bg-grad-primary {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  /* Gradientes */
+  .neb-grad-primary { background: linear-gradient(135deg, #0a0f1c 0%, #1f2937 100%); }
+  .neb-grad-accent  { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+  .neb-grad-pastel  { background: linear-gradient(135deg, #e0efff 0%, #f0f7ff 100%); }
+  .neb-grad-soft    { background: linear-gradient(180deg, #ffffff 0%, #f3f6fc 100%); }
+
+  /* Micro-interacciones */
+  .neb-press { transition: all 0.15s ease; cursor: pointer; }
+  .neb-press:hover  { transform: translateY(-2px); }
+  .neb-press:active { transform: scale(0.97); }
+
+  /* Scrollbar oculto */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Scrollbar fino estilo Nebula */
+  .neb-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .neb-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+  }
+  .neb-scroll::-webkit-scrollbar-track { background: transparent; }
+
+  /* Animaciones */
+  @keyframes neb-shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+  }
+  .animate-neb-shake { animation: neb-shake 0.4s ease-in-out; }
+
+  @keyframes neb-glow {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.85; }
+  }
+  .animate-neb-glow { animation: neb-glow 4s ease-in-out infinite; }
+
+  /* Grid de fondo opcional */
+  .neb-grid-bg {
+    background-image:
+      linear-gradient(to right, rgba(148,163,184,0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148,163,184,0.08) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
-  .bg-grad-accent {
-    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  /* ──────── Premium polish ──────── */
+
+  /* Texto con gradiente (números importantes, headings) */
+  .neb-text-gradient {
+    background: linear-gradient(135deg, #0a0f1c 0%, #3b82f6 60%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
-  
-  .bg-grad-glow {
-    background: linear-gradient(135deg, #14b8a6 0%, #6366f1 100%);
+  .neb-text-gradient-emerald {
+    background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .neb-text-gradient-warm {
+    background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .neb-text-gradient-rose {
+    background: linear-gradient(135deg, #be123c 0%, #fb7185 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
 
-  /* Micro-interacciones y Sombras */
-  .btn-premium {
-    @apply transition-all duration-200 active:scale-[0.97] hover:-translate-y-0.5 cursor-pointer;
+  /* Numerals tabulares para que los precios se alineen */
+  .neb-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
   }
 
-  .shadow-premium {
-    box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.1), 
-                0 1px 3px -1px rgba(15, 23, 42, 0.05);
+  /* Mesh gradient — fondo cinematográfico para hero / featured cards */
+  .neb-mesh {
+    background-color: #f4f7fc;
+    background-image:
+      radial-gradient(at 12% 18%, rgba(195, 223, 254, 0.55) 0px, transparent 50%),
+      radial-gradient(at 88% 12%, rgba(224, 239, 255, 0.7) 0px, transparent 50%),
+      radial-gradient(at 70% 82%, rgba(195, 223, 254, 0.45) 0px, transparent 50%),
+      radial-gradient(at 25% 88%, rgba(232, 238, 248, 0.5) 0px, transparent 50%);
   }
 
-  .shadow-glow {
-    box-shadow: 0 10px 25px -5px rgba(20, 184, 166, 0.3);
+  .neb-mesh-dark {
+    background-color: #0a0f1c;
+    background-image:
+      radial-gradient(at 8% 20%, rgba(59, 130, 246, 0.35) 0px, transparent 55%),
+      radial-gradient(at 92% 10%, rgba(99, 102, 241, 0.25) 0px, transparent 55%),
+      radial-gradient(at 75% 85%, rgba(96, 165, 250, 0.20) 0px, transparent 50%),
+      radial-gradient(at 30% 90%, rgba(29, 78, 216, 0.18) 0px, transparent 50%);
   }
 
-  /* Ocultar barra de desplazamiento */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  /* Borde gradiente sutil (para cards destacadas) */
+  .neb-border-gradient {
+    position: relative;
+    background: #ffffff;
   }
-  
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  .neb-border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(195,223,254,0.9), rgba(255,255,255,0.4), rgba(195,223,254,0.6));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Indicador en vivo — pulso elegante */
+  @keyframes neb-pulse-ring {
+    0%   { transform: scale(0.8); opacity: 0.9; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  .neb-live {
+    position: relative;
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: #10b981;
+  }
+  .neb-live::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: #10b981;
+    animation: neb-pulse-ring 1.6s ease-out infinite;
+  }
+
+  /* Orbe flotante — brillos ambientales para el hero */
+  @keyframes neb-float {
+    0%, 100% { transform: translate(0, 0); }
+    33%      { transform: translate(8px, -10px); }
+    66%      { transform: translate(-6px, 6px); }
+  }
+  .neb-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(48px);
+    pointer-events: none;
+    animation: neb-float 12s ease-in-out infinite;
+  }
+
+  /* Sparkline path — entrada animada */
+  @keyframes neb-draw {
+    from { stroke-dashoffset: 1000; }
+    to   { stroke-dashoffset: 0; }
+  }
+  .neb-spark-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: neb-draw 1.6s ease-out forwards;
+  }
+
+  /* Hover lift refinado — para cards interactivos */
+  .neb-lift {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  }
+  .neb-lift:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 24px 48px -20px rgba(31, 55, 99, 0.18),
+      0 6px 14px -6px rgba(31, 55, 99, 0.08);
+  }
+
+  /* Reveal animation — entrada con stagger */
+  @keyframes neb-reveal {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .neb-reveal { animation: neb-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+
+  /* Atajo de teclado tipo kbd */
+  .neb-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-bottom-width: 2px;
+    border-radius: 0.375rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #475569;
+    box-shadow: 0 1px 0 0 #e2e8f0;
   }
 }

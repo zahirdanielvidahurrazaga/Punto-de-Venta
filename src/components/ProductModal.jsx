@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Package, Tag, Hash, DollarSign, Box, ScanLine, RefreshCw, Layers } from 'lucide-react';
+import { X, Save, Package, Tag, Hash, DollarSign, Box, ScanLine, RefreshCw, Layers, AlertCircle } from 'lucide-react';
 import QRScannerModal from './QRScannerModal';
 import { supabase } from '../lib/supabaseClient';
 
@@ -69,69 +69,72 @@ export default function ProductModal({ onClose, onSave, product = null, categori
   }, [formData.sku, product]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+      <div className="neb-glass-strong rounded-3xl w-full max-w-md overflow-hidden">
 
-        <div className="bg-slate-900 p-5 flex justify-between items-center text-white">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Package className="w-6 h-6" />
-            {product ? 'Editar Producto' : existingProduct ? 'Agregar Stock' : 'Nuevo Producto'}
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X className="w-6 h-6" />
+        <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100/80">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Catálogo</p>
+            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2 tracking-tight mt-0.5">
+              <Package className="w-5 h-5 text-accent-600" />
+              {product ? 'Editar producto' : existingProduct ? 'Agregar stock' : 'Nuevo producto'}
+            </h2>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {existingProduct && !product && (
-          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-start gap-2">
-            <span className="text-amber-600 text-sm font-bold shrink-0">⚠ SKU existente.</span>
-            <span className="text-amber-700 text-xs">
-              El stock ingresado se <strong>sumará</strong> al actual ({existingProduct.stock} un.)
-            </span>
+          <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="text-amber-700 text-[12px] font-bold">SKU existente.</span>
+              <span className="text-amber-700 text-[11px] block">
+                El stock ingresado se <strong>sumará</strong> al actual ({existingProduct.stock} un.)
+              </span>
+            </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Nombre */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-3.5">
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Nombre del Producto</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nombre del producto</label>
             <div className="relative">
               <Tag className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 required name="nombre" value={formData.nombre} onChange={handleChange}
                 disabled={!!existingProduct}
-                className={`w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition-all ${existingProduct ? 'bg-slate-50 text-slate-400' : 'bg-white'}`}
+                className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 !text-slate-400' : ''}`}
                 placeholder="Ej. Bolsa 1kg"
               />
             </div>
           </div>
 
-          {/* SKU */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">SKU / Código de Barras</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">SKU / Código de barras</label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   required name="sku" value={formData.sku} onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition-all bg-white"
+                  className="neb-input pl-10"
                   placeholder="Código de barras o SKU"
                 />
               </div>
               <button type="button" onClick={generateSKU} title="Generar SKU"
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 rounded-xl flex items-center transition-colors border border-slate-200">
+                className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 rounded-2xl flex items-center transition-colors border border-slate-200">
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button type="button" onClick={() => setIsScannerOpen(true)} title="Escanear"
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 rounded-xl flex items-center transition-colors border border-slate-200">
+                className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 rounded-2xl flex items-center transition-colors border border-slate-200">
                 <ScanLine className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Categoría */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Categoría</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Categoría</label>
             <div className="relative">
               <Layers className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
               <input
@@ -140,7 +143,7 @@ export default function ProductModal({ onClose, onSave, product = null, categori
                 value={formData.categoria}
                 onChange={handleChange}
                 disabled={!!existingProduct}
-                className={`w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition-all ${existingProduct ? 'bg-slate-50 text-slate-400' : 'bg-white'}`}
+                className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 !text-slate-400' : ''}`}
                 placeholder="Ej. Bolsas, Cubetas, Limpieza…"
               />
               <datalist id="categorias-list">
@@ -149,33 +152,31 @@ export default function ProductModal({ onClose, onSave, product = null, categori
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Precio */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">Precio</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Precio</label>
               <div className="relative">
                 <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   required type="number" step="0.01" min="0" name="precio"
                   value={formData.precio} onChange={handleChange}
                   disabled={!!existingProduct}
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition-all ${existingProduct ? 'bg-slate-50 text-slate-400' : 'bg-white'}`}
+                  className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 !text-slate-400' : ''}`}
                   placeholder="0.00"
                 />
               </div>
             </div>
 
-            {/* Stock */}
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block">
-                {existingProduct ? 'Cantidad a Agregar' : 'Stock Inicial'}
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                {existingProduct ? 'Cantidad a agregar' : 'Stock inicial'}
               </label>
               <div className="relative">
                 <Box className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   required type="number" min="0" name="stock"
                   value={formData.stock} onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition-all bg-white"
+                  className="neb-input pl-10"
                   placeholder="0"
                 />
               </div>
@@ -183,21 +184,19 @@ export default function ProductModal({ onClose, onSave, product = null, categori
           </div>
 
           {existingProduct && (
-            <div className="bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-600 font-medium border border-slate-200">
+            <div className="bg-slate-50 rounded-2xl px-4 py-3 text-[12px] text-slate-600 font-bold border border-slate-100">
               Stock actual: <strong>{existingProduct.stock}</strong> →
               Nuevo: <strong className="text-emerald-600">{existingProduct.stock + (parseInt(formData.stock) || 0)}</strong>
             </div>
           )}
 
-          <div className="pt-2 flex gap-3">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-3 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-colors border border-slate-200">
+          <div className="pt-2 flex gap-2.5">
+            <button type="button" onClick={onClose} className="flex-1 neb-btn neb-btn-ghost py-3">
               Cancelar
             </button>
-            <button type="submit"
-              className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg">
-              <Save className="w-5 h-5" />
-              {existingProduct ? 'Agregar Stock' : product ? 'Guardar Cambios' : 'Crear Producto'}
+            <button type="submit" className="flex-1 neb-btn neb-btn-primary py-3">
+              <Save className="w-4 h-4" />
+              {existingProduct ? 'Agregar stock' : product ? 'Guardar cambios' : 'Crear producto'}
             </button>
           </div>
         </form>

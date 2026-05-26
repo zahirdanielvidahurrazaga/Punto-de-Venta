@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Loader2, QrCode, Printer } from 'lucide-react';
+import { Users, Loader2, QrCode, Printer, X, UserPlus, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import QRCodeLib from 'react-qr-code';
 
@@ -22,7 +22,7 @@ export default function Equipo() {
         .select('*')
         .eq('rol', 'empleado')
         .order('nombre_completo', { ascending: true });
-      
+
       if (error) throw error;
       setEmpleados(data || []);
     } catch (error) {
@@ -39,10 +39,10 @@ export default function Equipo() {
         .from('usuarios_perfiles')
         .update({ codigo_gafete: newCode })
         .eq('id', empleadoId);
-      
+
       if (error) throw error;
-      
-      setEmpleados(prev => prev.map(emp => 
+
+      setEmpleados(prev => prev.map(emp =>
         emp.id === empleadoId ? { ...emp, codigo_gafete: newCode } : emp
       ));
     } catch (error) {
@@ -54,17 +54,10 @@ export default function Equipo() {
     const printContent = document.getElementById(`gafete-${empleadoId}`);
     if (!printContent) return;
 
-    // Crear un iframe temporal e invisible
     const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
     document.body.appendChild(iframe);
 
-    // Escribir contenido y llamar a impresión
     const printDoc = iframe.contentWindow.document;
     printDoc.open();
     printDoc.write(`
@@ -72,27 +65,20 @@ export default function Equipo() {
         <head>
           <title>Imprimir Gafete</title>
           <style>
-            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: white; }
-            .gafete-print { width: 300px; padding: 20px; border: 2px solid #e2e8f0; border-radius: 20px; text-align: center; font-family: sans-serif; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
-            .gafete-print h2 { margin: 0 0 5px 0; font-size: 22px; font-weight: 800; color: #0f172a; }
-            .gafete-print p { margin: 0 0 20px 0; font-size: 13px; font-weight: 550; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: white; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+            .gafete-print { width: 320px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 24px; text-align: center; box-shadow: 0 20px 40px -20px rgba(31,55,99,0.18); }
+            .gafete-print h2 { margin: 0 0 5px 0; font-size: 22px; font-weight: 800; color: #0a0f1c; letter-spacing: -0.01em; }
+            .gafete-print p { margin: 0 0 20px 0; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.18em; }
             .qr-container { display: flex; justify-content: center; margin-bottom: 15px; }
-            @media print {
-              @page { margin: 0; size: auto; }
-            }
+            @media print { @page { margin: 0; size: auto; } }
           </style>
         </head>
         <body>
-          <div class="gafete-print">
-            ${printContent.innerHTML}
-          </div>
+          <div class="gafete-print">${printContent.innerHTML}</div>
           <script>
             window.onload = function() {
-              window.focus();
-              window.print();
-              setTimeout(function() {
-                window.parent.document.body.removeChild(window.frameElement);
-              }, 500);
+              window.focus(); window.print();
+              setTimeout(function() { window.parent.document.body.removeChild(window.frameElement); }, 500);
             };
           </script>
         </body>
@@ -102,60 +88,55 @@ export default function Equipo() {
   };
 
   if (loading) {
-    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-primary-900" /></div>;
+    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin w-7 h-7 text-accent-500" /></div>;
   }
 
   return (
-    <div className="p-4 lg:p-8 h-full bg-slate-50 overflow-y-auto">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg">
-            <Users className="w-7 h-7" />
+    <div className="h-full overflow-y-auto neb-scroll">
+      <div className="p-5 lg:p-7 max-w-6xl mx-auto">
+
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-7">
+          <div className="w-12 h-12 neb-grad-primary text-white rounded-2xl flex items-center justify-center">
+            <Users className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Equipo</h2>
-            <p className="text-slate-500 text-sm font-medium">Gestión de Empleados y Gafetes QR</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Personal</p>
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Equipo</h2>
+            <p className="text-slate-400 text-[12px] font-bold">Gestión de empleados y gafetes QR · {empleados.length} miembros</p>
           </div>
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-primary-900 hover:bg-primary-700 text-white px-4 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary-900/20 transition-all"
-          >
-            + Añadir Empleado
+          <button onClick={() => setIsAddModalOpen(true)} className="neb-btn neb-btn-primary">
+            <UserPlus className="w-4 h-4" /> Añadir empleado
           </button>
         </div>
 
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 relative">
-              <button onClick={() => setIsAddModalOpen(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
-                ✕
+          <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="neb-glass-strong rounded-3xl w-full max-w-md p-8 relative">
+              <button onClick={() => setIsAddModalOpen(false)} className="absolute top-4 right-4 w-9 h-9 rounded-xl text-slate-400 hover:bg-slate-100 flex items-center justify-center transition-colors">
+                <X className="w-4 h-4" />
               </button>
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
-                <Users className="w-8 h-8 text-blue-600" />
+              <div className="w-14 h-14 bg-accent-50 border border-accent-100 rounded-2xl flex items-center justify-center mb-5">
+                <Users className="w-7 h-7 text-accent-700" />
               </div>
-              <h3 className="text-xl font-black text-slate-800 mb-2">Añadir Nuevo Empleado</h3>
-              <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              <h3 className="text-lg font-extrabold text-slate-900 mb-2 tracking-tight">Añadir nuevo empleado</h3>
+              <p className="text-slate-500 text-[13px] mb-5 leading-relaxed">
                 Por seguridad, los accesos se gestionan directamente desde el servidor (Supabase). Sigue estos pasos:
               </p>
-              <ol className="space-y-4 text-sm font-medium text-slate-700 mb-8">
-                <li className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">1</span>
-                  <span>Ingresa al portal de <strong>Supabase</strong> de tu proyecto.</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">2</span>
-                  <span>Ve a la sección <strong>Authentication &gt; Users</strong>.</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">3</span>
-                  <span>Haz clic en <strong>Add User</strong> y crea la cuenta con su correo y contraseña.</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">4</span>
-                  <span>El perfil aparecerá automáticamente en esta pantalla para asignarle su gafete.</span>
-                </li>
+              <ol className="space-y-3 text-[13px] font-medium text-slate-700 mb-7">
+                {[
+                  ['Ingresa al portal de', 'Supabase', 'de tu proyecto.'],
+                  ['Ve a la sección', 'Authentication > Users', '.'],
+                  ['Haz clic en', 'Add User', 'y crea la cuenta con su correo y contraseña.'],
+                  ['El perfil aparecerá automáticamente en esta pantalla para asignarle su gafete.', '', ''],
+                ].map((step, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="w-6 h-6 rounded-lg bg-accent-50 border border-accent-100 flex items-center justify-center text-accent-700 text-xs font-extrabold shrink-0">{i+1}</span>
+                    <span>{step[0]} {step[1] && <strong>{step[1]}</strong>} {step[2]}</span>
+                  </li>
+                ))}
               </ol>
-              <button onClick={() => setIsAddModalOpen(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors">
+              <button onClick={() => setIsAddModalOpen(false)} className="w-full neb-btn neb-btn-primary py-3">
                 Entendido
               </button>
             </div>
@@ -163,51 +144,52 @@ export default function Equipo() {
         )}
 
         {empleados.length === 0 ? (
-          <div className="text-center p-10 bg-white rounded-3xl border border-slate-200">
-            <p className="text-slate-500 font-medium">No hay empleados registrados en el sistema.</p>
+          <div className="neb-card p-12 text-center text-slate-400">
+            <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="font-bold text-sm">No hay empleados registrados.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {empleados.map(empleado => (
-              <div key={empleado.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col items-center text-center">
-                
+              <div key={empleado.id} className="neb-card p-6 flex flex-col items-center text-center">
+
+                {/* Header de tarjeta — avatar */}
+                <div className="w-14 h-14 rounded-2xl neb-grad-pastel border border-white/70 flex items-center justify-center font-extrabold text-slate-700 text-xl mb-3">
+                  {empleado.nombre_completo.charAt(0).toUpperCase()}
+                </div>
+
                 <div id={`gafete-${empleado.id}`} className="w-full flex flex-col items-center">
-                  <h3 className="font-bold text-xl text-slate-900 mb-1">{empleado.nombre_completo}</h3>
-                  <p className="text-sm text-slate-500 font-medium mb-6 uppercase tracking-widest">Empleado</p>
-                  
+                  <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">{empleado.nombre_completo}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold mb-5 uppercase tracking-[0.22em] mt-1 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-accent-500" /> Empleado
+                  </p>
+
                   {empleado.codigo_gafete ? (
-                    <div className="qr-container bg-white p-4 border-2 border-slate-100 rounded-2xl mb-4">
+                    <div className="qr-container bg-white p-4 border border-slate-200 rounded-2xl mb-3 neb-shadow-sm">
                       <QRCode value={empleado.codigo_gafete} size={150} />
                     </div>
                   ) : (
-                    <div className="w-[150px] h-[150px] bg-slate-100 border-2 border-dashed border-slate-300 rounded-2xl mb-4 flex items-center justify-center text-slate-400">
-                      <QrCode className="w-10 h-10" />
+                    <div className="w-[160px] h-[160px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl mb-3 flex items-center justify-center text-slate-300">
+                      <QrCode className="w-9 h-9" />
                     </div>
                   )}
-                  
-                  <p className="text-xs text-slate-400 font-mono mt-2">
+
+                  <p className="text-[10px] text-slate-400 font-mono mt-1">
                     ID: {empleado.codigo_gafete || 'Sin código asignado'}
                   </p>
                 </div>
 
                 <div className="w-full border-t border-slate-100 pt-4 mt-4">
                   {empleado.codigo_gafete ? (
-                    <button 
-                      onClick={() => handlePrint(empleado.id)}
-                      className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors text-sm shadow-md"
-                    >
-                      <Printer className="w-4 h-4" /> Imprimir Gafete
+                    <button onClick={() => handlePrint(empleado.id)} className="w-full neb-btn neb-btn-primary">
+                      <Printer className="w-4 h-4" /> Imprimir gafete
                     </button>
                   ) : (
-                    <button 
-                      onClick={() => handleGenerateCode(empleado.id)}
-                      className="w-full py-3 bg-primary-50 text-primary-900 hover:bg-primary-100 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors text-sm border border-primary-200"
-                    >
-                      <QrCode className="w-4 h-4" /> Generar Código
+                    <button onClick={() => handleGenerateCode(empleado.id)} className="w-full neb-btn neb-btn-ghost !text-accent-700 !border-accent-100 hover:!bg-accent-50">
+                      <QrCode className="w-4 h-4" /> Generar código
                     </button>
                   )}
                 </div>
-                
               </div>
             ))}
           </div>

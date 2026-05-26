@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Lock } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Lock, Plus, Minus, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import CheckoutModal from './CheckoutModal';
 import TicketModal from './TicketModal';
@@ -11,7 +11,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
-  
+
   // Pin Modal State
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinAction, setPinAction] = useState(null);
@@ -56,7 +56,6 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     }
   }, [isCheckoutOpen, isTicketOpen, isCartMobileOpen, isPinModalOpen]);
 
-  // Atajos de teclado F1, F2, F4
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'F1') {
@@ -78,7 +77,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     if (e.key === 'Enter') {
       e.preventDefault();
       const skuOrName = searchTerm.trim().toLowerCase();
-      
+
       const product = productos.find(
         p => p.sku === skuOrName || p.nombre.toLowerCase().includes(skuOrName)
       );
@@ -95,14 +94,13 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        return prev.map(item => 
+        return prev.map(item =>
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prev, { ...product, quantity: 1 }];
     });
-    
-    // Mostrar Toast
+
     setToastMessage(`Se agregó ${product.nombre}`);
     setTimeout(() => setToastMessage(null), 2000);
   };
@@ -151,9 +149,9 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
       } else {
         let attempts = parseInt(localStorage.getItem('pin_attempts') || '0') + 1;
         localStorage.setItem('pin_attempts', attempts.toString());
-        
+
         if (attempts >= 3) {
-          const lockoutTime = Date.now() + 3 * 60 * 1000; // 3 minutos
+          const lockoutTime = Date.now() + 3 * 60 * 1000;
           localStorage.setItem('pin_lockout_time', lockoutTime.toString());
           setPinLockoutTime(lockoutTime);
           setPinError('Demasiados intentos. Bloqueado por 3 minutos.');
@@ -175,7 +173,6 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
           localStorage.setItem('pin_attempts', '0');
           setPinLockoutTime(null);
         } else {
-          // Force re-render to update the timer display
           setPinLockoutTime(parseInt(localStorage.getItem('pin_lockout_time')));
         }
       }, 1000);
@@ -220,19 +217,16 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   const handleCheckoutComplete = async (data) => {
     setPaymentData(data);
     setIsCheckoutOpen(false);
-    
+
     if (onRegisterSale) {
       const success = await onRegisterSale({
         total,
         items: cart,
         pagos: data
       });
-      
+
       if (success) {
         setIsTicketOpen(true);
-      } else {
-        // El error ya fue logueado en consola y posiblemente alertado desde App.jsx
-        // Si no se mostró ningún alert específico, mostrar uno genérico
       }
     }
   };
@@ -240,121 +234,171 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   const handleNewSale = () => {
     setPaymentData(null);
     setIsTicketOpen(false);
-    setCart([]); 
+    setCart([]);
     inputRef.current?.focus();
-    fetchProductos(); 
+    fetchProductos();
   };
 
   const CartContent = () => (
-    <div className="grid grid-rows-[auto_1fr_auto] h-full bg-white overflow-hidden w-full">
-      <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <ShoppingCart className="w-6 h-6 text-primary-900" />
-          Ticket Actual
-        </h2>
-        <div className="flex gap-2">
-          <button onClick={() => requireAdminAction(() => setCart([]))} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors" title="Limpiar Ticket (F2)">
-            F2 Limpiar
-          </button>
-          <span className="bg-primary-100 text-primary-900 py-1 px-3 rounded-lg text-sm font-bold">
+    <div className="grid grid-rows-[auto_1fr_auto] h-full w-full overflow-hidden">
+      {/* Header del carrito */}
+      <div className="px-5 pt-5 pb-4 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Ticket actual</p>
+          <h2 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2 mt-0.5">
+            <ShoppingCart className="w-4 h-4 text-accent-600" />
+            Carrito
+          </h2>
+        </div>
+        <div className="flex gap-2 items-center">
+          <span className="neb-chip neb-chip-info">
             {itemsCount} items
           </span>
+          <button
+            onClick={() => requireAdminAction(() => setCart([]))}
+            className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-bold hover:bg-rose-100 transition-colors"
+            title="Limpiar (F2)"
+          >
+            F2 · Limpiar
+          </button>
         </div>
       </div>
 
-      <div className="overflow-y-auto p-4 space-y-3 bg-slate-50/30">
+      {/* Items */}
+      <div className="overflow-y-auto neb-scroll px-4 pb-2 space-y-2.5">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <ShoppingCart className="w-16 h-16 opacity-20" />
-            <p>El ticket está vacío</p>
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3 py-12">
+            <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center">
+              <ShoppingCart className="w-7 h-7 opacity-50" />
+            </div>
+            <p className="text-sm font-bold">El ticket está vacío</p>
+            <p className="text-[11px] font-medium text-slate-400">Escanea o busca productos para empezar</p>
           </div>
         ) : (
           cart.map((item) => (
-            <div key={item.id} className="bg-white p-3 lg:p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-slate-800 truncate leading-tight">{item.nombre}</h3>
-                <div className="text-xs lg:text-sm text-slate-500 font-mono mt-1">{item.sku}</div>
-                <div className="text-primary-900 font-bold mt-1">${Number(item.precio).toFixed(2)} c/u</div>
-              </div>
-              <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                <div className="flex items-center bg-slate-100 rounded-lg p-1">
-                  <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm hover:bg-slate-50 text-slate-600 font-bold">-</button>
-                  <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm hover:bg-slate-50 text-slate-600 font-bold">+</button>
+            <div key={item.id} className="neb-card-soft p-3.5 group">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-extrabold text-slate-900 text-sm truncate leading-tight">{item.nombre}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-mono text-slate-400">{item.sku}</span>
+                    <span className="text-[10px] font-bold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
+                      ${Number(item.precio).toFixed(2)} c/u
+                    </span>
+                  </div>
                 </div>
-                <button onClick={() => removeFromCart(item.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-5 h-5" />
+                <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1">
+                  <Trash2 className="w-4 h-4" />
                 </button>
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
+                  <button onClick={() => updateQuantity(item.id, -1)} className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-900 active:scale-90 transition-transform">
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="w-7 text-center font-extrabold text-slate-900 text-sm">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.id, 1)} className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-900 active:scale-90 transition-transform">
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+                <span className="font-extrabold text-slate-900 text-sm">
+                  ${(item.quantity * Number(item.precio)).toFixed(2)}
+                </span>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <div className="p-4 lg:p-6 bg-white border-t border-slate-100 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pb-[80px] lg:pb-6">
-        <div className="space-y-2 lg:space-y-3 mb-4 lg:mb-6">
-          <div className="flex justify-between items-center text-2xl lg:text-3xl font-black text-slate-800">
-            <span>Total</span>
-            <span className="text-primary-900">${total.toFixed(2)}</span>
-          </div>
+      {/* Footer con total */}
+      <div className="p-5 border-t border-slate-100">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Total</span>
+          <span className="text-[11px] font-bold text-slate-400">{itemsCount} items</span>
+        </div>
+        <div className="flex items-end justify-between mb-4">
+          <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            ${total.toFixed(2)}
+          </span>
+          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">MXN</span>
         </div>
         <button
           onClick={handleStartCheckout}
           disabled={cart.length === 0}
-          className="w-full bg-primary-900 hover:bg-primary-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 lg:py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-primary-900/20 hover:shadow-primary-900/40 active:scale-[0.98]"
+          className="w-full neb-btn neb-btn-primary py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <CreditCard className="w-6 h-6" />
-          COBRAR (F1)
+          <CreditCard className="w-5 h-5" />
+          COBRAR · F1
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="flex flex-col lg:flex-row h-full bg-slate-100 relative overflow-hidden">
-      
-      <div className="w-full lg:w-2/3 flex flex-col p-4 lg:p-6 space-y-4 lg:space-y-6 h-[calc(100vh-140px)] lg:h-full overflow-hidden">
-        <div className="relative bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="h-6 w-6 text-slate-400" />
+    <div className="flex flex-col lg:flex-row h-full relative overflow-hidden">
+
+      {/* Columna izquierda: buscador + grid de productos */}
+      <div className="w-full lg:w-2/3 flex flex-col p-5 lg:p-6 gap-5 h-[calc(100vh-140px)] lg:h-full overflow-hidden">
+        {/* Header de Terminal */}
+        <div className="flex items-center justify-between shrink-0">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Terminal de venta</p>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Punto de cobro</h1>
+          </div>
+          <span className="neb-chip neb-chip-positive hidden sm:inline-flex">
+            <span className="neb-status-dot bg-emerald-500" /> En línea
+          </span>
+        </div>
+
+        {/* Buscador */}
+        <div className="relative neb-card overflow-hidden shrink-0">
+          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-slate-400" />
           </div>
           <input
             ref={inputRef}
             type="text"
-            className="block w-full pl-12 pr-4 py-4 lg:py-5 text-xl text-slate-900 bg-transparent focus:outline-none focus:ring-4 focus:ring-primary-100 transition-all placeholder:text-slate-400 font-medium"
-            placeholder="Escanea o busca producto (F4)..."
+            className="block w-full pl-14 pr-4 py-4 lg:py-5 text-lg text-slate-900 bg-transparent focus:outline-none focus:ring-4 focus:ring-accent-200/40 transition-all placeholder:text-slate-400 font-bold rounded-3xl"
+            placeholder="Escanea o busca producto · F4"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleSearch}
             autoComplete="off"
           />
+          <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+            <kbd className="hidden sm:inline-flex px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200">F4</kbd>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 pb-20 lg:pb-0">
-          <h2 className="text-base lg:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Box className="w-5 h-5 text-primary-900" /> Productos Frecuentes
-          </h2>
+        {/* Productos frecuentes */}
+        <div className="flex-1 overflow-y-auto neb-scroll pr-1 pb-20 lg:pb-0">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[15px] font-extrabold text-slate-900 flex items-center gap-2">
+              <Box className="w-4 h-4 text-accent-600" /> Productos frecuentes
+            </h2>
+            <span className="text-[11px] font-bold text-slate-400">Tap para agregar</span>
+          </div>
           {loading ? (
              <div className="flex flex-col items-center justify-center p-10 text-slate-400">
-               <Loader2 className="w-8 h-8 animate-spin mb-4" />
-               <p>Cargando productos...</p>
+               <Loader2 className="w-7 h-7 animate-spin mb-3 text-accent-500" />
+               <p className="text-sm font-bold">Cargando productos...</p>
              </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {productos.slice(0, 16).map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="bg-white p-3 lg:p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-primary-300 hover:shadow-md transition-all flex flex-col items-start gap-2 group text-left h-full active:scale-95"
+                  className="neb-card p-4 flex flex-col items-start gap-2 group text-left h-full hover:-translate-y-0.5 hover:border-accent-200 transition-all active:scale-[0.97]"
                 >
-                  <div className="bg-slate-50 p-2 rounded-lg group-hover:bg-primary-50 transition-colors">
-                    <Tag className="w-5 h-5 lg:w-6 lg:h-6 text-primary-900" />
+                  <div className="bg-accent-50 p-2 rounded-xl group-hover:bg-accent-100 transition-colors">
+                    <Tag className="w-4 h-4 text-accent-700" />
                   </div>
-                  <div className="font-bold text-slate-800 text-sm lg:text-base line-clamp-2 leading-tight">
+                  <div className="font-extrabold text-slate-900 text-sm line-clamp-2 leading-tight">
                     {product.nombre}
                   </div>
-                  <div className="text-slate-500 font-mono text-xs">{product.sku}</div>
-                  <div className="text-primary-900 font-black mt-auto text-base lg:text-lg">
+                  <div className="text-slate-400 font-mono text-[10px]">{product.sku}</div>
+                  <div className="text-slate-900 font-extrabold mt-auto text-base">
                     ${Number(product.precio).toFixed(2)}
                   </div>
                 </button>
@@ -364,37 +408,39 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
         </div>
       </div>
 
-      <div className="hidden lg:flex w-1/3 border-l border-slate-200 flex-col shadow-2xl z-10 bg-white h-full overflow-hidden">
+      {/* Carrito desktop */}
+      <div className="hidden lg:flex w-1/3 border-l border-white/60 flex-col bg-white/60 h-full overflow-hidden">
         <CartContent />
       </div>
 
-      <div className="lg:hidden fixed bottom-[64px] left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30">
-        <button 
+      {/* Mobile floating cart bar */}
+      <div className="lg:hidden fixed bottom-[88px] left-3 right-3 z-30">
+        <button
           onClick={() => setIsCartMobileOpen(true)}
-          className="w-full bg-slate-900 text-white p-4 rounded-xl font-bold flex items-center justify-between shadow-lg"
+          className="w-full neb-btn neb-btn-primary py-4 flex items-center justify-between !rounded-2xl"
         >
           <div className="flex items-center gap-3">
             <div className="relative">
-              <ShoppingCart className="w-6 h-6" />
+              <ShoppingCart className="w-5 h-5" />
               {itemsCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                <span className="absolute -top-2 -right-2 bg-accent-500 text-white text-[10px] w-4.5 h-4.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full font-extrabold">
                   {itemsCount}
                 </span>
               )}
             </div>
-            <span>Ver Ticket</span>
+            <span>Ver ticket</span>
           </div>
-          <span className="text-xl">${total.toFixed(2)}</span>
+          <span className="text-lg font-extrabold">${total.toFixed(2)}</span>
         </button>
       </div>
 
       {isCartMobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-white w-full h-[85vh] rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-full duration-300 overflow-hidden">
-            <div className="p-4 flex justify-between items-center border-b border-slate-100 shrink-0">
-              <h2 className="font-bold text-lg text-slate-800">Carrito de Compra</h2>
-              <button onClick={() => setIsCartMobileOpen(false)} className="bg-slate-100 p-2 rounded-full text-slate-600">
-                <X className="w-5 h-5" />
+        <div className="lg:hidden fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white w-full h-[85vh] rounded-t-3xl flex flex-col animate-in slide-in-from-bottom-full duration-300 overflow-hidden">
+            <div className="px-5 py-4 flex justify-between items-center border-b border-slate-100 shrink-0">
+              <h2 className="font-extrabold text-base text-slate-900">Carrito de compra</h2>
+              <button onClick={() => setIsCartMobileOpen(false)} className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors">
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
@@ -406,34 +452,34 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl shadow-slate-900/20 font-bold flex items-center gap-2 text-sm border border-slate-700">
-            <ShoppingCart className="w-4 h-4 text-primary-400" />
+        <div className="fixed top-20 lg:top-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="neb-glass-strong px-5 py-3 rounded-2xl font-bold flex items-center gap-2 text-sm text-slate-800">
+            <Sparkles className="w-4 h-4 text-accent-500" />
             {toastMessage}
           </div>
         </div>
       )}
 
-      {/* Modal de PIN */}
+      {/* PIN Modal */}
       {isPinModalOpen && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900/90 border border-slate-800/80 rounded-[2rem] w-full max-w-sm p-6 shadow-2xl shadow-black/50 text-white">
+        <div className="fixed inset-0 z-[60] bg-slate-900/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="neb-glass-strong rounded-3xl w-full max-w-sm p-7">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-4">
-                <Lock className="w-8 h-8 text-red-400" />
+              <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-3">
+                <Lock className="w-6 h-6 text-rose-500" />
               </div>
-              <h3 className="text-xl font-extrabold tracking-tight">Acción Restringida</h3>
-              <p className="text-slate-400 text-xs font-semibold mt-1">
-                {pinLockoutTime 
-                  ? `Demasiados intentos fallidos.` 
-                  : `Ingresa el PIN de administrador para continuar.`}
+              <h3 className="text-lg font-extrabold tracking-tight text-slate-900">Acción restringida</h3>
+              <p className="text-slate-500 text-xs font-semibold mt-1.5">
+                {pinLockoutTime
+                  ? 'Demasiados intentos fallidos'
+                  : 'Ingresa el PIN de administrador para continuar'}
               </p>
             </div>
-            <form onSubmit={handlePinSubmit} className="space-y-4">
+            <form onSubmit={handlePinSubmit} className="space-y-3.5">
               {pinLockoutTime ? (
-                <div className="text-center p-4 bg-red-950/50 border border-red-900 rounded-2xl">
-                  <p className="text-red-400 font-bold">Bloqueado temporalmente</p>
-                  <p className="text-red-300 text-sm mt-1 font-mono">
+                <div className="text-center p-4 bg-rose-50 border border-rose-100 rounded-2xl">
+                  <p className="text-rose-600 font-extrabold text-sm">Bloqueado temporalmente</p>
+                  <p className="text-rose-500 text-sm mt-1 font-mono">
                      {Math.max(0, Math.ceil((pinLockoutTime - Date.now()) / 1000))}s restantes
                   </p>
                 </div>
@@ -441,7 +487,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                 <input
                   ref={pinInputRef}
                   type="password"
-                  className="w-full text-center text-2xl tracking-widest font-mono p-4 bg-slate-950/50 border border-slate-800 focus:border-accent-500 focus:ring-4 focus:ring-accent-500/10 rounded-2xl outline-none transition-all text-white placeholder-slate-700"
+                  className="neb-input text-center text-2xl tracking-[0.5em] font-mono"
                   placeholder="••••"
                   maxLength={6}
                   value={pinInput}
@@ -449,19 +495,19 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                   autoComplete="off"
                 />
               )}
-              {pinError && <p className="text-red-400 text-xs text-center font-bold bg-red-950/30 border border-red-900/20 py-2 rounded-xl">{pinError}</p>}
-              <div className="flex gap-3">
-                <button 
-                  type="button" 
+              {pinError && <p className="text-rose-600 text-xs text-center font-bold bg-rose-50 border border-rose-100 py-2 rounded-xl">{pinError}</p>}
+              <div className="flex gap-2.5 pt-1">
+                <button
+                  type="button"
                   onClick={() => setIsPinModalOpen(false)}
-                  className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-2xl font-bold transition-all btn-premium active:scale-[0.98]"
+                  className="flex-1 neb-btn neb-btn-ghost py-3"
                 >
                   Cancelar
                 </button>
                 {!pinLockoutTime && (
-                  <button 
-                    type="submit" 
-                    className="flex-1 py-3.5 bg-grad-accent hover:opacity-95 text-white rounded-2xl font-bold transition-all shadow-glow shadow-accent-500/10 btn-premium active:scale-[0.98]"
+                  <button
+                    type="submit"
+                    className="flex-1 neb-btn neb-btn-primary py-3"
                   >
                     Autorizar
                   </button>
@@ -473,19 +519,19 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
       )}
 
       {isCheckoutOpen && (
-        <CheckoutModal 
-          total={total} 
-          onClose={() => setIsCheckoutOpen(false)} 
+        <CheckoutModal
+          total={total}
+          onClose={() => setIsCheckoutOpen(false)}
           onComplete={handleCheckoutComplete}
         />
       )}
 
       {isTicketOpen && (
-        <TicketModal 
-          cart={cart} 
-          total={total} 
+        <TicketModal
+          cart={cart}
+          total={total}
           paymentData={paymentData}
-          onClose={handleNewSale} 
+          onClose={handleNewSale}
         />
       )}
     </div>
