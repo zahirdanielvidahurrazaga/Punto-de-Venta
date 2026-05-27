@@ -54,10 +54,10 @@ function estadoPago(pedido) {
 }
 
 const URG_BORDER = {
-  vencido: 'border-rose-200/80 bg-rose-50/40',
-  hoy:     'border-amber-200/80 bg-amber-50/40',
-  mañana:  'border-accent-200/80 bg-accent-50/40',
-  normal:  'border-slate-200/70 bg-white',
+  vencido: 'border-slate-200 dark:border-white/5 bg-rose-50/30',
+  hoy:     'border-slate-200 dark:border-white/5 bg-amber-50/30',
+  mañana:  'border-slate-200 dark:border-white/5 bg-blue-50/30',
+  normal:  'border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900',
 };
 
 const URG_BADGE = {
@@ -74,7 +74,7 @@ function SeccionPago({ efectivo, tarjeta, transferencia, onChange, total, label 
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] flex items-center gap-1.5">
+      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em] flex items-center gap-1.5">
         <Wallet className="w-3 h-3" /> {label}
       </p>
       <div className="grid grid-cols-3 gap-2">
@@ -84,11 +84,11 @@ function SeccionPago({ efectivo, tarjeta, transferencia, onChange, total, label 
           { key: 'transferencia', icon: Building2,  label: 'Transf.'  },
         ].map(m => (
           <div key={m.key}>
-            <label className="flex items-center gap-1 text-[10px] font-bold text-slate-500 mb-1.5">
+            <label className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
               <m.icon className="w-3 h-3" />{m.label}
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-bold">$</span>
               <input
                 type="number" step="0.01" min="0" placeholder="0.00"
                 value={efectivo !== undefined && m.key === 'efectivo' ? efectivo : m.key === 'tarjeta' ? tarjeta : transferencia}
@@ -192,7 +192,7 @@ function PagoModal({ pedido, onClose, onSaved }) {
     const pendiente = Number(pedido.total) - pagoGuardado.totalPagado;
 
     return (
-      <div className="fixed inset-0 z-[70] bg-slate-900/30 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[70] bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
         <div className="neb-glass-strong rounded-3xl w-full max-w-md max-h-[95vh] flex flex-col overflow-hidden">
 
           <div className="px-6 py-5 flex justify-between items-center shrink-0 border-b border-slate-100/80">
@@ -201,41 +201,41 @@ function PagoModal({ pedido, onClose, onSaved }) {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-extrabold leading-tight text-slate-900">¡Pago registrado!</h2>
-                <p className="text-slate-500 text-xs font-bold">
+                <h2 className="text-lg font-extrabold leading-tight text-slate-900 dark:text-white">¡Pago registrado!</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-xs font-bold">
                   {pedido.cliente_nombre || 'Pedido programado'}
                 </p>
               </div>
             </div>
-            <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+            <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center neb-scroll">
-            <div id="ticket-pedido-programado" className="w-full max-w-sm bg-white px-6 pt-6 pb-8 font-mono text-slate-800 rounded-2xl border border-slate-200 neb-shadow">
+            <div id="ticket-pedido-programado" className="w-full max-w-sm bg-white dark:bg-slate-900 px-6 pt-6 pb-8 font-mono text-slate-800 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-white/5 neb-shadow">
               <div className="text-center mb-4">
                 <div className="w-10 h-10 neb-grad-primary text-white rounded-xl flex items-center justify-center mx-auto mb-2">
                   <Store className="w-5 h-5" />
                 </div>
-                <h3 className="font-extrabold text-base uppercase tracking-widest text-slate-900">Plásticos POS</h3>
-                <p className="text-[10px] text-slate-500 uppercase mt-0.5">Pedido programado</p>
+                <h3 className="font-extrabold text-base uppercase tracking-widest text-slate-900 dark:text-white">Plásticos POS</h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase mt-0.5">Pedido programado</p>
                 {pedido.cliente_nombre && (
-                  <p className="text-xs font-bold text-slate-700 mt-1">Cliente: {pedido.cliente_nombre}</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">Cliente: {pedido.cliente_nombre}</p>
                 )}
                 {pedido.cliente_contacto && (
-                  <p className="text-[10px] text-slate-500">{pedido.cliente_contacto}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">{pedido.cliente_contacto}</p>
                 )}
               </div>
 
-              <div className="border-y border-dashed border-slate-300 py-2 mb-3 text-[10px] font-bold text-slate-600 flex justify-between">
+              <div className="border-y border-dashed border-slate-300 dark:border-slate-700 py-2 mb-3 text-[10px] font-bold text-slate-600 dark:text-slate-400 flex justify-between">
                 <div>
                   <p>PAGO: {date} {time}</p>
                   {pedido.fecha_entrega && <p>ENTREGA: {pedido.fecha_entrega}</p>}
                 </div>
               </div>
 
-              <div className="flex justify-between text-[10px] font-bold text-slate-900 border-b border-slate-300 pb-1 mb-2">
+              <div className="flex justify-between text-[10px] font-bold text-slate-900 dark:text-white border-b border-slate-300 dark:border-slate-700 pb-1 mb-2">
                 <span className="w-3/5 text-left">DESCRIPCIÓN</span>
                 <span className="w-1/5 text-center">CANT</span>
                 <span className="w-1/5 text-right">IMPORTE</span>
@@ -246,26 +246,26 @@ function PagoModal({ pedido, onClose, onSaved }) {
                   <div key={i} className="flex flex-col">
                     <div className="flex justify-between">
                       <span className="w-3/5 font-bold pr-1">{item.nombre}</span>
-                      <span className="w-1/5 text-center text-slate-600">{item.quantity}</span>
+                      <span className="w-1/5 text-center text-slate-600 dark:text-slate-400">{item.quantity}</span>
                       <span className="w-1/5 text-right font-bold">${(item.precio * item.quantity).toFixed(2)}</span>
                     </div>
-                    <span className="text-[10px] text-slate-500">${item.precio.toFixed(2)} c/u</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">${item.precio.toFixed(2)} c/u</span>
                   </div>
                 ))}
               </div>
 
               <div className="border-t-2 border-slate-800 pt-2 mb-4">
-                <div className="flex justify-between font-extrabold text-base text-slate-900">
+                <div className="flex justify-between font-extrabold text-base text-slate-900 dark:text-white">
                   <span>TOTAL</span>
                   <span>${Number(pedido.total).toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[10px] space-y-1.5 mb-4">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-white/5 text-[10px] space-y-1.5 mb-4">
                 {pagoGuardado.efectivo > 0 && <div className="flex justify-between"><span>EFECTIVO:</span><span className="font-bold">${pagoGuardado.efectivo.toFixed(2)}</span></div>}
                 {pagoGuardado.tarjeta > 0 && <div className="flex justify-between"><span>TARJETA:</span><span className="font-bold">${pagoGuardado.tarjeta.toFixed(2)}</span></div>}
                 {pagoGuardado.transferencia > 0 && <div className="flex justify-between"><span>TRANSFERENCIA:</span><span className="font-bold">${pagoGuardado.transferencia.toFixed(2)}</span></div>}
-                {pagoGuardado.efectivoRecibido > 0 && <div className="flex justify-between font-bold pt-1 border-t border-slate-200"><span>RECIBIDO:</span><span>${pagoGuardado.efectivoRecibido.toFixed(2)}</span></div>}
+                {pagoGuardado.efectivoRecibido > 0 && <div className="flex justify-between font-bold pt-1 border-t border-slate-200 dark:border-white/5"><span>RECIBIDO:</span><span>${pagoGuardado.efectivoRecibido.toFixed(2)}</span></div>}
                 <div className="flex justify-between font-extrabold"><span>CAMBIO:</span><span>${pagoGuardado.cambio.toFixed(2)}</span></div>
                 {pendiente > 0.01 && (
                   <div className="flex justify-between font-extrabold text-amber-700 border-t border-amber-200 pt-1 mt-1">
@@ -274,8 +274,8 @@ function PagoModal({ pedido, onClose, onSaved }) {
                 )}
               </div>
 
-              {pedido.notas && <p className="text-[10px] text-slate-500 border-t border-dashed border-slate-200 pt-2 mb-2">NOTA: {pedido.notas}</p>}
-              <p className="text-center text-[10px] font-bold text-slate-800 uppercase mt-2">¡Gracias!</p>
+              {pedido.notas && <p className="text-[10px] text-slate-500 dark:text-slate-400 border-t border-dashed border-slate-200 dark:border-white/5 pt-2 mb-2">NOTA: {pedido.notas}</p>}
+              <p className="text-center text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase mt-2">¡Gracias!</p>
             </div>
           </div>
 
@@ -293,14 +293,14 @@ function PagoModal({ pedido, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/30 backdrop-blur-md flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[70] bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
       <div className="neb-glass-strong rounded-3xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100/80">
           <div>
-            <h3 className="font-extrabold text-slate-900 text-lg">Registrar pago</h3>
-            {pedido.cliente_nombre && <p className="text-sm text-slate-500 font-bold">{pedido.cliente_nombre}</p>}
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">Registrar pago</h3>
+            {pedido.cliente_nombre && <p className="text-sm text-slate-500 dark:text-slate-400 font-bold">{pedido.cliente_nombre}</p>}
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -330,7 +330,7 @@ function PagoModal({ pedido, onClose, onSaved }) {
                     type="number" step="0.01" min="0" placeholder="0.00"
                     value={efectivoRecibido}
                     onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEfectivoRecibido(v); }}
-                    className="w-full pl-8 pr-4 py-3 bg-white border border-amber-200 rounded-xl text-2xl font-extrabold focus:outline-none focus:border-amber-400 transition-all"
+                    className="w-full pl-8 pr-4 py-3 bg-white dark:bg-slate-900 border border-amber-200 rounded-xl text-2xl font-extrabold focus:outline-none focus:border-amber-400 transition-all"
                     autoFocus
                   />
                 </div>
@@ -339,7 +339,7 @@ function PagoModal({ pedido, onClose, onSaved }) {
                 <div className={`flex justify-between items-center px-4 py-3 rounded-xl border font-extrabold text-lg ${
                   recFaltante
                     ? 'bg-rose-50 border-rose-100 text-rose-600'
-                    : 'bg-white border-emerald-100 text-emerald-600'
+                    : 'bg-white dark:bg-slate-900 border-emerald-100 text-emerald-600'
                 }`}>
                   <span className="text-sm font-bold">{recFaltante ? 'Faltan:' : 'Cambio:'}</span>
                   <span>{recFaltante ? fmt(ef - rec) : fmt(cambio)}</span>
@@ -463,18 +463,18 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
       <div className="neb-glass-strong rounded-3xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden">
 
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100/80 shrink-0">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Programado</p>
-            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2 mt-0.5">
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Programado</p>
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mt-0.5">
               <CalendarDays className="w-5 h-5 text-accent-600" />
               Nuevo pedido
             </h2>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -484,18 +484,18 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
 
             {/* Cliente */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
                 <User className="w-3 h-3" /> Datos del cliente (opcional)
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="relative">
-                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input type="text" placeholder="Nombre del cliente"
                     value={clienteNombre} onChange={e => setClienteNombre(e.target.value)}
                     className="neb-input pl-9" />
                 </div>
                 <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input type="text" placeholder="Teléfono / contacto"
                     value={clienteCtc} onChange={e => setClienteCtc(e.target.value)}
                     className="neb-input pl-9" />
@@ -505,18 +505,18 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
 
             {/* Entrega */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
                 <CalendarDays className="w-3 h-3" /> Entrega
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1.5">Fecha *</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5">Fecha *</label>
                   <input type="date" required min={hoy()}
                     value={fechaEntrega} onChange={e => setFechaEntrega(e.target.value)}
                     className="neb-input" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1.5">Hora (opcional)</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5">Hora (opcional)</label>
                   <input type="time"
                     value={horaEntrega} onChange={e => setHoraEntrega(e.target.value)}
                     className="neb-input" />
@@ -526,28 +526,28 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
 
             {/* Productos */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
                 <Package className="w-3 h-3" /> Productos *
               </p>
               <div className="relative mb-3">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input ref={searchRef} type="text" placeholder="Buscar por nombre o SKU..." autoComplete="off"
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   className="neb-input pl-9" />
               </div>
 
               {filtered.length > 0 && (
-                <div className="border border-slate-200 rounded-2xl overflow-hidden mb-3 bg-white neb-shadow-sm">
+                <div className="border border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden mb-3 bg-white dark:bg-slate-900 neb-shadow-sm">
                   {filtered.slice(0, 6).map(p => (
                     <button key={p.id} type="button" onClick={() => addToCart(p)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors text-left">
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 border-b border-slate-50 last:border-0 transition-colors text-left">
                       <div>
-                        <p className="font-extrabold text-slate-900 text-sm">{p.nombre}</p>
-                        <p className="text-[11px] text-slate-400 font-mono">{p.sku} · stock: {p.stock}</p>
+                        <p className="font-extrabold text-slate-900 dark:text-white text-sm">{p.nombre}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{p.sku} · stock: {p.stock}</p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
-                        <p className="font-extrabold text-slate-900">{fmt(p.precio)}</p>
-                        <Plus className="w-4 h-4 text-slate-400 ml-auto" />
+                        <p className="font-extrabold text-slate-900 dark:text-white">{fmt(p.precio)}</p>
+                        <Plus className="w-4 h-4 text-slate-400 dark:text-slate-500 ml-auto" />
                       </div>
                     </button>
                   ))}
@@ -555,7 +555,7 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
               )}
 
               {cartItems.length === 0 ? (
-                <div className="border-2 border-dashed border-slate-200 rounded-2xl py-8 text-center text-slate-400">
+                <div className="border-2 border-dashed border-slate-200 dark:border-white/5 rounded-2xl py-8 text-center text-slate-400 dark:text-slate-500">
                   <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p className="text-sm font-bold">Busca y agrega productos al pedido</p>
                 </div>
@@ -564,15 +564,15 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
                   {cartItems.map(item => (
                     <div key={item.id} className="flex items-center gap-3 neb-card-soft px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-extrabold text-slate-900 text-sm truncate">{item.nombre}</p>
-                        <p className="text-[11px] text-slate-400 font-mono">{item.sku} · {fmt(item.precio)} c/u</p>
+                        <p className="font-extrabold text-slate-900 dark:text-white text-sm truncate">{item.nombre}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.sku} · {fmt(item.precio)} c/u</p>
                       </div>
-                      <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shrink-0">
-                        <button type="button" onClick={() => updateCantidad(item.id, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 text-slate-600 font-bold">-</button>
-                        <span className="w-8 text-center text-sm font-extrabold text-slate-900">{item.cantidad}</span>
-                        <button type="button" onClick={() => updateCantidad(item.id, +1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 text-slate-600 font-bold">+</button>
+                      <div className="flex items-center neb-card rounded-xl overflow-hidden shrink-0">
+                        <button type="button" onClick={() => updateCantidad(item.id, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 font-bold">-</button>
+                        <span className="w-8 text-center text-sm font-extrabold text-slate-900 dark:text-white">{item.cantidad}</span>
+                        <button type="button" onClick={() => updateCantidad(item.id, +1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 font-bold">+</button>
                       </div>
-                      <span className="font-extrabold text-slate-900 text-sm w-16 text-right shrink-0">{fmt(Number(item.precio)*item.cantidad)}</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm w-16 text-right shrink-0">{fmt(Number(item.precio)*item.cantidad)}</span>
                       <button type="button" onClick={() => setCartItems(prev => prev.filter(i => i.id !== item.id))} className="text-slate-300 hover:text-rose-500 p-1">
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -598,7 +598,7 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
 
             {/* Notas */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">
+              <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em] mb-2">
                 Notas / instrucciones
               </label>
               <textarea value={notas} onChange={e => setNotas(e.target.value)} rows={2}
@@ -678,24 +678,18 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
     <div className="h-full overflow-y-auto neb-scroll">
       <div className="p-5 lg:p-7 max-w-4xl mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 neb-grad-primary text-white rounded-2xl flex items-center justify-center shrink-0">
-              <ClipboardList className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Programados</p>
-              <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
-                Pedidos programados
-                {urgentCount > 0 && (
-                  <span className="neb-chip neb-chip-negative animate-pulse">{urgentCount}</span>
-                )}
-              </h1>
-              <p className="text-slate-400 text-[12px] font-bold">
-                {isAdmin ? 'Todos los pedidos del equipo' : 'Pedidos programados de tu turno'}
-              </p>
-            </div>
+        {/* Header — Apple */}
+        <div className="flex items-start justify-between gap-3 pt-2 mb-7">
+          <div>
+            <h1 className="text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              Pedidos programados
+              {urgentCount > 0 && (
+                <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[12px] font-medium animate-pulse">{urgentCount}</span>
+              )}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-2">
+              {isAdmin ? 'Todos los pedidos del equipo' : 'Pedidos programados de tu turno'}
+            </p>
           </div>
           <button onClick={() => setShowForm(true)} className="neb-btn neb-btn-primary">
             <Plus className="w-4 h-4" />
@@ -703,17 +697,17 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
           </button>
         </div>
 
-        {/* Filtros */}
+        {/* Filtros — Apple */}
         <div className="flex gap-2 flex-wrap mb-6">
           {ESTADOS.map(e => (
             <button key={e.key} onClick={() => setStatusFilter(e.key)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+              className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
                 statusFilter === e.key
-                  ? 'neb-grad-primary text-white border-transparent'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-accent-300 hover:text-slate-900'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
               }`}>
               {e.label}
-              {e.key !== 'todos' && <span className="ml-1.5 opacity-60">·{pedidos.filter(p => p.estado === e.key).length}</span>}
+              {e.key !== 'todos' && <span className="ml-1 opacity-60">· {pedidos.filter(p => p.estado === e.key).length}</span>}
             </button>
           ))}
         </div>
@@ -722,7 +716,7 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="animate-spin w-7 h-7 text-accent-500" /></div>
         ) : filtrados.length === 0 ? (
-          <div className="neb-card p-16 text-center text-slate-400">
+          <div className="neb-card p-16 text-center text-slate-400 dark:text-slate-500">
             <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="font-bold text-base mb-1">
               {statusFilter === 'todos' ? 'Sin pedidos programados' : `Sin pedidos ${ESTADO_LABEL[statusFilter]?.toLowerCase()}`}
@@ -739,11 +733,11 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
               const isUpdating = updatingId === pedido.id;
 
               return (
-                <div key={pedido.id} className={`rounded-3xl border overflow-hidden ${URG_BORDER[urg]} neb-shadow-sm`}>
+                <div key={pedido.id} className={`rounded-2xl border overflow-hidden ${URG_BORDER[urg]}`}>
 
                   <div className="flex items-start justify-between px-5 pt-5 pb-3 gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className={ESTADO_STYLE[pedido.estado]}>{ESTADO_LABEL[pedido.estado]}</span>
                         {urg !== 'normal' && pedido.estado === 'pendiente' && (
                           <span className={URG_BADGE[urg]}>
@@ -752,19 +746,19 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
                         )}
                         <span className={pagInfo.cls}>{pagInfo.label}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-slate-600 font-bold text-[13px]">
-                        <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 text-[13px]">
+                        <CalendarDays className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                         {fmtFecha(pedido.fecha_entrega)}
                         {pedido.hora_entrega && (
                           <><span className="text-slate-300">·</span>
-                          <Clock className="w-3 h-3 text-slate-400" />
+                          <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                           {pedido.hora_entrega.slice(0,5)}</>
                         )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-extrabold text-xl text-slate-900">{fmt(pedido.total)}</p>
-                      <p className="text-[11px] text-slate-400 font-bold">
+                      <p className="font-semibold text-xl text-slate-900 dark:text-white neb-tabular">{fmt(pedido.total)}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 neb-tabular">
                         {items.reduce((a,i) => a + i.cantidad, 0)} producto{items.reduce((a,i)=>a+i.cantidad,0)!==1?'s':''}
                       </p>
                     </div>
@@ -773,17 +767,17 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
                   {(pedido.cliente_nombre || pedido.cliente_contacto || isAdmin) && (
                     <div className="px-5 pb-3 flex flex-wrap gap-3 text-sm">
                       {pedido.cliente_nombre && (
-                        <span className="flex items-center gap-1.5 text-slate-600 font-bold text-[12px]">
-                          <User className="w-3.5 h-3.5 text-slate-400" />{pedido.cliente_nombre}
+                        <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 text-[12px]">
+                          <User className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />{pedido.cliente_nombre}
                         </span>
                       )}
                       {pedido.cliente_contacto && (
-                        <span className="flex items-center gap-1.5 text-slate-600 font-bold text-[12px]">
-                          <Phone className="w-3 h-3 text-slate-400" />{pedido.cliente_contacto}
+                        <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 text-[12px]">
+                          <Phone className="w-3 h-3 text-slate-400 dark:text-slate-500" />{pedido.cliente_contacto}
                         </span>
                       )}
                       {isAdmin && (
-                        <span className="flex items-center gap-1.5 text-slate-500 text-[11px] font-bold ml-auto">
+                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[11px] ml-auto">
                           <Tag className="w-3 h-3" />{pedido.usuarios_perfiles?.nombre_completo}
                         </span>
                       )}
@@ -791,14 +785,14 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
                   )}
 
                   <div className="px-5 pb-3">
-                    <div className="bg-white/70 rounded-2xl divide-y divide-slate-100 overflow-hidden border border-slate-100">
+                    <div className="bg-white/70 dark:bg-white/5 rounded-xl divide-y divide-slate-100 dark:divide-white/5 overflow-hidden border border-slate-100 dark:border-white/5">
                       {items.map(item => (
                         <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
                           <div>
-                            <span className="font-bold text-slate-700 text-[13px]">{item.nombre_producto}</span>
-                            <span className="text-[11px] text-slate-400 ml-2 font-bold">×{item.cantidad}</span>
+                            <span className="text-slate-700 dark:text-slate-300 text-[13px]">{item.nombre_producto}</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-2 neb-tabular">×{item.cantidad}</span>
                           </div>
-                          <span className="font-extrabold text-slate-900 text-[13px]">
+                          <span className="font-semibold text-slate-900 dark:text-white text-[13px] neb-tabular">
                             {fmt(item.precio_unitario * item.cantidad)}
                           </span>
                         </div>
@@ -808,26 +802,26 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
 
                   {totalPagado > 0 && (
                     <div className="px-5 pb-3">
-                      <div className="bg-white/70 rounded-2xl border border-slate-100 px-4 py-3">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-2">Pago registrado</p>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-bold">
+                      <div className="bg-white/70 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 px-4 py-3">
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-[0.12em] mb-2">Pago registrado</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
                           {Number(pedido.pago_efectivo) > 0 && (
-                            <span className="flex items-center gap-1 text-amber-700">
-                              <Banknote className="w-3 h-3" /> Efectivo {fmt(pedido.pago_efectivo)}
+                            <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                              <Banknote className="w-3 h-3 text-slate-400 dark:text-slate-500" /> Efectivo <span className="font-semibold neb-tabular">{fmt(pedido.pago_efectivo)}</span>
                             </span>
                           )}
                           {Number(pedido.pago_tarjeta) > 0 && (
-                            <span className="flex items-center gap-1 text-accent-700">
-                              <CreditCard className="w-3 h-3" /> Tarjeta {fmt(pedido.pago_tarjeta)}
+                            <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                              <CreditCard className="w-3 h-3 text-slate-400 dark:text-slate-500" /> Tarjeta <span className="font-semibold neb-tabular">{fmt(pedido.pago_tarjeta)}</span>
                             </span>
                           )}
                           {Number(pedido.pago_transferencia) > 0 && (
-                            <span className="flex items-center gap-1 text-violet-700">
-                              <Building2 className="w-3 h-3" /> Transf. {fmt(pedido.pago_transferencia)}
+                            <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                              <Building2 className="w-3 h-3 text-slate-400 dark:text-slate-500" /> Transf. <span className="font-semibold neb-tabular">{fmt(pedido.pago_transferencia)}</span>
                             </span>
                           )}
                           {pagInfo.key === 'anticipo' && (
-                            <span className="text-slate-500 ml-auto">
+                            <span className="text-slate-500 dark:text-slate-400 ml-auto neb-tabular">
                               Pendiente: {fmt(Number(pedido.total) - totalPagado)}
                             </span>
                           )}
@@ -838,9 +832,9 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
 
                   {pedido.notas && (
                     <div className="px-5 pb-3">
-                      <div className="flex gap-2 bg-white/60 rounded-xl px-3 py-2 border border-slate-100">
-                        <AlertCircle className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                        <p className="text-[12px] text-slate-600 font-medium leading-relaxed">{pedido.notas}</p>
+                      <div className="flex gap-2 bg-white/60 dark:bg-white/5 rounded-xl px-3 py-2 border border-slate-100 dark:border-white/5">
+                        <AlertCircle className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
+                        <p className="text-[12px] text-slate-600 dark:text-slate-400 font-medium leading-relaxed">{pedido.notas}</p>
                       </div>
                     </div>
                   )}
@@ -849,21 +843,21 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
                     <div className="px-5 pb-5 flex gap-2 flex-wrap">
                       {pedido.estado === 'pendiente' && (
                         <button onClick={() => updateEstado(pedido.id, 'listo')} disabled={isUpdating}
-                          className="px-3 py-1.5 bg-accent-600 hover:bg-accent-700 text-white text-[11px] font-bold rounded-xl transition-colors disabled:opacity-50 inline-flex items-center gap-1.5">
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1.5">
                           {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                           Marcar listo
                         </button>
                       )}
                       {pedido.estado === 'listo' && (
                         <button onClick={() => updateEstado(pedido.id, 'entregado')} disabled={isUpdating}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-xl transition-colors disabled:opacity-50 inline-flex items-center gap-1.5">
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1.5">
                           {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                           Marcar entregado
                         </button>
                       )}
                       {pagInfo.key !== 'pagado' && (
                         <button onClick={() => setPagoModal(pedido)}
-                          className="px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold rounded-xl transition-colors inline-flex items-center gap-1.5">
+                          className="px-3 py-1.5 neb-card text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 text-[12px] font-medium rounded-lg transition-colors inline-flex items-center gap-1.5">
                           <DollarSign className="w-3 h-3" />
                           {pagInfo.key === 'anticipo' ? 'Completar pago' : 'Registrar pago'}
                         </button>
@@ -871,7 +865,7 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
                       <button
                         onClick={() => { if (confirm('¿Cancelar este pedido?')) updateEstado(pedido.id, 'cancelado'); }}
                         disabled={isUpdating}
-                        className="px-3 py-1.5 bg-white border border-rose-100 text-rose-600 hover:bg-rose-50 text-[11px] font-bold rounded-xl transition-colors disabled:opacity-50 ml-auto inline-flex items-center gap-1.5">
+                        className="px-3 py-1.5 text-slate-500 dark:text-slate-400 hover:text-rose-600 text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50 ml-auto inline-flex items-center gap-1.5">
                         <X className="w-3 h-3" /> Cancelar
                       </button>
                     </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CreditCard, Banknote, Building2, X, ArrowRight, Wallet, SplitSquareHorizontal, CheckCircle } from 'lucide-react';
+import { CreditCard, Banknote, Building2, X, ArrowRight, SplitSquareHorizontal, CheckCircle } from 'lucide-react';
 
 export default function CheckoutModal({ total, onClose, onComplete }) {
   const [payments, setPayments] = useState({ efectivo: '', tarjeta: '', transferencia: '' });
@@ -59,58 +59,42 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
   const cashIsValid = cashReceivedNum >= total;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[60] p-4">
       <div className="neb-glass-strong rounded-3xl w-full max-w-lg overflow-hidden flex flex-col max-h-[95vh]">
 
-        <div className="px-6 py-5 flex justify-between items-center shrink-0 border-b border-slate-100/80">
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Cobro</p>
-            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2 tracking-tight mt-0.5">
-              <Wallet className="w-5 h-5 text-accent-600" />
-              {mode === 'cash' ? 'Pago en efectivo' : 'Método de pago'}
-            </h2>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+        <div className="px-6 py-5 flex justify-between items-center shrink-0 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+            {mode === 'cash' ? 'Pago en efectivo' : 'Método de pago'}
+          </h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-6 md:p-7 flex-1 overflow-y-auto neb-scroll">
           <div className="text-center mb-7">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Total a pagar</p>
-            <p className="text-5xl font-extrabold text-slate-900 tracking-tight mt-1">${total.toFixed(2)}</p>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total a pagar</p>
+            <p className="text-5xl font-semibold text-slate-900 dark:text-white tracking-tight mt-1 neb-tabular">${total.toFixed(2)}</p>
           </div>
 
           {mode === 'quick' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-2.5">
-                <button onClick={() => handleQuickPay('efectivo')} className="flex flex-col items-center p-4 bg-white hover:bg-amber-50 rounded-2xl border border-slate-200 hover:border-amber-200 transition-all neb-shadow-sm hover:-translate-y-0.5 group">
-                  <div className="bg-amber-50 p-2 rounded-xl mb-2 group-hover:scale-105 transition-transform">
-                    <Banknote className="w-6 h-6 text-amber-600" />
-                  </div>
-                  <span className="text-[11px] font-extrabold text-slate-700 text-center leading-tight">Efectivo</span>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => handleQuickPay('efectivo')} className="flex flex-col items-center p-5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 transition-all group">
+                  <Banknote className="w-7 h-7 text-slate-700 dark:text-slate-300 mb-2 group-hover:scale-110 transition-transform" strokeWidth={1.8} />
+                  <span className="text-[12px] font-medium text-slate-700 dark:text-slate-300 text-center">Efectivo</span>
                 </button>
-                <button onClick={() => handleQuickPay('tarjeta')} className="flex flex-col items-center p-4 bg-white hover:bg-accent-50 rounded-2xl border border-slate-200 hover:border-accent-200 transition-all neb-shadow-sm hover:-translate-y-0.5 group">
-                  <div className="bg-accent-50 p-2 rounded-xl mb-2 group-hover:scale-105 transition-transform">
-                    <CreditCard className="w-6 h-6 text-accent-600" />
-                  </div>
-                  <span className="text-[11px] font-extrabold text-slate-700 text-center leading-tight">Tarjeta</span>
+                <button onClick={() => handleQuickPay('tarjeta')} className="flex flex-col items-center p-5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 transition-all group">
+                  <CreditCard className="w-7 h-7 text-slate-700 dark:text-slate-300 mb-2 group-hover:scale-110 transition-transform" strokeWidth={1.8} />
+                  <span className="text-[12px] font-medium text-slate-700 dark:text-slate-300 text-center">Tarjeta</span>
                 </button>
-                <button onClick={() => handleQuickPay('transferencia')} className="flex flex-col items-center p-4 bg-white hover:bg-violet-50 rounded-2xl border border-slate-200 hover:border-violet-200 transition-all neb-shadow-sm hover:-translate-y-0.5 group">
-                  <div className="bg-violet-50 p-2 rounded-xl mb-2 group-hover:scale-105 transition-transform">
-                    <Building2 className="w-6 h-6 text-violet-600" />
-                  </div>
-                  <span className="text-[11px] font-extrabold text-slate-700 text-center leading-tight">Transferencia</span>
+                <button onClick={() => handleQuickPay('transferencia')} className="flex flex-col items-center p-5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 transition-all group">
+                  <Building2 className="w-7 h-7 text-slate-700 dark:text-slate-300 mb-2 group-hover:scale-110 transition-transform" strokeWidth={1.8} />
+                  <span className="text-[12px] font-medium text-slate-700 dark:text-slate-300 text-center">Transferencia</span>
                 </button>
               </div>
 
-              <div className="relative flex items-center py-1">
-                <div className="flex-grow border-t border-slate-200" />
-                <span className="flex-shrink-0 mx-3 text-slate-400 text-[10px] font-bold uppercase tracking-[0.18em]">Opciones avanzadas</span>
-                <div className="flex-grow border-t border-slate-200" />
-              </div>
-
-              <button onClick={() => setMode('split')} className="w-full py-3.5 bg-accent-50 text-accent-700 hover:bg-accent-100 rounded-2xl font-extrabold text-[14px] transition-all flex items-center justify-center gap-2.5 border border-accent-100">
+              <button onClick={() => setMode('split')} className="w-full py-3 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 rounded-xl text-[13px] font-medium transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-800">
                 <SplitSquareHorizontal className="w-4 h-4" />
                 Dividir cuenta
               </button>
@@ -119,12 +103,12 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
 
           {mode === 'cash' && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100">
-                <label className="text-[10px] font-bold text-amber-700 uppercase tracking-[0.18em] block mb-2">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
+                <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-2">
                   ¿Con cuánto paga el cliente?
                 </label>
                 <div className="relative flex items-center">
-                  <span className="text-amber-500 font-extrabold text-3xl mr-2">$</span>
+                  <span className="text-slate-400 dark:text-slate-500 font-semibold text-3xl mr-2">$</span>
                   <input
                     ref={cashInputRef}
                     type="text" inputMode="decimal" placeholder="0.00"
@@ -133,29 +117,29 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
                       const val = e.target.value;
                       if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) setCashReceived(val);
                     }}
-                    className="w-full bg-transparent outline-none text-4xl font-extrabold text-slate-900 placeholder:text-slate-300"
+                    className="w-full bg-transparent outline-none text-4xl font-semibold text-slate-900 dark:text-white placeholder:text-slate-300 neb-tabular"
                   />
                 </div>
               </div>
 
-              <div className="neb-grad-primary p-5 rounded-2xl space-y-3">
-                <div className="flex justify-between text-slate-300 font-bold text-sm">
-                  <span>Total:</span>
-                  <span className="text-white font-extrabold">${total.toFixed(2)}</span>
+              <div className="bg-slate-900 p-5 rounded-xl space-y-3">
+                <div className="flex justify-between text-slate-400 dark:text-slate-500 text-sm">
+                  <span>Total</span>
+                  <span className="text-white font-semibold neb-tabular">${total.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-slate-300 font-bold text-sm">
-                  <span>Recibido:</span>
-                  <span className={cashReceivedNum > 0 ? "text-white font-extrabold" : "text-slate-500"}>${cashReceivedNum.toFixed(2)}</span>
+                <div className="flex justify-between text-slate-400 dark:text-slate-500 text-sm">
+                  <span>Recibido</span>
+                  <span className={`neb-tabular ${cashReceivedNum > 0 ? "text-white font-semibold" : "text-slate-500 dark:text-slate-400"}`}>${cashReceivedNum.toFixed(2)}</span>
                 </div>
                 {cashIsValid && (
-                  <div className="flex justify-between text-amber-300 font-extrabold text-2xl pt-3 border-t border-slate-700">
-                    <span>Cambio:</span>
+                  <div className="flex justify-between text-white font-semibold text-2xl pt-3 border-t border-slate-800 neb-tabular">
+                    <span>Cambio</span>
                     <span>${cashChange.toFixed(2)}</span>
                   </div>
                 )}
                 {!cashIsValid && cashReceivedNum > 0 && (
-                  <div className="flex justify-between text-rose-300 font-extrabold text-base pt-3 border-t border-slate-700">
-                    <span>Faltan:</span>
+                  <div className="flex justify-between text-rose-300 font-semibold text-base pt-3 border-t border-slate-800 neb-tabular">
+                    <span>Faltan</span>
                     <span>${(total - cashReceivedNum).toFixed(2)}</span>
                   </div>
                 )}
@@ -170,41 +154,41 @@ export default function CheckoutModal({ total, onClose, onComplete }) {
           {mode === 'split' && (
             <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="flex justify-between items-center mb-1">
-                <h3 className="font-extrabold text-slate-900 text-sm">Ingresa los montos parciales</h3>
-                <button onClick={() => setMode('quick')} className="text-[11px] text-accent-600 font-bold hover:underline">
+                <h3 className="font-semibold text-slate-900 dark:text-white text-sm">Ingresa los montos parciales</h3>
+                <button onClick={() => setMode('quick')} className="text-[12px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white font-medium transition-colors">
                   Volver
                 </button>
               </div>
 
               {[
-                { key: 'efectivo',      label: 'Efectivo',      icon: Banknote,   iconColor: 'text-amber-600',  iconBg: 'bg-amber-50',  focusBorder: 'focus-within:border-amber-300'  },
-                { key: 'tarjeta',       label: 'Tarjeta',       icon: CreditCard, iconColor: 'text-accent-600', iconBg: 'bg-accent-50', focusBorder: 'focus-within:border-accent-300' },
-                { key: 'transferencia', label: 'Transferencia', icon: Building2,  iconColor: 'text-violet-600', iconBg: 'bg-violet-50', focusBorder: 'focus-within:border-violet-300' },
+                { key: 'efectivo',      label: 'Efectivo',      icon: Banknote   },
+                { key: 'tarjeta',       label: 'Tarjeta',       icon: CreditCard },
+                { key: 'transferencia', label: 'Transferencia', icon: Building2  },
               ].map(m => (
-                <div key={m.key} className={`flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 ${m.focusBorder} transition-colors`}>
-                  <div className={`w-11 h-11 rounded-xl ${m.iconBg} flex items-center justify-center shrink-0`}>
-                    <m.icon className={`w-5 h-5 ${m.iconColor}`} />
+                <div key={m.key} className="flex items-center gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 focus-within:border-slate-400 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-900/50 flex items-center justify-center shrink-0">
+                    <m.icon className="w-4 h-4 text-slate-600 dark:text-slate-400" strokeWidth={1.8} />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{m.label}</label>
+                    <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">{m.label}</label>
                     <div className="relative flex items-center">
-                      <span className="text-slate-400 font-extrabold text-lg mr-1">$</span>
+                      <span className="text-slate-400 dark:text-slate-500 font-medium text-lg mr-1">$</span>
                       <input type="text" inputMode="decimal" placeholder="0.00"
                         value={payments[m.key]} onChange={(e) => handleInputChange(m.key, e.target.value)}
-                        className="w-full bg-transparent outline-none text-xl font-extrabold text-slate-900 placeholder:text-slate-300" />
+                        className="w-full bg-transparent outline-none text-xl font-semibold text-slate-900 dark:text-white placeholder:text-slate-300 neb-tabular" />
                     </div>
                   </div>
                 </div>
               ))}
 
-              <div className="mt-4 neb-grad-primary p-5 rounded-2xl space-y-3">
-                <div className="flex justify-between text-slate-300 font-bold text-sm">
-                  <span>Falta por pagar:</span>
-                  <span className={restante > 0 ? "text-amber-300 font-extrabold" : "text-slate-400"}>${restante.toFixed(2)}</span>
+              <div className="mt-4 bg-slate-900 p-5 rounded-xl space-y-3">
+                <div className="flex justify-between text-slate-400 dark:text-slate-500 text-sm">
+                  <span>Falta por pagar</span>
+                  <span className={`neb-tabular ${restante > 0 ? "text-white font-semibold" : "text-slate-500 dark:text-slate-400"}`}>${restante.toFixed(2)}</span>
                 </div>
                 {cambio > 0 && (
-                  <div className="flex justify-between text-amber-300 font-extrabold text-lg pt-3 border-t border-slate-700">
-                    <span>Cambio:</span>
+                  <div className="flex justify-between text-white font-semibold text-lg pt-3 border-t border-slate-800 neb-tabular">
+                    <span>Cambio</span>
                     <span>${cambio.toFixed(2)}</span>
                   </div>
                 )}

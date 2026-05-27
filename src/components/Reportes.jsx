@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
-  Loader2, FileText, Clock, Wallet, Banknote, CreditCard,
-  Building2, TrendingUp, AlertTriangle, CheckCircle, Timer, ShoppingBag
+  Loader2, FileText, Clock, Wallet,
+  AlertTriangle, CheckCircle, Timer, ShoppingBag
 } from 'lucide-react';
 
 const FILTROS = [
@@ -36,7 +36,7 @@ function fmt(dateStr, time = true) {
 function Avatar({ name, size = 'md' }) {
   const dim = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
   return (
-    <div className={`${dim} rounded-xl neb-grad-pastel border border-white/70 flex items-center justify-center font-extrabold text-slate-700 shrink-0`}>
+    <div className={`${dim} rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-medium text-slate-600 dark:text-slate-400 shrink-0`}>
       {(name || '?').charAt(0).toUpperCase()}
     </div>
   );
@@ -44,12 +44,10 @@ function Avatar({ name, size = 'md' }) {
 
 function StatChip({ label, value, accent = false, warn = false, prefix = '' }) {
   return (
-    <div className={`neb-card p-4 text-center ${warn && value > 0 ? '!border-rose-100 !bg-rose-50/40' : ''}`}>
-      <p className={`text-[10px] font-bold uppercase tracking-[0.15em] mb-1 ${
-        warn && value > 0 ? 'text-rose-500' : 'text-slate-400'
-      }`}>{label}</p>
-      <p className={`text-2xl font-extrabold tracking-tight ${
-        warn && value > 0 ? 'text-rose-600' : accent ? 'text-emerald-600' : 'text-slate-900'
+    <div className="neb-card p-4">
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500 mb-2">{label}</p>
+      <p className={`text-2xl font-semibold tracking-tight neb-tabular leading-none ${
+        warn && value > 0 ? 'text-rose-600' : accent ? 'text-emerald-600' : 'text-slate-900 dark:text-white'
       }`}>{prefix}{value}</p>
     </div>
   );
@@ -154,36 +152,30 @@ export default function Reportes() {
     <div className="h-full overflow-y-auto neb-scroll">
       <div className="p-5 lg:p-7 max-w-6xl mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 neb-grad-primary text-white rounded-2xl flex items-center justify-center shrink-0">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Auditoría</p>
-            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Reportes generales</h2>
-            <p className="text-slate-400 text-[12px] font-bold">Historial de asistencia y cortes de caja</p>
-          </div>
+        {/* Header — Apple */}
+        <div className="pt-2 pb-2 mb-7">
+          <h2 className="text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">Reportes generales</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-2">Historial de asistencia y cortes de caja</p>
         </div>
 
-        {/* Tabs + Filtros */}
+        {/* Tabs + Filtros — segmented controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-          <div className="flex bg-white rounded-2xl p-1 w-fit border border-slate-200 neb-shadow-sm">
+          <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
             {['asistencias', 'cajas'].map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-[13px] font-bold rounded-xl transition-all ${
-                  activeTab === tab ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
+                className={`px-4 py-1.5 text-[13px] font-medium rounded-full transition-all ${
+                  activeTab === tab ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
                 }`}>
                 {tab === 'asistencias' ? 'Asistencias' : 'Cortes de caja'}
               </button>
             ))}
           </div>
 
-          <div className="flex gap-1 p-1 bg-white border border-slate-200 rounded-xl">
+          <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1">
             {FILTROS.map((f, i) => (
               <button key={i} onClick={() => setFiltro(i)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                  filtro === i ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  filtro === i ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
                 }`}>
                 {f.label}
               </button>
@@ -202,18 +194,18 @@ export default function Reportes() {
             <div className="overflow-x-auto neb-scroll">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/60 text-slate-400 text-[10px] uppercase tracking-[0.15em] border-b border-slate-100">
-                    <th className="p-4 font-bold">Empleado</th>
-                    <th className="p-4 font-bold">Estado</th>
-                    <th className="p-4 font-bold">Entrada</th>
-                    <th className="p-4 font-bold">Salida</th>
-                    <th className="p-4 font-bold">Duración</th>
+                  <tr className="text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-[0.12em] border-b border-slate-100 dark:border-slate-800">
+                    <th className="p-4 font-medium">Empleado</th>
+                    <th className="p-4 font-medium">Estado</th>
+                    <th className="p-4 font-medium">Entrada</th>
+                    <th className="p-4 font-medium">Salida</th>
+                    <th className="p-4 font-medium">Duración</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50 text-sm">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                   {asistencias.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="p-4 font-extrabold text-slate-900">
+                      <td className="p-4 font-medium text-slate-900 dark:text-white">
                         <div className="flex items-center gap-2.5">
                           <Avatar name={r.usuarios_perfiles?.nombre_completo} size="sm" />
                           {r.usuarios_perfiles?.nombre_completo || 'Desconocido'}
@@ -227,13 +219,13 @@ export default function Reportes() {
                           {r.estado === 'trabajando' ? 'Activo' : 'Completado'}
                         </span>
                       </td>
-                      <td className="p-4 text-slate-500 font-mono text-[11px]">{fmt(r.fecha_entrada)}</td>
-                      <td className="p-4 font-mono text-[11px]">
+                      <td className="p-4 text-slate-500 dark:text-slate-400 font-mono text-[11px] neb-tabular">{fmt(r.fecha_entrada)}</td>
+                      <td className="p-4 font-mono text-[11px] neb-tabular">
                         {r.fecha_salida
-                          ? <span className="text-slate-500">{fmt(r.fecha_salida)}</span>
-                          : <span className="text-emerald-500 font-extrabold">En turno</span>}
+                          ? <span className="text-slate-500 dark:text-slate-400">{fmt(r.fecha_salida)}</span>
+                          : <span className="text-emerald-600 font-medium">En turno</span>}
                       </td>
-                      <td className="p-4 text-slate-500 text-[11px]">
+                      <td className="p-4 text-slate-500 dark:text-slate-400 text-[12px] neb-tabular">
                         <div className="flex items-center gap-1">
                           <Timer className="w-3 h-3" />
                           {duracion(r.fecha_entrada, r.fecha_salida)}
@@ -243,7 +235,7 @@ export default function Reportes() {
                   ))}
                   {asistencias.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="p-12 text-center text-slate-400 font-bold text-sm">
+                      <td colSpan="5" className="p-12 text-center text-slate-400 dark:text-slate-500 text-sm">
                         No hay registros de asistencia en este período.
                       </td>
                     </tr>
@@ -261,9 +253,9 @@ export default function Reportes() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
                 <StatChip label="Turnos cerrados" value={stats.cerradas} />
                 <StatChip label="Turnos abiertos" value={stats.abiertas} accent />
-                <div className="neb-card p-4 text-center col-span-2 sm:col-span-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-1">Total vendido</p>
-                  <p className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                <div className="neb-card p-4 col-span-2 sm:col-span-1">
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-[0.12em] mb-2">Total vendido</p>
+                  <p className="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight neb-tabular leading-none">
                     ${stats.totalVentas.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
@@ -272,7 +264,7 @@ export default function Reportes() {
             )}
 
             {cajas.length === 0 ? (
-              <div className="neb-card p-12 text-center text-slate-400">
+              <div className="neb-card p-12 text-center text-slate-400 dark:text-slate-500">
                 <Wallet className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p className="font-bold text-sm">No hay cortes de caja en este período.</p>
               </div>
@@ -286,36 +278,36 @@ export default function Reportes() {
               const difTextColor = difExacta ? 'text-emerald-600'
                 : difSobra ? 'text-accent-600'
                 : difFalta ? 'text-rose-600'
-                : 'text-slate-400';
+                : 'text-slate-400 dark:text-slate-500';
 
               const difBg = difExacta ? 'bg-emerald-50 border-emerald-100'
                 : difSobra ? 'bg-accent-50 border-accent-100'
                 : difFalta ? 'bg-rose-50 border-rose-100'
-                : 'bg-slate-50 border-slate-100';
+                : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800';
 
               return (
                 <div key={caja.id} className="neb-card overflow-hidden">
 
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/40">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar name={caja.usuarios_perfiles?.nombre_completo} />
                       <div className="min-w-0">
-                        <p className="font-extrabold text-slate-900 truncate">
+                        <p className="font-medium text-slate-900 dark:text-white truncate">
                           {caja.usuarios_perfiles?.nombre_completo || 'Desconocido'}
                         </p>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400 font-bold mt-0.5">
-                          <span className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          <span className="flex items-center gap-1 neb-tabular">
                             <Clock className="w-3 h-3" />
                             {fmt(caja.fecha_apertura)}
                           </span>
                           {caja.fecha_cierre && (
                             <>
                               <span className="text-slate-300">→</span>
-                              <span>{fmt(caja.fecha_cierre)}</span>
+                              <span className="neb-tabular">{fmt(caja.fecha_cierre)}</span>
                             </>
                           )}
                           <span className="text-slate-300 hidden sm:inline">·</span>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 neb-tabular">
                             <Timer className="w-3 h-3" />
                             {duracion(caja.fecha_apertura, caja.fecha_cierre)}
                           </span>
@@ -330,60 +322,41 @@ export default function Reportes() {
                     </span>
                   </div>
 
-                  <div className="p-5 lg:p-6 space-y-5">
+                  <div className="p-5 lg:p-6 space-y-6">
 
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
-                        <TrendingUp className="w-3 h-3" />
-                        Ventas del turno
-                        <span className="flex items-center gap-1 ml-1 font-normal text-slate-300">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                          Ventas del turno
+                        </p>
+                        <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                           <ShoppingBag className="w-3 h-3" />
                           {caja.ventas.count} {caja.ventas.count === 1 ? 'venta' : 'ventas'}
                         </span>
-                      </p>
+                      </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <Banknote className="w-3.5 h-3.5 text-amber-500" />
-                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Efectivo</p>
+                        {[
+                          { label: 'Efectivo', value: caja.ventas.efectivo, dot: '#0f172a' },
+                          { label: 'Tarjeta',  value: caja.ventas.tarjeta,  dot: '#3b82f6' },
+                          { label: 'Transf.',  value: caja.ventas.transferencia, dot: '#a78bfa' },
+                          { label: 'Total',    value: caja.ventas.total,    dot: null, total: true },
+                        ].map(b => (
+                          <div key={b.label} className={`rounded-xl p-3 border ${b.total ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800'}`}>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              {b.dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: b.dot }} />}
+                              <p className={`text-[10px] font-medium uppercase tracking-wider ${b.total ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>{b.label}</p>
+                            </div>
+                            <p className={`font-semibold text-[15px] neb-tabular ${b.total ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                              ${b.value.toFixed(2)}
+                            </p>
                           </div>
-                          <p className="font-extrabold text-base text-amber-800">
-                            ${caja.ventas.efectivo.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="bg-accent-50 border border-accent-100 rounded-2xl p-3">
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-accent-500" />
-                            <p className="text-[10px] font-bold text-accent-700 uppercase tracking-wider">Tarjeta</p>
-                          </div>
-                          <p className="font-extrabold text-base text-accent-800">
-                            ${caja.ventas.tarjeta.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="bg-violet-50 border border-violet-100 rounded-2xl p-3">
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-violet-500" />
-                            <p className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Transf.</p>
-                          </div>
-                          <p className="font-extrabold text-base text-violet-800">
-                            ${caja.ventas.transferencia.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="neb-grad-primary rounded-2xl p-3">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Total</p>
-                          <p className="font-extrabold text-base text-white">
-                            ${caja.ventas.total.toFixed(2)}
-                          </p>
-                        </div>
+                        ))}
                       </div>
                     </div>
 
                     {cerrada && (
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3 flex items-center gap-1.5">
-                          <Wallet className="w-3 h-3" />
-                          Corte de efectivo
-                        </p>
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-3">Corte de efectivo</p>
 
                         <div className="grid grid-cols-3 gap-2 mb-2">
                           {[
@@ -391,22 +364,22 @@ export default function Reportes() {
                             { label: 'Esperado',      value: caja.efectivoEsperado, hint: 'fondo + ventas' },
                             { label: 'Declarado',     value: caja.efectivo_declarado, hint: 'billetes + monedas' },
                           ].map(b => (
-                            <div key={b.label} className="bg-slate-50 border border-slate-100 rounded-2xl p-3 text-center">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{b.label}</p>
-                              <p className="font-extrabold text-base text-slate-900">
+                            <div key={b.label} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl p-3">
+                              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{b.label}</p>
+                              <p className="font-semibold text-base text-slate-900 dark:text-white neb-tabular">
                                 ${Number(b.value || 0).toFixed(2)}
                               </p>
-                              {b.hint && <p className="text-[9px] text-slate-400 mt-0.5">{b.hint}</p>}
+                              {b.hint && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{b.hint}</p>}
                             </div>
                           ))}
                         </div>
 
-                        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${difBg}`}>
+                        <div className={`px-4 py-3 rounded-xl border flex items-center justify-between ${difBg}`}>
                           <div className="flex items-center gap-2">
                             {difExacta ? <CheckCircle className={`w-4 h-4 ${difTextColor}`} /> : <AlertTriangle className={`w-4 h-4 ${difTextColor}`} />}
-                            <span className={`text-sm font-bold ${difTextColor}`}>Diferencia de efectivo</span>
+                            <span className={`text-sm font-medium ${difTextColor}`}>Diferencia de efectivo</span>
                           </div>
-                          <span className={`font-extrabold text-base ${difTextColor}`}>
+                          <span className={`font-semibold text-base neb-tabular ${difTextColor}`}>
                             {dif === null ? '—'
                               : difExacta ? 'Cuadra exacto'
                               : dif > 0    ? `+$${dif.toFixed(2)} sobrante`
@@ -417,9 +390,9 @@ export default function Reportes() {
                     )}
 
                     {caja.observaciones && (
-                      <div className="flex gap-2.5 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
-                        <FileText className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                      <div className="flex gap-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3">
+                        <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
+                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                           {caja.observaciones}
                         </p>
                       </div>

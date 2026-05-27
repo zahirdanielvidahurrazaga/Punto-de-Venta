@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays, Sparkles } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays, Settings, Menu, X } from 'lucide-react';
 import Terminal from './components/Terminal';
 import Inventario from './components/Inventario';
 import Dashboard from './components/Dashboard';
@@ -12,6 +12,7 @@ import Reportes from './components/Reportes';
 import PedidosProgramados from './components/PedidosProgramados';
 import { supabase } from './lib/supabaseClient';
 import CambiarPinModal from './components/CambiarPinModal';
+import Ajustes from './components/Ajustes';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -24,6 +25,7 @@ function App() {
   const [isCajaOpen, setIsCajaOpen] = useState(null);
 
   const [activeTab, setActiveTab] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [ventas, setVentas] = useState([]);
   const [cart, setCart] = useState(() => {
     try {
@@ -153,6 +155,15 @@ function App() {
   useEffect(() => {
     if (userProfile) {
       checkWorkStatus();
+      
+      const isDark = localStorage.getItem(`theme_user_${userProfile.id}`) === 'dark';
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   }, [userProfile]);
 
@@ -248,12 +259,9 @@ function App() {
 
   if (loadingAuth || (session && userProfile && isClockedIn === null)) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center text-slate-500">
-        <div className="neb-glass-strong rounded-3xl px-10 py-8 flex flex-col items-center">
-          <Loader2 className="w-9 h-9 animate-spin text-accent-600 mb-3" />
-          <p className="font-bold text-slate-700">Validando credenciales</p>
-          <p className="text-[11px] font-semibold text-slate-400 tracking-widest uppercase mt-1">Por favor espera</p>
-        </div>
+      <div className="h-screen w-screen flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
+        <Loader2 className="w-7 h-7 animate-spin text-slate-400 dark:text-slate-500 mb-3" />
+        <p className="text-[14px] text-slate-600 dark:text-slate-400">Validando credenciales</p>
       </div>
     );
   }
@@ -274,12 +282,14 @@ function App() {
   // Helper para items de sidebar
   const SideItem = ({ id, icon: Icon, label }) => (
     <button
-      onClick={() => setActiveTab(id)}
+      onClick={() => {
+        setActiveTab(id);
+        setIsMobileMenuOpen(false);
+      }}
       className={`neb-side-item ${activeTab === id ? 'active' : ''}`}
     >
-      <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={2.2} />
+      <Icon className="w-[16px] h-[16px] shrink-0" strokeWidth={1.8} />
       <span className="truncate">{label}</span>
-      {activeTab === id && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-500" />}
     </button>
   );
 
@@ -289,35 +299,34 @@ function App() {
         <CambiarPinModal onPinChanged={() => setPinNeedsChange(false)} />
       )}
 
-      {/* ──────── Sidebar Desktop (Glass) ──────── */}
-      <aside className="w-[260px] hidden lg:flex flex-col z-20 m-3 mr-0 rounded-3xl neb-glass-strong overflow-hidden">
+      {/* Scrim Overlay for Mobile */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-sm z-30 lg:hidden" 
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* ──────── Sidebar Desktop / Drawer Mobile ──────── */}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-[240px] flex-col bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200/50 dark:border-white/10 overflow-hidden transition-all duration-300 transform lg:transform-none lg:static lg:flex ${isMobileMenuOpen ? 'translate-x-0 shadow-[0_0_50px_rgba(0,0,0,0.15)] flex' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Header con marca y avatar */}
-        <div className="px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl neb-grad-primary flex items-center justify-center neb-shadow-sm">
-              <Box className="w-5 h-5 text-white" />
+        <div className="px-5 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-slate-900 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                <img src="/tito-logo-mask.png" alt="Logo" className="w-5 h-5 invert brightness-0" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-[13px] tracking-tight text-slate-900 dark:text-white leading-[1.15] break-words">Plasticos y Jarcieria Tito</p>
+                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">POS System</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-extrabold text-[15px] tracking-tight text-slate-900 leading-none">Plásticos</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mt-1">POS System</p>
-            </div>
+            {/* Botón de cerrar solo en móvil */}
+            <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors shrink-0">
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Tarjeta de usuario tipo "Pro Plan" */}
-          <div className="mt-5 p-3 rounded-2xl neb-grad-pastel border border-white/70 flex items-center gap-3">
-            <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-white neb-ring flex items-center justify-center font-bold text-slate-700 text-sm">
-                {userName.charAt(0).toUpperCase()}
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-extrabold text-slate-900 truncate leading-none">{userName}</p>
-              <p className="text-[10px] font-bold text-accent-700 uppercase tracking-wider mt-1 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> {isAdmin ? 'Administrador' : 'Empleado'}
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Navegación */}
@@ -325,15 +334,15 @@ function App() {
 
           {canOperateTerminal && (
             <div>
-              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Operación</p>
+              <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operación</p>
               <SideItem id="terminal" icon={ShoppingCart} label="Terminal" />
             </div>
           )}
 
           {canOperate && (
             <div>
-              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">General</p>
-              <div className="space-y-1">
+              <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">General</p>
+              <div className="space-y-0.5">
                 <SideItem id="pedidos" icon={ClipboardList} label="Pedidos" />
                 <SideItem id="inventario" icon={Package} label="Inventario" />
                 <SideItem id="pedidos_programados" icon={CalendarDays} label="Pedidos Programados" />
@@ -343,8 +352,8 @@ function App() {
 
           {isAdmin && (
             <div>
-              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Administración</p>
-              <div className="space-y-1">
+              <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Administración</p>
+              <div className="space-y-0.5">
                 <SideItem id="dashboard" icon={BarChart3} label="Dashboard" />
                 <SideItem id="equipo" icon={Users} label="Equipo" />
                 <SideItem id="reportes" icon={FileText} label="Reportes" />
@@ -354,8 +363,8 @@ function App() {
 
           {isEmpleado && (
             <div>
-              <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Flujo de Turno</p>
-              <div className="space-y-1">
+              <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Flujo de Turno</p>
+              <div className="space-y-0.5">
                 {isClockedIn && (
                   <SideItem id="caja" icon={Wallet} label={isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'} />
                 )}
@@ -365,103 +374,77 @@ function App() {
               </div>
             </div>
           )}
+
+          <div>
+            <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Cuenta</p>
+            <div className="space-y-0.5">
+              <SideItem id="ajustes" icon={Settings} label="Ajustes" />
+            </div>
+          </div>
         </div>
 
         {/* Footer del sidebar */}
-        <div className="p-3 border-t border-white/60">
-          <button
-            onClick={handleLogout}
-            className="w-full neb-btn neb-btn-ghost text-[13px] hover:!text-rose-600 hover:!border-rose-200"
-          >
-            <LogOut className="w-4 h-4" /> Cerrar Sesión
-          </button>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] text-center mt-3">
-            © Plásticos POS
-          </p>
+        <div className="px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-white/5 transition-colors">
+          {/* Tarjeta de usuario — minimal */}
+          <div className="flex items-center gap-3 mb-1">
+            <div className="relative">
+              <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-medium text-slate-600 dark:text-slate-400 dark:text-slate-300 text-sm">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate leading-none">{userName}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{isAdmin ? 'Administrador' : 'Empleado'}</p>
+            </div>
+          </div>
+
+          {isAdmin && (
+            <button
+              onClick={handleLogout}
+              className="w-full neb-side-item text-slate-500 dark:text-slate-400 hover:!text-rose-600 mt-3"
+            >
+              <LogOut className="w-4 h-4" strokeWidth={1.8} /> Cerrar Sesión
+            </button>
+          )}
         </div>
       </aside>
 
       {/* ──────── Mobile Top Bar ──────── */}
-      <div className="lg:hidden fixed top-0 w-full neb-glass-strong p-3 z-20 flex justify-between items-center rounded-b-2xl">
+      <div className="lg:hidden fixed top-0 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/5 px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] z-20 flex justify-between items-center transition-colors">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl neb-grad-primary flex items-center justify-center">
-            <Box className="w-4 h-4 text-white" />
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition-colors mr-1"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="w-8 h-8 rounded-lg bg-slate-900 dark:bg-slate-800 flex items-center justify-center hidden sm:flex shrink-0">
+            <img src="/tito-logo-mask.png" alt="Logo" className="w-5 h-5 invert brightness-0" />
           </div>
-          <div>
-            <span className="font-extrabold text-[14px] text-slate-900 leading-none block">Plásticos</span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">POS · {role}</span>
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold text-[13px] text-slate-900 dark:text-white leading-tight block truncate pr-2">Plasticos y Jarcieria Tito</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider block truncate">POS · {role}</span>
           </div>
         </div>
-        <button onClick={handleLogout} className="w-9 h-9 rounded-xl bg-white/70 border border-white/60 flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-rose-50 transition-colors">
+        <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-rose-500 transition-colors">
           <LogOut className="w-4 h-4" />
         </button>
       </div>
 
-      {/* ──────── Mobile Bottom Nav ──────── */}
-      <div className="lg:hidden fixed bottom-3 left-3 right-3 neb-glass-strong z-20 rounded-2xl overflow-hidden">
-        <div className="flex items-center gap-1 p-1.5 overflow-x-auto scrollbar-hide">
-        {canOperateTerminal && (
-          <button onClick={() => setActiveTab('terminal')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'terminal' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <ShoppingCart className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Terminal</span>
-          </button>
-        )}
-        {canOperate && (
-          <button onClick={() => setActiveTab('pedidos')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'pedidos' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <ClipboardList className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Pedidos</span>
-          </button>
-        )}
-        {canOperate && (
-          <button onClick={() => setActiveTab('inventario')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'inventario' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <Package className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Inv.</span>
-          </button>
-        )}
-        {canOperate && (
-          <button onClick={() => setActiveTab('pedidos_programados')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'pedidos_programados' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <CalendarDays className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Prog.</span>
-          </button>
-        )}
-        {isAdmin && (
-          <button onClick={() => setActiveTab('dashboard')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'dashboard' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <BarChart3 className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Dash</span>
-          </button>
-        )}
-        {isAdmin && (
-          <button onClick={() => setActiveTab('equipo')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'equipo' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <Users className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Equipo</span>
-          </button>
-        )}
-        {isAdmin && (
-          <button onClick={() => setActiveTab('reportes')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'reportes' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <FileText className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Rep.</span>
-          </button>
-        )}
-        {isEmpleado && isClockedIn && (
-          <button onClick={() => setActiveTab('caja')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'caja' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <Wallet className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Caja</span>
-          </button>
-        )}
-        {isEmpleado && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
-          <button onClick={() => setActiveTab('asistencia')} className={`shrink-0 px-3 py-1.5 flex flex-col items-center gap-0.5 rounded-xl min-w-[56px] ${activeTab === 'asistencia' ? 'text-slate-900 bg-white/90 neb-shadow-sm' : 'text-slate-400'}`}>
-            <Clock className="w-4 h-4" /><span className="text-[9px] font-bold leading-none">Asis.</span>
-          </button>
-        )}
-        </div>
-      </div>
-
-      {/* ──────── Contenido principal ──────── */}
-      <main className="flex-1 overflow-hidden relative pt-[60px] lg:pt-3 pb-[80px] lg:pb-3 lg:pr-3 flex flex-col">
-        <div className="flex-1 overflow-hidden lg:ml-3 rounded-3xl neb-glass-strong">
-          <div className="h-full overflow-hidden">
-            {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
-            {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
-            {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
-            {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} userName={userName} />}
-            {activeTab === 'equipo' && isAdmin && <Equipo />}
-            {activeTab === 'reportes' && isAdmin && <Reportes />}
-            {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
-            {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
-            {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
-          </div>
+      {/* ──────── Contenido principal — Apple ──────── */}
+      <main className="flex-1 overflow-hidden relative pt-[calc(60px+env(safe-area-inset-top))] lg:pt-0 pb-0 flex flex-col bg-slate-50/40 dark:bg-slate-950 transition-colors">
+        <div className="h-full overflow-hidden">
+          {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
+          {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
+          {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
+          {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} userName={userName} />}
+          {activeTab === 'equipo' && isAdmin && <Equipo />}
+          {activeTab === 'reportes' && isAdmin && <Reportes />}
+          {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
+          {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+          {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+          {activeTab === 'ajustes' && <Ajustes userProfile={userProfile} onProfileUpdate={setUserProfile} />}
         </div>
       </main>
 

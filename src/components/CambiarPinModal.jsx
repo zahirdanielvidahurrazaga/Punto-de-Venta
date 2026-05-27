@@ -35,22 +35,21 @@ export default function CambiarPinModal({ onPinChanged }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-      <div className="neb-glass-strong rounded-3xl w-full max-w-md overflow-hidden">
-        <div className="p-6 bg-amber-50/70 border-b border-amber-100 flex items-center gap-3">
-          <div className="w-12 h-12 bg-white border border-amber-100 rounded-2xl flex items-center justify-center text-amber-600 shrink-0">
-            <KeyRound className="w-6 h-6" />
+    <div className="fixed inset-0 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden shadow-xl">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 shrink-0">
+            <KeyRound className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-[0.18em]">Seguridad</p>
-            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Cambio de PIN requerido</h2>
-            <p className="text-[12px] text-slate-600 mt-1 font-bold">Por tu seguridad, debes cambiar tu PIN antes de continuar.</p>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">Cambio de PIN requerido</h2>
+            <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">Por tu seguridad, debes cambiar tu PIN antes de continuar.</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-3.5">
           {error && (
-            <div className="p-3 bg-rose-50 text-rose-600 text-[13px] font-bold rounded-2xl border border-rose-100 flex items-center gap-2">
+            <div className="p-3 bg-rose-50 text-rose-600 text-[13px] font-medium rounded-xl border border-rose-100 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" /> {error}
             </div>
           )}
@@ -61,14 +60,14 @@ export default function CambiarPinModal({ onPinChanged }) {
             { label: 'Confirmar nuevo PIN', value: pinConfirm, set: setPinConfirm },
           ].map(f => (
             <div key={f.label}>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{f.label}</label>
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">{f.label}</label>
               <input
                 type="password"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}
-                className="neb-input text-center font-mono text-2xl tracking-[0.5em]"
+                className="neb-input text-center font-mono text-2xl tracking-[0.5em] neb-tabular"
                 placeholder="••••"
                 required
               />
@@ -76,7 +75,7 @@ export default function CambiarPinModal({ onPinChanged }) {
           ))}
 
           <div className="pt-2">
-            <button type="submit" disabled={loading} className="w-full neb-btn neb-btn-primary py-3.5">
+            <button type="submit" disabled={loading} className="w-full neb-btn neb-btn-primary py-3">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
               {loading ? 'Guardando…' : 'Guardar nuevo PIN'}
             </button>

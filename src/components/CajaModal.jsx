@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, CheckCircle2, AlertCircle, Loader2, TrendingUp, CreditCard, Building2, Banknote } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function CajaModal({ userProfile, onStatusChange }) {
@@ -144,8 +144,8 @@ export default function CajaModal({ userProfile, onStatusChange }) {
             <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-5 border border-emerald-100">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mb-2">¡Todo listo!</h2>
-            <p className="text-slate-500 font-bold text-[13px]">{successMsg}</p>
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">¡Todo listo!</h2>
+            <p className="text-slate-500 dark:text-slate-400 font-bold text-[13px]">{successMsg}</p>
             <Loader2 className="w-5 h-5 text-slate-300 animate-spin mt-5" />
           </div>
         </div>
@@ -177,26 +177,20 @@ export default function CajaModal({ userProfile, onStatusChange }) {
         <div className="w-full max-w-lg pb-8">
           <div className="neb-card p-6 md:p-8">
 
-            <div className="flex items-center gap-4 mb-7 pb-5 border-b border-slate-100">
-              <div className="w-12 h-12 neb-grad-primary text-white rounded-2xl flex items-center justify-center shrink-0">
-                <Wallet className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">{!sessionCaja ? 'Inicio' : 'Cierre'}</p>
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                  {!sessionCaja ? 'Apertura de caja' : 'Corte de turno'}
-                </h2>
-                <p className="text-slate-400 text-[12px] font-bold mt-0.5">
-                  {!sessionCaja ? 'Ingresa el fondo inicial para comenzar' : 'Cierre de operaciones y declaración'}
-                </p>
-              </div>
+            <div className="pb-5 mb-6 border-b border-slate-100 dark:border-slate-800">
+              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white tracking-tight">
+                {!sessionCaja ? 'Apertura de caja' : 'Corte de turno'}
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-[13px] mt-1">
+                {!sessionCaja ? 'Ingresa el fondo inicial para comenzar' : 'Cierre de operaciones y declaración'}
+              </p>
             </div>
 
             {!sessionCaja ? (
               <form onSubmit={handleAbrirCaja} className="space-y-5">
-                <div className="bg-accent-50/60 p-4 rounded-2xl border border-accent-100 flex gap-3">
-                  <AlertCircle className="w-4 h-4 text-accent-600 shrink-0 mt-0.5" />
-                  <p className="text-[13px] text-accent-800 font-bold">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex gap-3">
+                  <AlertCircle className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-slate-700 dark:text-slate-300">
                     Aún no tienes una caja abierta. Registra tu fondo inicial.
                   </p>
                 </div>
@@ -207,13 +201,13 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                     { label: 'Monedas',  value: monedas,  setter: setMonedas  },
                   ].map(f => (
                     <div key={f.label}>
-                      <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">{f.label}</label>
+                      <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">{f.label}</label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-medium">$</span>
                         <input
                           type="number" step="0.01" min="0"
                           value={f.value} onChange={(e) => f.setter(e.target.value)}
-                          className="neb-input pl-8 !text-lg !font-extrabold"
+                          className="neb-input pl-8 !text-base !font-semibold neb-tabular"
                           placeholder="0.00"
                         />
                       </div>
@@ -221,13 +215,13 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                   ))}
                 </div>
 
-                <div className="flex justify-between items-center neb-grad-primary text-white p-4 rounded-2xl">
-                  <span className="font-bold text-[12px] text-slate-300 uppercase tracking-[0.16em]">Fondo inicial total</span>
-                  <span className="font-extrabold text-xl">${totalFondoApertura.toFixed(2)}</span>
+                <div className="flex justify-between items-center bg-slate-900 text-white p-4 rounded-xl">
+                  <span className="font-medium text-[12px] text-slate-300 uppercase tracking-wider">Fondo inicial total</span>
+                  <span className="font-semibold text-xl neb-tabular">${totalFondoApertura.toFixed(2)}</span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Observaciones de apertura</label>
+                  <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Observaciones de apertura</label>
                   <textarea
                     value={observacionesApertura} onChange={(e) => setObservacionesApertura(e.target.value)}
                     className="neb-input resize-none"
@@ -245,63 +239,63 @@ export default function CajaModal({ userProfile, onStatusChange }) {
             ) : (
 
               <form onSubmit={handleCerrarCaja} className="space-y-5">
-                <div className="neb-card-soft p-4 flex justify-between items-center">
+                <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 p-4 rounded-xl flex justify-between items-center">
                   <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.18em] mb-1">Caja activa</p>
-                    <p className="text-slate-900 font-extrabold text-lg">
-                      Fondo inicial: <span className="font-mono">${fondoInicial.toFixed(2)}</span>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-1">Caja activa</p>
+                    <p className="text-slate-900 dark:text-white font-semibold text-lg neb-tabular">
+                      Fondo inicial: ${fondoInicial.toFixed(2)}
                     </p>
                   </div>
-                  <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  <div className="w-9 h-9 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Resumen del turno</p>
-                  </div>
+                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-3">Resumen del turno</p>
 
                   {loadingResumen ? (
-                    <div className="flex items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                      <Loader2 className="w-4 h-4 animate-spin text-slate-400 mr-2" />
-                      <span className="text-sm text-slate-400 font-bold">Calculando ventas…</span>
+                    <div className="flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-400 dark:text-slate-500 mr-2" />
+                      <span className="text-sm text-slate-400 dark:text-slate-500">Calculando ventas…</span>
                     </div>
                   ) : (
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center">
-                        <Banknote className="w-4 h-4 text-amber-600 mx-auto mb-1.5" />
-                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Efectivo</p>
-                        <p className="font-extrabold text-base text-amber-800">${efectivoVentas.toFixed(2)}</p>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                          <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Efectivo</p>
+                        </div>
+                        <p className="font-semibold text-base text-slate-900 dark:text-white neb-tabular">${efectivoVentas.toFixed(2)}</p>
                       </div>
-                      <div className="bg-accent-50 border border-accent-100 rounded-2xl p-3 text-center">
-                        <CreditCard className="w-4 h-4 text-accent-600 mx-auto mb-1.5" />
-                        <p className="text-[10px] font-bold text-accent-700 uppercase tracking-wider">Tarjeta</p>
-                        <p className="font-extrabold text-base text-accent-800">${(resumenVentas?.tarjeta || 0).toFixed(2)}</p>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tarjeta</p>
+                        </div>
+                        <p className="font-semibold text-base text-slate-900 dark:text-white neb-tabular">${(resumenVentas?.tarjeta || 0).toFixed(2)}</p>
                       </div>
-                      <div className="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center">
-                        <Building2 className="w-4 h-4 text-violet-600 mx-auto mb-1.5" />
-                        <p className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Transf.</p>
-                        <p className="font-extrabold text-base text-violet-800">${(resumenVentas?.transferencia || 0).toFixed(2)}</p>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                          <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Transf.</p>
+                        </div>
+                        <p className="font-semibold text-base text-slate-900 dark:text-white neb-tabular">${(resumenVentas?.transferencia || 0).toFixed(2)}</p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="neb-grad-primary text-white p-4 rounded-2xl flex justify-between items-center">
+                <div className="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-0.5">Efectivo esperado</p>
-                    <p className="text-[10px] text-slate-500">fondo + ventas en efectivo</p>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Efectivo esperado</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">fondo + ventas en efectivo</p>
                   </div>
-                  <span className="font-extrabold text-xl">${efectivoEsperado.toFixed(2)}</span>
+                  <span className="font-semibold text-xl neb-tabular">${efectivoEsperado.toFixed(2)}</span>
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Banknote className="w-3.5 h-3.5 text-slate-400" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Cuenta el efectivo físico</p>
-                  </div>
+                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-3">Cuenta el efectivo físico</p>
 
                   <div className="grid grid-cols-2 gap-3">
                     {[
@@ -309,13 +303,13 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                       { label: 'Monedas',  value: monedasCierre,    setter: setMonedasCierre    },
                     ].map(f => (
                       <div key={f.label}>
-                        <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">{f.label}</label>
+                        <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">{f.label}</label>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold">$</span>
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-medium">$</span>
                           <input
                             type="number" step="0.01" min="0"
                             value={f.value} onChange={(e) => f.setter(e.target.value)}
-                            className="neb-input pl-8 !text-lg !font-extrabold"
+                            className="neb-input pl-8 !text-base !font-semibold neb-tabular"
                             placeholder="0.00"
                           />
                         </div>
@@ -324,14 +318,14 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                   </div>
 
                   {cierreConfirmado && (
-                    <div className={`mt-3 p-4 rounded-2xl border flex justify-between items-center ${diferenciaColor}`}>
+                    <div className={`mt-3 p-4 rounded-xl border flex justify-between items-center ${diferenciaColor}`}>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-0.5">Total declarado</p>
-                        <p className="text-lg font-extrabold">${efectivoDeclarado.toFixed(2)}</p>
+                        <p className="text-[10px] font-medium uppercase tracking-wider opacity-70 mb-0.5">Total declarado</p>
+                        <p className="text-lg font-semibold neb-tabular">${efectivoDeclarado.toFixed(2)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-0.5">Diferencia</p>
-                        <p className="text-base font-extrabold">
+                        <p className="text-[10px] font-medium uppercase tracking-wider opacity-70 mb-0.5">Diferencia</p>
+                        <p className="text-base font-semibold neb-tabular">
                           {Math.abs(diferencia) < 0.01
                             ? 'Cuadra exacto'
                             : diferencia > 0
@@ -344,7 +338,7 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Observaciones / caja chica</label>
+                  <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Observaciones / caja chica</label>
                   <textarea
                     value={observacionesCierre} onChange={(e) => setObservacionesCierre(e.target.value)}
                     className="neb-input resize-none"

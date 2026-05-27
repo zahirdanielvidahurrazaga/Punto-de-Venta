@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  TrendingUp, TrendingDown, DollarSign, Package, AlertTriangle, CreditCard, Banknote,
-  Building2, CalendarDays, Wallet, BarChart3, ShoppingBag, ArrowUpRight,
-  Star, AlertCircle, CheckCircle, Loader2, Filter, Sparkles
+  TrendingUp, TrendingDown, DollarSign, AlertTriangle, CreditCard, Banknote,
+  Building2, Wallet, BarChart3, ShoppingBag, ArrowUpRight,
+  CheckCircle, Loader2, Filter, Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -32,7 +32,7 @@ function KpiCard({ label, value, icon: Icon, delta, deltaType }) {
     deltaType === 'positive' ? 'text-emerald-600 bg-emerald-50' :
     deltaType === 'negative' ? 'text-rose-600 bg-rose-50' :
     deltaType === 'warning'  ? 'text-amber-600 bg-amber-50' :
-    'text-slate-600 bg-slate-50';
+    'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50';
 
   const DeltaIcon =
     deltaType === 'positive' ? TrendingUp :
@@ -40,9 +40,9 @@ function KpiCard({ label, value, icon: Icon, delta, deltaType }) {
     null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col relative">
+    <div className="neb-card p-5 flex flex-col relative">
       <div className="flex items-start justify-between mb-4">
-        <div className="text-slate-400">
+        <div className="text-slate-400 dark:text-slate-500">
           <Icon className="w-5 h-5" strokeWidth={2} />
         </div>
         {delta && (
@@ -52,8 +52,8 @@ function KpiCard({ label, value, icon: Icon, delta, deltaType }) {
           </span>
         )}
       </div>
-      <div className="text-[12px] text-slate-500 font-medium mb-1">{label}</div>
-      <div className="text-[28px] font-semibold tracking-tight text-slate-900 leading-none">
+      <div className="text-[12px] text-slate-500 dark:text-slate-400 font-medium mb-1">{label}</div>
+      <div className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-none">
         {value}
       </div>
     </div>
@@ -79,12 +79,12 @@ function DashboardHero({ userName }) {
   });
 
   return (
-    <div className="pt-6 pb-8 border-b border-slate-200">
-      <p className="text-[13px] font-medium text-slate-500 uppercase tracking-wide mb-2">{dateStr}</p>
-      <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-slate-900">
+    <div className="pt-6 pb-8 border-b border-slate-200 dark:border-slate-800">
+      <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">{dateStr}</p>
+      <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 dark:text-white">
         {greeting}, {userName.split(' ')[0]}.
       </h1>
-      <p className="text-lg text-slate-500 mt-3 font-medium">
+      <p className="text-lg text-slate-500 dark:text-slate-400 mt-3 font-medium">
         Aquí está el panorama de tu operación.
       </p>
     </div>
@@ -93,35 +93,29 @@ function DashboardHero({ userName }) {
 
 function RankingList({ items, valueKey, valueLabel }) {
   if (!items.length)
-    return <p className="text-slate-400 text-sm font-medium py-6 text-center">Sin datos de ventas.</p>;
+    return <p className="text-slate-400 dark:text-slate-500 text-sm py-6 text-center">Sin datos de ventas.</p>;
 
-  const medals = ['1','2','3','4','5'];
   const maxVal = Math.max(...items.map(p => p[valueKey]), 1);
 
   return (
-    <div className="space-y-3.5">
+    <div className="divide-y divide-slate-100 dark:divide-slate-800">
       {items.map((p, i) => (
-        <div key={p.id} className="flex items-center gap-3">
-          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-extrabold shrink-0 ${
-            i === 0 ? 'bg-accent-100 text-accent-700' :
-            i === 1 ? 'neb-grad-pastel text-slate-700' :
-            'bg-slate-50 text-slate-500 border border-slate-100'
-          }`}>{medals[i]}</span>
+        <div key={p.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+          <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[11px] font-medium shrink-0 neb-tabular">
+            {i + 1}
+          </span>
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-center mb-1.5">
-              <p className="font-bold text-slate-800 text-sm truncate">{p.nombre}</p>
-              <p className="font-extrabold text-slate-900 text-sm ml-2 shrink-0">{valueLabel(p)}</p>
+              <p className="font-medium text-slate-900 dark:text-white text-sm truncate">{p.nombre}</p>
+              <p className="font-semibold text-slate-900 dark:text-white text-sm ml-2 shrink-0 neb-tabular">{valueLabel(p)}</p>
             </div>
-            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${(p[valueKey] / maxVal) * 100}%`,
-                  background: i === 0 ? 'linear-gradient(90deg, #1d4ed8, #60a5fa)' : 'linear-gradient(90deg, #94a3b8, #cbd5e1)'
-                }}
+                className="h-full rounded-full bg-slate-800 transition-all duration-700"
+                style={{ width: `${(p[valueKey] / maxVal) * 100}%` }}
               />
             </div>
-            <p className="text-[10px] text-slate-400 mt-1 font-mono">{p.sku} · {p.categoria}</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 font-mono">{p.sku} · {p.categoria}</p>
           </div>
         </div>
       ))}
@@ -149,26 +143,26 @@ function CategoryBreakdown({ ventas }) {
 
   return (
     <div className="neb-card p-5 lg:p-6">
-      <h2 className="text-[15px] font-extrabold text-slate-900 mb-5 flex items-center gap-2">
-        <Package className="w-4 h-4 text-accent-600" />
-        Ingresos por Categoría
-      </h2>
+      <div className="mb-5">
+        <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Ingresos por Categoría</h2>
+        <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Distribución del cobro</p>
+      </div>
       <div className="space-y-4">
         {cats.map((c, i) => (
           <div key={c.cat} className="flex items-center gap-3">
-            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: paleta[i % paleta.length] }} />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: paleta[i % paleta.length] }} />
             <div className="flex-1">
-              <div className="flex justify-between mb-1">
-                <span className="font-bold text-slate-700 text-sm">{c.cat}</span>
-                <span className="font-extrabold text-slate-900 text-sm">{fmt(c.ingresos)}</span>
+              <div className="flex justify-between mb-1.5">
+                <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{c.cat}</span>
+                <span className="text-[14px] font-semibold text-slate-900 dark:text-white neb-tabular">{fmt(c.ingresos)}</span>
               </div>
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{ width: `${(c.ingresos / (cats[0]?.ingresos || 1)) * 100}%`, background: paleta[i % paleta.length] }}
                 />
               </div>
-              <span className="text-[10px] text-slate-400 font-bold">{c.unidades} unidades</span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 inline-block neb-tabular">{c.unidades} unidades</span>
             </div>
           </div>
         ))}
@@ -338,27 +332,6 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
     };
   }, [sesiones30d]);
 
-  // Sparklines (último 7 días) por KPI
-  const sparkSeries = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const key = toLocal(d);
-      const rows = ventas.filter(v => v.fecha && toLocal(v.fecha) === key);
-      const total = rows.reduce((a, v) => a + Number(v.total), 0);
-      const ordenes = rows.length;
-      const efectivo = rows.reduce((a, v) => a + Number(v.pagos?.efectivo || 0), 0);
-      const ticketAvg = ordenes > 0 ? total / ordenes : 0;
-      return { total, ordenes, efectivo, ticketAvg };
-    });
-    return {
-      ventas:   days.map(d => d.total),
-      ordenes:  days.map(d => d.ordenes),
-      ticket:   days.map(d => d.ticketAvg),
-      efectivo: days.map(d => d.efectivo),
-    };
-  }, [ventas]);
-
   return (
     <div className="h-full overflow-y-auto neb-scroll">
       <div className="p-4 lg:p-7 max-w-7xl mx-auto space-y-6">
@@ -366,16 +339,16 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
         {/* Hero Apple style */}
         <DashboardHero userName={userName} />
 
-        {/* Sub-tabs */}
-        <div className="flex bg-white rounded-2xl p-1 w-fit border border-slate-200 neb-shadow-sm">
+        {/* Sub-tabs — segmented control Apple */}
+        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
           {SUB_TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setSubTab(t.key)}
-              className={`px-4 py-2 text-[13px] font-bold rounded-xl transition-all ${
+              className={`px-5 py-1.5 text-[13px] font-medium rounded-full transition-all ${
                 subTab === t.key
-                  ? 'neb-grad-primary text-white neb-shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
               }`}
             >
               {t.label}
@@ -396,31 +369,26 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
 
             {/* Gráfico + Cajas activas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Bar chart premium */}
+              {/* Bar chart — Apple style */}
               <div className="neb-card p-5 lg:p-6 lg:col-span-2 relative overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-5">
                   <div>
-                    <h2 className="text-[15px] font-extrabold text-slate-900 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-xl neb-grad-accent flex items-center justify-center text-white">
-                        <CalendarDays className="w-3.5 h-3.5" />
-                      </span>
-                      Ventas Comparativas
-                    </h2>
-                    <p className="text-[11px] font-bold text-slate-400 mt-1.5 flex items-center gap-2">
-                      <span className="neb-tabular">{fmt(chartData.reduce((a,d) => a + d.sum, 0))}</span>
-                      <span className="text-slate-300">·</span>
-                      <span>promedio {fmt(chartData.reduce((a,d) => a + d.sum, 0) / Math.max(1, chartData.filter(d=>d.sum>0).length))}</span>
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Ventas Comparativas</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 neb-tabular">
+                      {fmt(chartData.reduce((a,d) => a + d.sum, 0))}
+                      <span className="text-slate-300 mx-1.5">·</span>
+                      promedio {fmt(chartData.reduce((a,d) => a + d.sum, 0) / Math.max(1, chartData.filter(d=>d.sum>0).length))}
                     </p>
                   </div>
-                  <div className="flex gap-1 p-1 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1">
                     {PERIODS.map(p => (
                       <button
                         key={p.key}
                         onClick={() => setChartPeriod(p.key)}
-                        className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                        className={`px-3 py-1 text-[11px] font-medium rounded-full transition-all ${
                           chartPeriod === p.key
-                            ? 'bg-white text-slate-900 neb-shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         {p.label}
@@ -430,144 +398,146 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
                 </div>
 
                 {/* Chart container Apple style */}
-                <div className="flex items-end justify-between gap-2 mt-6 h-48 border-b border-slate-100 pb-2">
+                <div className="flex items-end justify-between gap-2 mt-6 h-48 border-b border-slate-100 dark:border-slate-800 pb-2">
                   {chartData.map((d, i) => {
                     const pct = maxChart > 0 ? Math.round((d.sum / maxChart) * 100) : 0;
                     const finalH = d.sum > 0 ? Math.max(pct, 4) : 0;
                     return (
                       <div key={i} className="flex flex-col items-center flex-1 group" style={{ height: '100%', justifyContent: 'flex-end' }}>
-                        <div className="text-[11px] font-medium text-slate-500 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           {d.sum >= 1000 ? `${(d.sum/1000).toFixed(1)}k` : d.sum.toFixed(0)}
                         </div>
                         <div
-                          className={`w-full max-w-[32px] rounded-t-md transition-all ${d.sum > 0 ? 'bg-slate-800' : 'bg-slate-100'}`}
+                          className={`w-full max-w-[32px] rounded-t-md transition-all ${d.sum > 0 ? 'bg-slate-800' : 'bg-slate-100 dark:bg-slate-800'}`}
                           style={{ height: `${finalH}%` }}
                         />
-                        <div className="mt-2 text-[11px] font-medium text-slate-400 capitalize">{d.label}</div>
+                        <div className="mt-2 text-[11px] font-medium text-slate-400 dark:text-slate-500 capitalize">{d.label}</div>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Cajas activas */}
+              {/* Cajas activas — Apple style */}
               <div className="neb-card p-5 lg:p-6 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-accent-600" />
-                    Cajas Activas
-                  </h2>
-                  <span className={`neb-chip ${cajasAbiertas.length > 0 ? 'neb-chip-positive' : 'neb-chip-neutral'}`}>
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Cajas Activas</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Operadores en turno</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-medium">
                     {cajasAbiertas.length}
                   </span>
                 </div>
-                <div className="flex-1 space-y-2 overflow-y-auto neb-scroll">
+                <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800 overflow-y-auto neb-scroll">
                   {cajasAbiertas.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm text-center">
-                      <AlertTriangle className="w-8 h-8 mb-2 opacity-40" />
+                    <div className="flex flex-col items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm text-center">
+                      <AlertTriangle className="w-7 h-7 mb-2 opacity-30" />
                       Sin cajas abiertas
                     </div>
                   ) : cajasAbiertas.map(c => (
-                    <div key={c.id} className="neb-card-soft p-3 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-accent-100 text-accent-700 flex items-center justify-center font-extrabold text-sm">
+                    <div key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center font-medium text-sm shrink-0">
                         {(c.usuarios_perfiles?.nombre_completo || '?').charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-800 text-[13px] truncate">{c.usuarios_perfiles?.nombre_completo}</p>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <p className="font-medium text-slate-900 dark:text-white text-[13px] truncate">{c.usuarios_perfiles?.nombre_completo}</p>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 neb-tabular">
                           {new Date(c.fecha_apertura).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <span className="text-sm font-extrabold text-emerald-600">{fmt(c.fondo_inicial)}</span>
+                      <span className="text-[14px] font-semibold text-slate-900 dark:text-white neb-tabular">{fmt(c.fondo_inicial)}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* Métodos de pago */}
+            {/* Métodos de pago — líneas limpias Apple */}
             <div className="neb-card p-5 lg:p-6">
-              <h2 className="text-[15px] font-extrabold text-slate-900 mb-1">Distribución por Método de Pago</h2>
-              <p className="text-[11px] font-bold text-slate-400 mb-5">Composición del cobro en el periodo cargado</p>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white mb-1">Distribución por Método de Pago</h2>
+              <p className="text-[12px] text-slate-500 dark:text-slate-400 mb-6">Composición del cobro en el periodo cargado</p>
+              <div className="space-y-5">
                 {[
-                  { label: 'Efectivo',      val: ef,    grad: 'linear-gradient(90deg, #0f172a, #475569)', icon: Banknote,   iconColor: 'text-slate-700', iconBg: 'bg-slate-100' },
-                  { label: 'Tarjeta',       val: tar,   grad: 'linear-gradient(90deg, #1d4ed8, #60a5fa)', icon: CreditCard, iconColor: 'text-accent-700', iconBg: 'bg-accent-50' },
-                  { label: 'Transferencia', val: trans, grad: 'linear-gradient(90deg, #7c3aed, #c4b5fd)', icon: Building2,  iconColor: 'text-violet-600', iconBg: 'bg-violet-50' },
-                ].map(m => (
-                  <div key={m.label} className="neb-card-soft p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`${m.iconBg} p-2 rounded-xl`}>
-                        <m.icon className={`w-4 h-4 ${m.iconColor}`} />
+                  { label: 'Efectivo',      val: ef,    color: '#0f172a' },
+                  { label: 'Tarjeta',       val: tar,   color: '#3b82f6' },
+                  { label: 'Transferencia', val: trans, color: '#a78bfa' },
+                ].map(m => {
+                  const pct = totalSales > 0 ? (m.val / totalSales) * 100 : 0;
+                  return (
+                    <div key={m.label} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 items-center">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
+                        <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{m.label}</span>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{m.label}</p>
-                        <p className="text-lg font-extrabold text-slate-900">{fmt(m.val)}</p>
+                      <div className="text-right neb-tabular">
+                        <span className="text-[14px] font-semibold text-slate-900 dark:text-white">{fmt(m.val)}</span>
+                        <span className="text-[12px] text-slate-400 dark:text-slate-500 ml-2">{pct.toFixed(1)}%</span>
+                      </div>
+                      <div className="col-span-2 w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${pct}%`, background: m.color }}
+                        />
                       </div>
                     </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${totalSales > 0 ? (m.val/totalSales)*100 : 0}%`, background: m.grad }} />
-                    </div>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1 text-right">
-                      {totalSales > 0 ? ((m.val/totalSales)*100).toFixed(1) : 0}%
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Recent Transactions */}
+            {/* Recent Transactions — Apple style */}
             <div className="neb-card p-5 lg:p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h2 className="text-[15px] font-extrabold text-slate-900">Transacciones Recientes</h2>
-                  <p className="text-[11px] font-bold text-slate-400 mt-0.5">Últimas operaciones del periodo</p>
+                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Transacciones Recientes</h2>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Últimas operaciones del periodo</p>
                 </div>
-                <button className="neb-btn neb-btn-ghost text-[12px]">
+                <button className="text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors inline-flex items-center gap-1.5">
                   <Filter className="w-3.5 h-3.5" /> Filtrar
                 </button>
               </div>
               <div className="overflow-x-auto neb-scroll">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[600px] text-sm">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">
-                      <th className="pb-3 pt-1 font-bold text-left pl-2">Folio</th>
-                      <th className="pb-3 pt-1 font-bold text-left">Fecha</th>
-                      <th className="pb-3 pt-1 font-bold text-left">Estado</th>
-                      <th className="pb-3 pt-1 font-bold text-right">Items</th>
-                      <th className="pb-3 pt-1 font-bold text-right pr-2">Total</th>
+                    <tr className="text-[10px] uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                      <th className="pb-3 pt-1 font-medium text-left px-3">Folio</th>
+                      <th className="pb-3 pt-1 font-medium text-left px-3">Fecha</th>
+                      <th className="pb-3 pt-1 font-medium text-left px-3">Estado</th>
+                      <th className="pb-3 pt-1 font-medium text-right px-3">Items</th>
+                      <th className="pb-3 pt-1 font-medium text-right px-3">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {ventas.slice(0, 6).map((v, i) => {
+                    {ventas.slice(0, 6).map((v) => {
                       const folio = String(v.id).padStart(4,'0').slice(0,8);
                       return (
-                        <tr key={v.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="py-3 pl-2">
+                        <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 transition-colors group">
+                          <td className="py-3 px-3">
                             <div className="flex items-center gap-2.5">
-                              <span className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-medium text-[11px]">
+                              <span className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-medium text-[11px] shrink-0">
                                 {folio.slice(-2)}
                               </span>
-                              <span className="font-semibold text-slate-900">#{folio}</span>
+                              <span className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">#{folio}</span>
                             </div>
                           </td>
-                          <td className="py-3 text-[12px] text-slate-500">
+                          <td className="py-3 px-3 text-[12px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
                             {v.fecha ? new Date(v.fecha).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
                           </td>
-                          <td className="py-3">
+                          <td className="py-3 px-3 whitespace-nowrap">
                             <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 text-[11px] font-medium">
                               Completada
                             </span>
                           </td>
-                          <td className="py-3 text-right text-[13px] text-slate-500">{(v.items || []).length}</td>
-                          <td className="py-3 pr-2 text-right font-semibold text-slate-900 text-[14px]">
+                          <td className="py-3 px-3 text-right text-[13px] text-slate-500 dark:text-slate-400 whitespace-nowrap">{(v.items || []).length}</td>
+                          <td className="py-3 px-3 text-right font-semibold text-slate-900 dark:text-white text-[14px] whitespace-nowrap">
                             {fmt(v.total)}
                           </td>
                         </tr>
                       );
                     })}
                     {ventas.length === 0 && (
-                      <tr><td colSpan={5} className="py-12 text-center text-slate-400 text-sm">
+                      <tr><td colSpan={5} className="py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
                         <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-30" />
                         Aún no hay transacciones cargadas.
                       </td></tr>
@@ -582,44 +552,41 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
         {/* ══════════════════ ANÁLISIS ══════════════════ */}
         {subTab === 'analisis' && (
           loadingAnalisis ? (
-            <div className="flex justify-center py-16"><Loader2 className="animate-spin w-8 h-8 text-accent-600" /></div>
+            <div className="flex justify-center py-16"><Loader2 className="animate-spin w-7 h-7 text-slate-400 dark:text-slate-500" /></div>
           ) : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div className="neb-card p-5 lg:p-6">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 mb-5 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    Top 5 Más Vendidos
-                    <span className="text-[11px] font-bold text-slate-400 ml-1">por unidades</span>
-                  </h2>
+                  <div className="mb-5">
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Top 5 Más Vendidos</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Por unidades</p>
+                  </div>
                   <RankingList items={top5Units} valueKey="unidades" valueLabel={(p) => `${p.unidades} uds`} />
                 </div>
                 <div className="neb-card p-5 lg:p-6">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 mb-5 flex items-center gap-2">
-                    <Star className="w-4 h-4 text-amber-500" />
-                    Top 5 por Ingresos
-                    <span className="text-[11px] font-bold text-slate-400 ml-1">mayor facturación</span>
-                  </h2>
+                  <div className="mb-5">
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Top 5 por Ingresos</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Mayor facturación</p>
+                  </div>
                   <RankingList items={top5Revenue} valueKey="ingresos" valueLabel={(p) => fmt(p.ingresos)} />
                 </div>
               </div>
 
               <div className="neb-card p-5 lg:p-6">
-                <h2 className="text-[15px] font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-orange-500" />
-                  Menor Movimiento
-                  <span className="text-[11px] font-bold text-slate-400 ml-1">productos con bajas ventas</span>
-                </h2>
+                <div className="mb-5">
+                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Menor Movimiento</h2>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Productos con bajas ventas</p>
+                </div>
                 {bottom5.length === 0 ? (
-                  <p className="text-slate-400 text-sm font-medium py-4 text-center">Sin suficientes datos.</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm py-4 text-center">Sin suficientes datos.</p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     {bottom5.map((p) => (
-                      <div key={p.id} className="rounded-2xl p-4 text-center border border-orange-100 bg-orange-50/40">
-                        <p className="font-bold text-slate-800 text-sm line-clamp-2 leading-tight mb-2">{p.nombre}</p>
-                        <p className="font-mono text-[10px] text-orange-400 mb-2">{p.sku}</p>
-                        <p className="font-extrabold text-orange-600">{p.unidades} uds</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{fmt(p.ingresos)}</p>
+                      <div key={p.id} className="rounded-xl p-4 text-center border border-slate-200 dark:border-slate-800 bg-slate-50/40">
+                        <p className="font-medium text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-tight mb-2">{p.nombre}</p>
+                        <p className="font-mono text-[10px] text-slate-400 dark:text-slate-500 mb-2">{p.sku}</p>
+                        <p className="font-semibold text-slate-900 dark:text-white neb-tabular">{p.unidades} uds</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 neb-tabular">{fmt(p.ingresos)}</p>
                       </div>
                     ))}
                   </div>
@@ -628,17 +595,19 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
 
               {sinMovimiento.length > 0 && (
                 <div className="neb-card p-5 lg:p-6">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                    <Package className="w-4 h-4 text-rose-500" />
-                    Sin Ventas Registradas
-                    <span className="neb-chip neb-chip-negative ml-2">{sinMovimiento.length}</span>
-                  </h2>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Sin Ventas Registradas</h2>
+                      <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Productos sin movimiento</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-medium">{sinMovimiento.length}</span>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                     {sinMovimiento.map(p => (
-                      <div key={p.id} className="rounded-xl p-3 text-center border border-rose-100 bg-rose-50/40">
-                        <p className="font-bold text-slate-800 text-xs line-clamp-2 leading-tight mb-1">{p.nombre}</p>
-                        <p className="font-mono text-[10px] text-rose-400 mb-1">{p.sku}</p>
-                        <p className="text-[10px] text-slate-400">{p.stock} en stock</p>
+                      <div key={p.id} className="rounded-xl p-3 text-center border border-slate-200 dark:border-slate-800 bg-slate-50/40">
+                        <p className="font-medium text-slate-800 dark:text-slate-200 text-xs line-clamp-2 leading-tight mb-1">{p.nombre}</p>
+                        <p className="font-mono text-[10px] text-slate-400 dark:text-slate-500 mb-1">{p.sku}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 neb-tabular">{p.stock} en stock</p>
                       </div>
                     ))}
                   </div>
@@ -653,63 +622,65 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
         {/* ══════════════════ FLUJO ══════════════════ */}
         {subTab === 'flujo' && (
           loadingFlujo ? (
-            <div className="flex justify-center py-16"><Loader2 className="animate-spin w-8 h-8 text-accent-600" /></div>
+            <div className="flex justify-center py-16"><Loader2 className="animate-spin w-7 h-7 text-slate-400 dark:text-slate-500" /></div>
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard label="Total Ingresos"   value={fmt(totalSales)}        icon={ArrowUpRight} iconColor="text-emerald-600" iconBg="bg-emerald-50" />
-                <KpiCard label="Fondos Iniciales" value={fmt(flujo.totalFondos)} icon={Wallet}       iconColor="text-slate-700"   iconBg="bg-slate-100"  />
-                <KpiCard label="Turnos Cerrados"  value={flujo.cerradas}         icon={CheckCircle}  iconColor="text-accent-600"  iconBg="bg-accent-50"  />
-                <KpiCard label="Cajas Abiertas"   value={flujo.abiertas}         icon={BarChart3}    iconColor="text-emerald-600" iconBg="bg-emerald-50" />
+                <KpiCard label="Total Ingresos"   value={fmt(totalSales)}        icon={ArrowUpRight} />
+                <KpiCard label="Fondos Iniciales" value={fmt(flujo.totalFondos)} icon={Wallet}       />
+                <KpiCard label="Turnos Cerrados"  value={flujo.cerradas}         icon={CheckCircle}  />
+                <KpiCard label="Cajas Abiertas"   value={flujo.abiertas}         icon={BarChart3}    />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div className="neb-card p-5 lg:p-6">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                    <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                    Ventas Totales del Sistema
-                  </h2>
-                  <div className="space-y-2.5">
+                  <div className="mb-5">
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Ventas Totales del Sistema</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Composición de los ingresos</p>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {[
-                      { label: 'Efectivo en ventas',      val: ef,    icon: Banknote,   color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-100'  },
-                      { label: 'Tarjeta en ventas',       val: tar,   icon: CreditCard, color: 'text-accent-700',  bg: 'bg-accent-50',  border: 'border-accent-100' },
-                      { label: 'Transferencia en ventas', val: trans, icon: Building2,  color: 'text-violet-700',  bg: 'bg-violet-50',  border: 'border-violet-100' },
+                      { label: 'Efectivo en ventas',      val: ef,    icon: Banknote,   dot: '#0f172a' },
+                      { label: 'Tarjeta en ventas',       val: tar,   icon: CreditCard, dot: '#3b82f6' },
+                      { label: 'Transferencia en ventas', val: trans, icon: Building2,  dot: '#a78bfa' },
                     ].map(m => (
-                      <div key={m.label} className={`flex items-center justify-between p-3.5 rounded-2xl border ${m.bg} ${m.border}`}>
-                        <div className={`flex items-center gap-2 ${m.color}`}>
-                          <m.icon className="w-4 h-4" />
-                          <span className="font-bold text-sm">{m.label}</span>
+                      <div key={m.label} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full" style={{ background: m.dot }} />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">{m.label}</span>
                         </div>
-                        <span className="font-extrabold text-base text-slate-900">{fmt(m.val)}</span>
+                        <span className="text-[14px] font-semibold text-slate-900 dark:text-white neb-tabular">{fmt(m.val)}</span>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl neb-grad-primary text-white">
-                      <span className="font-bold text-sm">Total registrado</span>
-                      <span className="font-extrabold text-lg">{fmt(totalSales)}</span>
+                    <div className="flex items-center justify-between pt-4 mt-1">
+                      <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total registrado</span>
+                      <span className="text-[18px] font-semibold text-slate-900 dark:text-white neb-tabular">{fmt(totalSales)}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="neb-card p-5 lg:p-6">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-accent-600" />
-                    Declarado en Cortes
-                    <span className="text-[11px] font-bold text-slate-400 ml-1">últimos 30 días</span>
-                  </h2>
-                  <div className="space-y-2.5">
+                  <div className="mb-5">
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Declarado en Cortes</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Últimos 30 días</p>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {[
-                      { label: 'Efectivo contado',       val: flujo.totalEfectivo, color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-100'  },
-                      { label: 'Tarjeta declarada',      val: flujo.totalTarjeta,  color: 'text-accent-700', bg: 'bg-accent-50', border: 'border-accent-100' },
-                      { label: 'Transferencia declar.',  val: flujo.totalTransf,   color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-100' },
+                      { label: 'Efectivo contado',       val: flujo.totalEfectivo, dot: '#0f172a' },
+                      { label: 'Tarjeta declarada',      val: flujo.totalTarjeta,  dot: '#3b82f6' },
+                      { label: 'Transferencia declar.',  val: flujo.totalTransf,   dot: '#a78bfa' },
                     ].map(m => (
-                      <div key={m.label} className={`flex items-center justify-between p-3.5 rounded-2xl border ${m.bg} ${m.border}`}>
-                        <span className={`font-bold text-sm ${m.color}`}>{m.label}</span>
-                        <span className="font-extrabold text-base text-slate-900">{fmt(m.val)}</span>
+                      <div key={m.label} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full" style={{ background: m.dot }} />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">{m.label}</span>
+                        </div>
+                        <span className="text-[14px] font-semibold text-slate-900 dark:text-white neb-tabular">{fmt(m.val)}</span>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl neb-grad-primary text-white">
-                      <span className="font-bold text-sm">Total declarado</span>
-                      <span className="font-extrabold text-lg">
+                    <div className="flex items-center justify-between pt-4 mt-1">
+                      <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total declarado</span>
+                      <span className="text-[18px] font-semibold text-slate-900 dark:text-white neb-tabular">
                         {fmt(flujo.totalEfectivo + flujo.totalTarjeta + flujo.totalTransf)}
                       </span>
                     </div>
@@ -719,35 +690,35 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
 
               {flujo.porEmpleado.length > 0 ? (
                 <div className="neb-card p-5 lg:p-6">
-                  <h2 className="text-[15px] font-extrabold text-slate-900 mb-5 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-accent-600" />
-                    Desglose por Empleado <span className="text-[11px] font-bold text-slate-400 ml-1">últimos 30 días</span>
-                  </h2>
+                  <div className="mb-5">
+                    <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Desglose por Empleado</h2>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Últimos 30 días</p>
+                  </div>
                   <div className="overflow-x-auto neb-scroll">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-[10px] uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">
-                          <th className="pb-3 font-bold text-left pl-2">Empleado</th>
-                          <th className="pb-3 font-bold text-center">Turnos</th>
-                          <th className="pb-3 font-bold text-right">Fondos</th>
-                          <th className="pb-3 font-bold text-right">Efectivo</th>
-                          <th className="pb-3 font-bold text-right">Tarjeta</th>
-                          <th className="pb-3 font-bold text-right">Transf.</th>
-                          <th className="pb-3 font-bold text-right pr-2">Total</th>
+                        <tr className="text-[10px] uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                          <th className="pb-3 font-medium text-left pl-2">Empleado</th>
+                          <th className="pb-3 font-medium text-center">Turnos</th>
+                          <th className="pb-3 font-medium text-right">Fondos</th>
+                          <th className="pb-3 font-medium text-right">Efectivo</th>
+                          <th className="pb-3 font-medium text-right">Tarjeta</th>
+                          <th className="pb-3 font-medium text-right">Transf.</th>
+                          <th className="pb-3 font-medium text-right pr-2">Total</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-50">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {flujo.porEmpleado.map(emp => (
-                          <tr key={emp.nombre} className="hover:bg-slate-50/60">
-                            <td className="py-3 font-extrabold text-slate-900 pl-2">{emp.nombre}</td>
+                          <tr key={emp.nombre} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-3 font-medium text-slate-900 dark:text-white pl-2">{emp.nombre}</td>
                             <td className="py-3 text-center">
-                              <span className="neb-chip neb-chip-neutral">{emp.sesiones}</span>
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-medium">{emp.sesiones}</span>
                             </td>
-                            <td className="py-3 text-right font-mono text-slate-500">{fmt(emp.fondos)}</td>
-                            <td className="py-3 text-right font-extrabold text-amber-700">{fmt(emp.efectivo)}</td>
-                            <td className="py-3 text-right font-extrabold text-accent-700">{fmt(emp.tarjeta)}</td>
-                            <td className="py-3 text-right font-extrabold text-violet-700">{fmt(emp.transf)}</td>
-                            <td className="py-3 text-right font-extrabold text-slate-900 pr-2">
+                            <td className="py-3 text-right text-slate-500 dark:text-slate-400 neb-tabular">{fmt(emp.fondos)}</td>
+                            <td className="py-3 text-right text-slate-700 dark:text-slate-300 neb-tabular">{fmt(emp.efectivo)}</td>
+                            <td className="py-3 text-right text-slate-700 dark:text-slate-300 neb-tabular">{fmt(emp.tarjeta)}</td>
+                            <td className="py-3 text-right text-slate-700 dark:text-slate-300 neb-tabular">{fmt(emp.transf)}</td>
+                            <td className="py-3 text-right font-semibold text-slate-900 dark:text-white pr-2 neb-tabular">
                               {fmt(emp.efectivo + emp.tarjeta + emp.transf)}
                             </td>
                           </tr>
@@ -757,7 +728,7 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
                   </div>
                 </div>
               ) : (
-                <div className="neb-card p-12 text-center text-slate-400">
+                <div className="neb-card p-12 text-center text-slate-400 dark:text-slate-500 text-sm">
                   No hay cortes de caja registrados en los últimos 30 días.
                 </div>
               )}

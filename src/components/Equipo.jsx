@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Loader2, QrCode, Printer, X, UserPlus, Sparkles } from 'lucide-react';
+import { Users, Loader2, QrCode, Printer, X, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import QRCodeLib from 'react-qr-code';
 
@@ -95,15 +95,13 @@ export default function Equipo() {
     <div className="h-full overflow-y-auto neb-scroll">
       <div className="p-5 lg:p-7 max-w-6xl mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-7">
-          <div className="w-12 h-12 neb-grad-primary text-white rounded-2xl flex items-center justify-center">
-            <Users className="w-6 h-6" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Personal</p>
-            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Equipo</h2>
-            <p className="text-slate-400 text-[12px] font-bold">Gestión de empleados y gafetes QR · {empleados.length} miembros</p>
+        {/* Header — Apple */}
+        <div className="flex items-start justify-between gap-4 pt-2 pb-2 mb-7">
+          <div>
+            <h2 className="text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">Equipo</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-2 neb-tabular">
+              Gestión de empleados y gafetes QR · {empleados.length} miembros
+            </p>
           </div>
           <button onClick={() => setIsAddModalOpen(true)} className="neb-btn neb-btn-primary">
             <UserPlus className="w-4 h-4" /> Añadir empleado
@@ -111,19 +109,19 @@ export default function Equipo() {
         </div>
 
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
             <div className="neb-glass-strong rounded-3xl w-full max-w-md p-8 relative">
-              <button onClick={() => setIsAddModalOpen(false)} className="absolute top-4 right-4 w-9 h-9 rounded-xl text-slate-400 hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <button onClick={() => setIsAddModalOpen(false)} className="absolute top-4 right-4 w-9 h-9 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 flex items-center justify-center transition-colors">
                 <X className="w-4 h-4" />
               </button>
               <div className="w-14 h-14 bg-accent-50 border border-accent-100 rounded-2xl flex items-center justify-center mb-5">
                 <Users className="w-7 h-7 text-accent-700" />
               </div>
-              <h3 className="text-lg font-extrabold text-slate-900 mb-2 tracking-tight">Añadir nuevo empleado</h3>
-              <p className="text-slate-500 text-[13px] mb-5 leading-relaxed">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">Añadir nuevo empleado</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-[13px] mb-5 leading-relaxed">
                 Por seguridad, los accesos se gestionan directamente desde el servidor (Supabase). Sigue estos pasos:
               </p>
-              <ol className="space-y-3 text-[13px] font-medium text-slate-700 mb-7">
+              <ol className="space-y-3 text-[13px] font-medium text-slate-700 dark:text-slate-300 mb-7">
                 {[
                   ['Ingresa al portal de', 'Supabase', 'de tu proyecto.'],
                   ['Ve a la sección', 'Authentication > Users', '.'],
@@ -144,7 +142,7 @@ export default function Equipo() {
         )}
 
         {empleados.length === 0 ? (
-          <div className="neb-card p-12 text-center text-slate-400">
+          <div className="neb-card p-12 text-center text-slate-400 dark:text-slate-500">
             <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-bold text-sm">No hay empleados registrados.</p>
           </div>
@@ -153,39 +151,37 @@ export default function Equipo() {
             {empleados.map(empleado => (
               <div key={empleado.id} className="neb-card p-6 flex flex-col items-center text-center">
 
-                {/* Header de tarjeta — avatar */}
-                <div className="w-14 h-14 rounded-2xl neb-grad-pastel border border-white/70 flex items-center justify-center font-extrabold text-slate-700 text-xl mb-3">
+                {/* Avatar inicial */}
+                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-medium text-slate-600 dark:text-slate-400 text-xl mb-3">
                   {empleado.nombre_completo.charAt(0).toUpperCase()}
                 </div>
 
                 <div id={`gafete-${empleado.id}`} className="w-full flex flex-col items-center">
-                  <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">{empleado.nombre_completo}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold mb-5 uppercase tracking-[0.22em] mt-1 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-accent-500" /> Empleado
-                  </p>
+                  <h3 className="font-semibold text-lg text-slate-900 dark:text-white tracking-tight">{empleado.nombre_completo}</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-5 mt-1">Empleado</p>
 
                   {empleado.codigo_gafete ? (
-                    <div className="qr-container bg-white p-4 border border-slate-200 rounded-2xl mb-3 neb-shadow-sm">
+                    <div className="qr-container bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl mb-3">
                       <QRCode value={empleado.codigo_gafete} size={150} />
                     </div>
                   ) : (
-                    <div className="w-[160px] h-[160px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl mb-3 flex items-center justify-center text-slate-300">
+                    <div className="w-[160px] h-[160px] bg-slate-50 dark:bg-slate-900/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl mb-3 flex items-center justify-center text-slate-300">
                       <QrCode className="w-9 h-9" />
                     </div>
                   )}
 
-                  <p className="text-[10px] text-slate-400 font-mono mt-1">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-1 neb-tabular">
                     ID: {empleado.codigo_gafete || 'Sin código asignado'}
                   </p>
                 </div>
 
-                <div className="w-full border-t border-slate-100 pt-4 mt-4">
+                <div className="w-full border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
                   {empleado.codigo_gafete ? (
                     <button onClick={() => handlePrint(empleado.id)} className="w-full neb-btn neb-btn-primary">
                       <Printer className="w-4 h-4" /> Imprimir gafete
                     </button>
                   ) : (
-                    <button onClick={() => handleGenerateCode(empleado.id)} className="w-full neb-btn neb-btn-ghost !text-accent-700 !border-accent-100 hover:!bg-accent-50">
+                    <button onClick={() => handleGenerateCode(empleado.id)} className="w-full neb-btn neb-btn-ghost">
                       <QrCode className="w-4 h-4" /> Generar código
                     </button>
                   )}

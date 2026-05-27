@@ -45,6 +45,7 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
   const [search, setSearch] = useState('');
   const [catFiltro, setCatFiltro] = useState('todas');
   const [orden, setOrden] = useState('nombre');
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const maxStock = useMemo(() => Math.max(...productos.map(p => p.stock), 1), [productos]);
 
@@ -77,13 +78,16 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
       {/* Barra de herramientas */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             type="text" placeholder="Buscar por nombre o SKU…"
             value={search} onChange={e => setSearch(e.target.value)}
             className="neb-input pl-10"
           />
         </div>
+        <button onClick={() => setScannerOpen(true)} className="neb-btn neb-btn-ghost w-full sm:w-auto">
+          <ScanLine className="w-4 h-4" /> Escanear
+        </button>
         <select value={orden} onChange={e => setOrden(e.target.value)} className="neb-input w-auto !pr-3">
           <option value="nombre">A–Z</option>
           <option value="stock_asc">Stock: menor primero</option>
@@ -104,17 +108,17 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
         )}
       </div>
 
-      {/* Chips de categoría */}
+      {/* Chips de categoría — Apple style */}
       <div className="flex gap-2 flex-wrap">
         {['todas', ...categorias].map(c => (
           <button key={c} onClick={() => setCatFiltro(c)}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+            className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
               catFiltro === c
-                ? 'neb-grad-primary text-white border-transparent'
-                : 'bg-white text-slate-500 border-slate-200 hover:border-accent-300 hover:text-slate-800'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
             }`}>
             {c === 'todas' ? 'Todas' : c}
-            {c !== 'todas' && <span className="ml-1 opacity-60">·{productos.filter(p => p.categoria === c).length}</span>}
+            {c !== 'todas' && <span className="ml-1 opacity-60">· {productos.filter(p => p.categoria === c).length}</span>}
           </button>
         ))}
       </div>
@@ -122,34 +126,37 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
       {/* Tabla */}
       <div className="neb-card overflow-hidden">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
             <Loader2 className="w-7 h-7 animate-spin mb-3 text-accent-500" />
             <p className="text-sm font-bold">Cargando productos…</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-16 text-center text-slate-400">
+          <div className="py-16 text-center text-slate-400 dark:text-slate-500">
             <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-bold text-sm">Sin productos{search ? ` para "${search}"` : ''}</p>
           </div>
         ) : (
           <>
             {/* Mobile */}
-            <div className="lg:hidden divide-y divide-slate-100">
+            <div className="lg:hidden divide-y divide-slate-100 dark:divide-slate-800">
               {filtered.map(p => {
                 const si = stockInfo(p.stock);
                 return (
                   <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${si.dot}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-extrabold text-slate-900 text-sm truncate">{p.nombre}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">{p.sku} · {p.categoria}</p>
+                      <p className="font-medium text-slate-900 dark:text-white text-sm truncate">{p.nombre}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{p.sku} · {p.categoria}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-extrabold text-slate-900 text-sm">{fmt(p.precio)}</p>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${si.cls}`}>{p.stock} un.</span>
+                      <p className="font-semibold text-slate-900 dark:text-white text-sm neb-tabular">{fmt(p.precio)}</p>
+                      {p.cantidad_mayoreo && p.precio_mayoreo && (
+                        <p className="text-[9px] text-emerald-600 font-bold mb-0.5">Mayoreo: {fmt(p.precio_mayoreo)}</p>
+                      )}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${si.cls}`}>{p.stock} un.</span>
                     </div>
                     {isAdmin && (
-                      <button onClick={() => onEdit(p)} className="p-2 text-slate-400 hover:text-accent-600 hover:bg-accent-50 rounded-xl transition-colors">
+                      <button onClick={() => onEdit(p)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
                     )}
@@ -162,38 +169,43 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
             <div className="hidden lg:block overflow-x-auto neb-scroll">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/60 text-slate-400 text-[10px] uppercase tracking-[0.15em] border-b border-slate-100">
-                    <th className="px-5 py-3 font-bold">Producto</th>
-                    <th className="px-5 py-3 font-bold">Categoría</th>
-                    <th className="px-5 py-3 font-bold text-right">Precio</th>
-                    <th className="px-5 py-3 font-bold text-right w-48">Stock</th>
-                    {isAdmin && <th className="px-5 py-3 font-bold text-center">Acción</th>}
+                  <tr className="text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-[0.12em] border-b border-slate-100 dark:border-slate-800">
+                    <th className="px-5 py-3 font-medium">Producto</th>
+                    <th className="px-5 py-3 font-medium">Categoría</th>
+                    <th className="px-5 py-3 font-medium text-right">Precio</th>
+                    <th className="px-5 py-3 font-medium text-right w-48">Stock</th>
+                    {isAdmin && <th className="px-5 py-3 font-medium text-center">Acción</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filtered.map(p => {
                     const si = stockInfo(p.stock);
                     const barPct = Math.min(100, (p.stock / maxStock) * 100);
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="px-5 py-3.5">
-                          <p className="font-extrabold text-slate-900 text-sm">{p.nombre}</p>
-                          <p className="text-[11px] text-slate-400 font-mono mt-0.5">{p.sku}</p>
+                          <p className="font-medium text-slate-900 dark:text-white text-sm">{p.nombre}</p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">{p.sku}</p>
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="neb-chip neb-chip-neutral">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-medium">
                             <Layers className="w-3 h-3" />{p.categoria || 'General'}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-right font-extrabold text-slate-900">{fmt(p.precio)}</td>
+                        <td className="px-5 py-3.5 text-right font-semibold text-slate-900 dark:text-white neb-tabular">
+                          {fmt(p.precio)}
+                          {p.cantidad_mayoreo && p.precio_mayoreo && (
+                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5">Mayoreo: {fmt(p.precio_mayoreo)} a partir de {p.cantidad_mayoreo}</div>
+                          )}
+                        </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center justify-end gap-3">
                             <div className="flex-1 max-w-[80px]">
-                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
                                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${barPct}%`, background: si.barColor }} />
                               </div>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border shrink-0 ${si.cls}`}>
+                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md shrink-0 ${si.cls} neb-tabular`}>
                               {p.stock === 0 ? 'Agotado' : `${p.stock} un.`}
                             </span>
                           </div>
@@ -201,7 +213,7 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                         {isAdmin && (
                           <td className="px-5 py-3.5 text-center">
                             <button onClick={() => onEdit(p)}
-                              className="p-2 text-slate-400 hover:text-accent-700 hover:bg-accent-50 rounded-xl transition-colors">
+                              className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
                               <Edit2 className="w-4 h-4" />
                             </button>
                           </td>
@@ -215,6 +227,17 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
           </>
         )}
       </div>
+
+      {scannerOpen && (
+        <QRScannerModal
+          isOpen={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={(code) => {
+            setSearch(code);
+            setScannerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -312,13 +335,11 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
     <div className="space-y-5 max-w-3xl mx-auto">
 
       <div className="neb-card p-5 space-y-4">
-        <h3 className="font-extrabold text-slate-900 text-[15px] flex items-center gap-2">
-          <Search className="w-4 h-4 text-accent-600" /> Buscar Producto
-        </h3>
+        <h3 className="font-semibold text-slate-900 dark:text-white text-[15px]">Buscar producto</h3>
 
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               ref={searchRef}
               type="text" placeholder="Nombre o SKU…"
@@ -328,17 +349,17 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
               autoComplete="off"
             />
             {searchOpen && resultados.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white rounded-2xl border border-slate-200 neb-shadow overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                 {resultados.map(p => (
                   <button key={p.id} type="button" onClick={() => selectProduct(p)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 text-left transition-colors">
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 last:border-0 text-left transition-colors">
                     <div>
-                      <p className="font-extrabold text-slate-900 text-sm">{p.nombre}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">{p.sku}</p>
+                      <p className="font-medium text-slate-900 dark:text-white text-sm">{p.nombre}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{p.sku}</p>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <p className="font-bold text-slate-600 text-sm">{fmt(p.precio)}</p>
-                      <p className={`text-[10px] font-bold ${p.stock === 0 ? 'text-rose-500' : p.stock <= 5 ? 'text-rose-400' : 'text-slate-400'}`}>
+                      <p className="font-semibold text-slate-700 dark:text-slate-300 text-sm neb-tabular">{fmt(p.precio)}</p>
+                      <p className={`text-[11px] font-medium neb-tabular ${p.stock === 0 ? 'text-rose-500' : p.stock <= 5 ? 'text-rose-400' : 'text-slate-400 dark:text-slate-500'}`}>
                         stock: {p.stock}
                       </p>
                     </div>
@@ -356,10 +377,10 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
           <div className="neb-card-soft p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-extrabold text-slate-900">{selected.nombre}</p>
-                <p className="text-[11px] text-slate-400 font-mono">{selected.sku} · Stock actual: <strong>{selected.stock}</strong></p>
+                <p className="font-medium text-slate-900 dark:text-white">{selected.nombre}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{selected.sku} · Stock actual: <span className="font-semibold neb-tabular">{selected.stock}</span></p>
               </div>
-              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -369,15 +390,15 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
                 value={cantidad} onChange={e => setCantidad(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addToBatch()}
                 autoFocus
-                className="neb-input !text-lg !font-extrabold"
+                className="neb-input !text-base !font-semibold neb-tabular"
               />
               <button onClick={addToBatch} disabled={!cantidad || parseInt(cantidad) <= 0} className="neb-btn neb-btn-primary disabled:opacity-50">
                 <Plus className="w-4 h-4" /> Agregar
               </button>
             </div>
             {cantidad && parseInt(cantidad) > 0 && (
-              <p className="text-[11px] text-emerald-600 font-bold">
-                Stock después de recibir: {selected.stock} + {cantidad} = <strong>{selected.stock + parseInt(cantidad)}</strong> unidades
+              <p className="text-[12px] text-emerald-600 font-medium neb-tabular">
+                Stock después de recibir: {selected.stock} + {cantidad} = <span className="font-semibold">{selected.stock + parseInt(cantidad)}</span> unidades
               </p>
             )}
           </div>
@@ -385,7 +406,7 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
 
         {!selected && sugeridos.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-2 flex items-center gap-1">
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-2 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" /> Stock bajo — sugeridos
             </p>
             <div className="flex flex-wrap gap-2">
@@ -405,29 +426,28 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
 
       {batch.length > 0 && (
         <div className="neb-card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/40">
-            <h3 className="font-extrabold text-slate-900 text-[15px] flex items-center gap-2">
-              <Truck className="w-4 h-4 text-accent-600" />
-              Lote de entrada
-              <span className="neb-chip neb-chip-info ml-1">{batch.length}</span>
-            </h3>
-            <button onClick={() => setBatch([])} className="text-[11px] text-slate-400 hover:text-rose-500 font-bold transition-colors flex items-center gap-1">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-slate-900 dark:text-white text-[15px]">Lote de entrada</h3>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-medium">{batch.length}</span>
+            </div>
+            <button onClick={() => setBatch([])} className="text-[12px] text-slate-500 dark:text-slate-400 hover:text-rose-500 font-medium transition-colors inline-flex items-center gap-1">
               <RotateCcw className="w-3 h-3" /> Limpiar
             </button>
           </div>
 
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {batch.map(item => (
               <div key={item.productoId} className="flex items-center gap-3 px-5 py-3.5">
                 <div className="flex-1 min-w-0">
-                  <p className="font-extrabold text-slate-900 text-sm truncate">{item.nombre}</p>
-                  <p className="text-[11px] text-slate-400 font-mono">{item.sku}</p>
+                  <p className="font-medium text-slate-900 dark:text-white text-sm truncate">{item.nombre}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{item.sku}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-sm">
-                  <span className="text-slate-500">{item.stockAnterior}</span>
+                  <span className="text-slate-500 dark:text-slate-400 neb-tabular">{item.stockAnterior}</span>
                   <ChevronRight className="w-3 h-3 text-slate-300" />
-                  <span className="font-extrabold text-emerald-600">{item.stockNuevo}</span>
-                  <span className="neb-chip neb-chip-positive">+{item.cantidad}</span>
+                  <span className="font-semibold text-emerald-600 neb-tabular">{item.stockNuevo}</span>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[11px] font-medium neb-tabular">+{item.cantidad}</span>
                 </div>
                 <button onClick={() => removeFromBatch(item.productoId)} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors">
                   <X className="w-4 h-4" />
@@ -436,14 +456,14 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
             ))}
           </div>
 
-          <div className="px-5 py-4 border-t border-slate-100 space-y-3">
+          <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
             <textarea
               value={notas} onChange={e => setNotas(e.target.value)} rows={2}
               placeholder="Notas: proveedor, número de factura, lote…"
               className="neb-input resize-none"
             />
             <button onClick={confirmarEntrada} disabled={saving}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold rounded-2xl transition-all flex items-center justify-center gap-2 text-sm">
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
               {saving
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando…</>
                 : <><CheckCircle className="w-4 h-4" /> Confirmar entrada ({batch.length} productos)</>
@@ -517,37 +537,31 @@ function HistorialTab() {
     <div className="space-y-4">
       {/* Resumen */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="neb-card-soft p-4 text-center">
-          <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-accent-50 text-accent-700 flex items-center justify-center">
-            <ArrowUpRight className="w-4 h-4" />
-          </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entradas</p>
-          <p className="font-extrabold text-lg text-slate-900 mt-0.5">+{resumen.entradas} un.</p>
+        <div className="neb-card p-4">
+          <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Entradas</p>
+          <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">+{resumen.entradas}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">unidades</p>
         </div>
-        <div className="neb-card-soft p-4 text-center">
-          <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-            <ArrowDownRight className="w-4 h-4" />
-          </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Salidas</p>
-          <p className="font-extrabold text-lg text-slate-900 mt-0.5">-{resumen.salidas} un.</p>
+        <div className="neb-card p-4">
+          <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Salidas</p>
+          <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">-{resumen.salidas}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">unidades</p>
         </div>
-        <div className="neb-card-soft p-4 text-center">
-          <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
-            <Settings2 className="w-4 h-4" />
-          </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ajustes</p>
-          <p className="font-extrabold text-lg text-slate-900 mt-0.5">{resumen.ajustes}</p>
+        <div className="neb-card p-4">
+          <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Ajustes</p>
+          <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{resumen.ajustes}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">movimientos</p>
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros — segmented controls Apple */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input type="text" placeholder="Buscar producto…" value={searchProd} onChange={e => setSearchProd(e.target.value)}
             className="neb-input pl-10" />
         </div>
-        <div className="flex gap-1 p-1 bg-white border border-slate-200 rounded-xl">
+        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1">
           {[
             { key: 'todos', label: 'Todos' },
             { key: 'entrada', label: 'Entradas' },
@@ -555,16 +569,16 @@ function HistorialTab() {
             { key: 'ajuste', label: 'Ajustes' },
           ].map(f => (
             <button key={f.key} onClick={() => setTipoFiltro(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                tipoFiltro === f.key ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
+              className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                tipoFiltro === f.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
               }`}>{f.label}</button>
           ))}
         </div>
-        <div className="flex gap-1 p-1 bg-white border border-slate-200 rounded-xl">
+        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1">
           {[7, 14, 30].map(d => (
             <button key={d} onClick={() => setDiasFiltro(d)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                diasFiltro === d ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
+              className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                diasFiltro === d ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
               }`}>{d}d</button>
           ))}
         </div>
@@ -575,33 +589,33 @@ function HistorialTab() {
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin w-6 h-6 text-accent-500" /></div>
         ) : filtrados.length === 0 ? (
-          <div className="py-14 text-center text-slate-400">
+          <div className="py-14 text-center text-slate-400 dark:text-slate-500">
             <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-bold text-sm">Sin movimientos en este período</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {filtrados.map(m => {
               const meta  = TIPO_META[m.tipo] || TIPO_META.ajuste;
               const Icon  = meta.icon;
               const delta = m.cantidad > 0 ? `+${m.cantidad}` : `${m.cantidad}`;
               return (
                 <div key={m.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
-                  <div className={`p-2 rounded-xl shrink-0 ${meta.cls}`}>
-                    <Icon className="w-4 h-4" />
+                  <div className={`p-2 rounded-lg shrink-0 ${meta.cls}`}>
+                    <Icon className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-slate-900 text-sm truncate">{m.nombre_producto}</p>
+                    <p className="font-medium text-slate-900 dark:text-white text-sm truncate">{m.nombre_producto}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${meta.cls}`}>{meta.label}</span>
-                      {m.notas && <span className="text-[10px] text-slate-400 truncate">{m.notas}</span>}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${meta.cls}`}>{meta.label}</span>
+                      {m.notas && <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{m.notas}</span>}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={`font-extrabold text-sm ${m.cantidad > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{delta} un.</p>
-                    <p className="text-[10px] text-slate-400 font-mono">{m.stock_anterior} → {m.stock_nuevo}</p>
+                    <p className={`font-semibold text-sm neb-tabular ${m.cantidad > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{delta} un.</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono neb-tabular">{m.stock_anterior} → {m.stock_nuevo}</p>
                   </div>
-                  <div className="text-right text-[11px] text-slate-400 shrink-0 w-20 leading-tight">
+                  <div className="text-right text-[11px] text-slate-400 dark:text-slate-500 shrink-0 w-20 leading-tight">
                     <p className="font-medium">{fmtRelative(m.created_at)}</p>
                     {m.usuarios_perfiles && (
                       <p className="text-[10px] truncate max-w-[80px]">{m.usuarios_perfiles.nombre_completo.split(' ')[0]}</p>
@@ -768,25 +782,22 @@ export default function Inventario({ isAdmin, userProfile }) {
     <div className="h-full overflow-y-auto neb-scroll">
       <div className="p-5 lg:p-7 max-w-6xl mx-auto space-y-5">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.18em]">Catálogo</p>
-            <h1 className="text-2xl lg:text-[26px] font-extrabold text-slate-900 tracking-tight mt-1">
-              Inventario
-            </h1>
-            <p className="text-slate-400 text-[12px] font-bold mt-1">
-              {productos.length} productos · {productos.reduce((a, p) => a + p.stock, 0)} unidades totales
-            </p>
-          </div>
+        {/* Header — Apple */}
+        <div className="pt-2 pb-2">
+          <h1 className="text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">
+            Inventario
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-[14px] mt-2 neb-tabular">
+            {productos.length} productos · {productos.reduce((a, p) => a + p.stock, 0)} unidades totales
+          </p>
         </div>
 
-        {/* Sub-tabs */}
-        <div className="flex bg-white rounded-2xl border border-slate-200 neb-shadow-sm p-1 w-fit">
+        {/* Sub-tabs — segmented control */}
+        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
           {SUB_TABS.map(t => (
             <button key={t.key} onClick={() => setSubTab(t.key)}
-              className={`flex items-center gap-2 px-4 py-2 text-[13px] font-bold rounded-xl transition-all ${
-                subTab === t.key ? 'neb-grad-primary text-white' : 'text-slate-500 hover:text-slate-900'
+              className={`flex items-center gap-1.5 px-4 py-1.5 text-[13px] font-medium rounded-full transition-all ${
+                subTab === t.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
               }`}>
               <t.icon className="w-3.5 h-3.5" />
               {t.label}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Package, Tag, Hash, DollarSign, Box, ScanLine, RefreshCw, Layers, AlertCircle } from 'lucide-react';
+import { X, Save, Tag, Hash, DollarSign, Box, ScanLine, RefreshCw, Layers, AlertCircle } from 'lucide-react';
 import QRScannerModal from './QRScannerModal';
 import { supabase } from '../lib/supabaseClient';
 
@@ -7,7 +7,7 @@ export default function ProductModal({ onClose, onSave, product = null, categori
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [existingProduct, setExistingProduct] = useState(null);
   const [formData, setFormData] = useState(product || {
-    nombre: '', sku: '', categoria: '', precio: '', stock: ''
+    nombre: '', sku: '', categoria: '', precio: '', stock: '', precio_mayoreo: '', cantidad_mayoreo: ''
   });
 
   const generateSKU = () => {
@@ -24,20 +24,24 @@ export default function ProductModal({ onClose, onSave, product = null, categori
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      precio: parseFloat(formData.precio),
+      stock: parseInt(formData.stock),
+      precio_mayoreo: formData.precio_mayoreo ? parseFloat(formData.precio_mayoreo) : null,
+      cantidad_mayoreo: formData.cantidad_mayoreo ? parseInt(formData.cantidad_mayoreo) : null,
+    };
+
     if (existingProduct) {
       onSave({
-        ...formData,
-        precio: parseFloat(formData.precio),
-        stock: parseInt(formData.stock),
+        ...payload,
         _existingId: existingProduct.id,
         _addStock: true,
       });
     } else {
       onSave({
-        ...formData,
+        ...payload,
         categoria: formData.categoria || 'General',
-        precio: parseFloat(formData.precio),
-        stock: parseInt(formData.stock),
       });
     }
   };
@@ -69,18 +73,14 @@ export default function ProductModal({ onClose, onSave, product = null, categori
   }, [formData.sku, product]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[60] p-4">
       <div className="neb-glass-strong rounded-3xl w-full max-w-md overflow-hidden">
 
-        <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100/80">
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Catálogo</p>
-            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2 tracking-tight mt-0.5">
-              <Package className="w-5 h-5 text-accent-600" />
-              {product ? 'Editar producto' : existingProduct ? 'Agregar stock' : 'Nuevo producto'}
-            </h2>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+        <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+            {product ? 'Editar producto' : existingProduct ? 'Agregar stock' : 'Nuevo producto'}
+          </h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -99,23 +99,23 @@ export default function ProductModal({ onClose, onSave, product = null, categori
 
         <form onSubmit={handleSubmit} className="p-6 space-y-3.5">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nombre del producto</label>
+            <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Nombre del producto</label>
             <div className="relative">
-              <Tag className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Tag className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 required name="nombre" value={formData.nombre} onChange={handleChange}
                 disabled={!!existingProduct}
-                className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 !text-slate-400' : ''}`}
+                className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 dark:bg-slate-900/50 !text-slate-400 dark:text-slate-500' : ''}`}
                 placeholder="Ej. Bolsa 1kg"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">SKU / Código de barras</label>
+            <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">SKU / Código de barras</label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   required name="sku" value={formData.sku} onChange={handleChange}
                   className="neb-input pl-10"
@@ -123,27 +123,27 @@ export default function ProductModal({ onClose, onSave, product = null, categori
                 />
               </div>
               <button type="button" onClick={generateSKU} title="Generar SKU"
-                className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 rounded-2xl flex items-center transition-colors border border-slate-200">
+                className="bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 rounded-2xl flex items-center transition-colors border border-slate-200 dark:border-slate-800">
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button type="button" onClick={() => setIsScannerOpen(true)} title="Escanear"
-                className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 rounded-2xl flex items-center transition-colors border border-slate-200">
+                className="bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 rounded-2xl flex items-center transition-colors border border-slate-200 dark:border-slate-800">
                 <ScanLine className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Categoría</label>
+            <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Categoría</label>
             <div className="relative">
-              <Layers className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+              <Layers className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 z-10" />
               <input
                 list="categorias-list"
                 name="categoria"
                 value={formData.categoria}
                 onChange={handleChange}
                 disabled={!!existingProduct}
-                className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 !text-slate-400' : ''}`}
+                className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 dark:bg-slate-900/50 !text-slate-400 dark:text-slate-500' : ''}`}
                 placeholder="Ej. Bolsas, Cubetas, Limpieza…"
               />
               <datalist id="categorias-list">
@@ -154,25 +154,25 @@ export default function ProductModal({ onClose, onSave, product = null, categori
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Precio</label>
+              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Precio</label>
               <div className="relative">
-                <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   required type="number" step="0.01" min="0" name="precio"
                   value={formData.precio} onChange={handleChange}
                   disabled={!!existingProduct}
-                  className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 !text-slate-400' : ''}`}
+                  className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 dark:bg-slate-900/50 !text-slate-400 dark:text-slate-500' : ''}`}
                   placeholder="0.00"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">
                 {existingProduct ? 'Cantidad a agregar' : 'Stock inicial'}
               </label>
               <div className="relative">
-                <Box className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Box className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   required type="number" min="0" name="stock"
                   value={formData.stock} onChange={handleChange}
@@ -183,8 +183,40 @@ export default function ProductModal({ onClose, onSave, product = null, categori
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Precio Mayoreo (Opcional)</label>
+              <div className="relative">
+                <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                <input
+                  type="number" step="0.01" min="0" name="precio_mayoreo"
+                  value={formData.precio_mayoreo || ''} onChange={handleChange}
+                  disabled={!!existingProduct}
+                  className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 dark:bg-slate-900/50 !text-slate-400 dark:text-slate-500' : ''}`}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">
+                A partir de (piezas)
+              </label>
+              <div className="relative">
+                <Box className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                <input
+                  type="number" min="0" name="cantidad_mayoreo"
+                  value={formData.cantidad_mayoreo || ''} onChange={handleChange}
+                  disabled={!!existingProduct}
+                  className={`neb-input pl-10 ${existingProduct ? '!bg-slate-50 dark:bg-slate-900/50 !text-slate-400 dark:text-slate-500' : ''}`}
+                  placeholder="Ej: 10"
+                />
+              </div>
+            </div>
+          </div>
+
           {existingProduct && (
-            <div className="bg-slate-50 rounded-2xl px-4 py-3 text-[12px] text-slate-600 font-bold border border-slate-100">
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl px-4 py-3 text-[12px] text-slate-600 dark:text-slate-400 font-bold border border-slate-100 dark:border-slate-800">
               Stock actual: <strong>{existingProduct.stock}</strong> →
               Nuevo: <strong className="text-emerald-600">{existingProduct.stock + (parseInt(formData.stock) || 0)}</strong>
             </div>

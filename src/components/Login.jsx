@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Box, Lock, Mail, Loader2, KeyRound, Sparkles, ShieldCheck } from 'lucide-react';
+import { Box, Lock, Mail, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -23,104 +23,83 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900/50">
+      <div className="w-full max-w-sm">
 
-      {/* Halos ambientales */}
-      <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-accent-300/40 blur-[120px] pointer-events-none animate-neb-glow" />
-      <div className="absolute -bottom-40 -right-40 w-[520px] h-[520px] rounded-full bg-indigo-200/50 blur-[140px] pointer-events-none animate-neb-glow" style={{ animationDelay: '1.5s' }} />
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[380px] h-[380px] rounded-full bg-sky-100/60 blur-[100px] pointer-events-none animate-neb-glow" style={{ animationDelay: '2.5s' }} />
-
-      {/* Sutil grid */}
-      <div className="absolute inset-0 neb-grid-bg opacity-60 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_60%,transparent_100%)] pointer-events-none" />
-
-      <div className="w-full max-w-md neb-glass-strong rounded-[2.25rem] p-8 lg:p-10 relative z-10">
-
-        {/* Header */}
-        <div className="flex flex-col items-center justify-center mb-8">
-          <div className="w-16 h-16 rounded-3xl neb-grad-primary flex items-center justify-center neb-shadow-lg mb-4 relative">
-            <Box className="w-8 h-8 text-white" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white border border-slate-100 flex items-center justify-center">
-              <Sparkles className="w-3 h-3 text-accent-500" />
-            </span>
+        {/* Brand mark — minimal */}
+        <div className="flex flex-col items-center mb-10">
+          <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center mb-4">
+            <Box className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
             Plásticos POS
           </h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em] mt-1.5">
-            Panel de Operación
+          <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
+            Inicia sesión en tu cuenta
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-4">
           {error && (
-            <div className="bg-rose-50 text-rose-600 p-3.5 rounded-2xl text-xs font-bold border border-rose-100 text-center animate-neb-shake flex items-center justify-center gap-2">
+            <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-[13px] font-medium border border-rose-100 flex items-center justify-center gap-2 animate-neb-shake">
               <ShieldCheck className="w-4 h-4" />
               {error === 'Invalid login credentials' ? 'Credenciales incorrectas' : error}
             </div>
           )}
 
-          {/* Email */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">
+            <label className="block text-[12px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Correo electrónico
             </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail className="h-4 w-4 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
-              </div>
+            <div className="relative">
+              <Mail className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="neb-input pl-11"
+                className="neb-input pl-10"
                 placeholder="usuario@plasticos.com"
                 required
               />
             </div>
           </div>
 
-          {/* Password */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">
+            <label className="block text-[12px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Contraseña
             </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Lock className="h-4 w-4 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
-              </div>
+            <div className="relative">
+              <Lock className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="neb-input pl-11"
+                className="neb-input pl-10"
                 placeholder="••••••••"
                 required
               />
             </div>
           </div>
 
-          {/* Botón */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full neb-btn neb-btn-primary py-3.5 mt-2 text-[13px] uppercase tracking-[0.18em] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full neb-btn neb-btn-primary py-3 mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
                 <KeyRound className="w-4 h-4" />
-                <span>Ingresar al sistema</span>
+                <span>Ingresar</span>
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-200/60 text-center">
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.22em]">
-            Zahir Daniel · Gestión Comercial
-          </p>
-        </div>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-10">
+          Zahir Daniel · Gestión Comercial
+        </p>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, X, CheckCircle, Store, Mail, Phone, Sparkles } from 'lucide-react';
+import { Printer, X, CheckCircle, Store, Mail, Phone } from 'lucide-react';
 
 export default function TicketModal({ cart, total, paymentData, onClose }) {
   const ticketNumber = (Math.floor(Math.random() * 10000)).toString().padStart(4, '0');
@@ -47,7 +47,7 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
             .items-center { align-items: center; }
             .w-3\\/5 { width: 60%; }
             .w-1\\/5 { width: 20%; }
-            .bg-slate-50 { background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; }
+            .bg-slate-50 dark:bg-slate-900/50 { background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; }
             @media print { @page { margin: 0; size: auto; } }
           </style>
         </head>
@@ -66,45 +66,43 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md flex items-center justify-center z-[70] p-4">
+    <div className="fixed inset-0 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[70] p-4">
       <div className="neb-glass-strong rounded-3xl w-full max-w-md overflow-hidden flex flex-col max-h-[95vh]">
 
-        <div className="px-6 py-5 flex justify-between items-center shrink-0 border-b border-slate-100/80 z-10">
+        <div className="px-6 py-5 flex justify-between items-center shrink-0 border-b border-slate-100 dark:border-slate-800 z-10">
           <div className="flex items-center gap-3">
-            <div className="bg-emerald-50 text-emerald-500 border border-emerald-100 p-2.5 rounded-2xl">
-              <CheckCircle className="w-5 h-5" />
+            <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 w-9 h-9 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">¡Cobro exitoso!</h2>
-              <p className="text-slate-500 text-[11px] font-bold flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-accent-500" /> Ticket #{ticketNumber}
-              </p>
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white leading-tight tracking-tight">¡Cobro exitoso!</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-[12px] mt-0.5 neb-tabular">Ticket #{ticketNumber}</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 md:p-6 relative overflow-y-auto neb-scroll flex-1 flex flex-col items-center">
 
-          <div id="ticket-termico" className="w-full max-w-sm bg-white relative pb-8 pt-6 px-6 sm:px-8 font-mono text-slate-800 rounded-2xl border border-slate-200 neb-shadow">
+          <div id="ticket-termico" className="w-full max-w-sm bg-white dark:bg-slate-900 relative pb-8 pt-6 px-6 sm:px-8 font-mono text-slate-800 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-slate-800 neb-shadow">
 
             <div className="text-center mb-6 mt-2 flex flex-col items-center">
               <div className="w-12 h-12 neb-grad-primary text-white rounded-xl flex items-center justify-center mb-3">
                 <Store className="w-5 h-5" />
               </div>
-              <h3 className="font-extrabold text-xl uppercase tracking-[0.18em] text-slate-900 mb-1">Plásticos POS</h3>
-              <p className="text-[11px] text-slate-500 uppercase font-bold">Sucursal Centro</p>
-              <p className="text-[11px] text-slate-500 uppercase font-bold">Av. Principal #123, Ciudad</p>
+              <h3 className="font-extrabold text-xl uppercase tracking-[0.18em] text-slate-900 dark:text-white mb-1">Plásticos POS</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-bold">Sucursal Centro</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-bold">Av. Principal #123, Ciudad</p>
 
-              <div className="flex items-center justify-center gap-3 mt-3 text-[11px] text-slate-500">
+              <div className="flex items-center justify-center gap-3 mt-3 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> 555-0192</span>
                 <span className="flex items-center gap-1"><Mail className="w-3 h-3"/> hola@pos.com</span>
               </div>
             </div>
 
-            <div className="border-y border-dashed border-slate-300 py-3 mb-4 text-[11px] font-bold text-slate-600 flex justify-between">
+            <div className="border-y border-dashed border-slate-300 dark:border-slate-700 py-3 mb-4 text-[11px] font-bold text-slate-600 dark:text-slate-400 flex justify-between">
               <div>
                 <p>FECHA: {date}</p>
                 <p>HORA: {time}</p>
@@ -115,7 +113,7 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
               </div>
             </div>
 
-            <div className="flex justify-between text-[11px] font-extrabold text-slate-900 border-b border-slate-300 pb-2 mb-3">
+            <div className="flex justify-between text-[11px] font-extrabold text-slate-900 dark:text-white border-b border-slate-300 dark:border-slate-700 pb-2 mb-3">
               <span className="w-3/5 text-left">DESCRIPCIÓN</span>
               <span className="w-1/5 text-center">CANT</span>
               <span className="w-1/5 text-right">IMPORTE</span>
@@ -125,33 +123,33 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
               {cart.map(item => (
                 <div key={item.id} className="flex flex-col">
                   <div className="flex justify-between items-start">
-                    <span className="w-3/5 text-left font-bold text-slate-800 pr-2">{item.nombre}</span>
-                    <span className="w-1/5 text-center text-slate-600">{item.quantity}</span>
-                    <span className="w-1/5 text-right font-extrabold text-slate-900">${(item.precio * item.quantity).toFixed(2)}</span>
+                    <span className="w-3/5 text-left font-bold text-slate-800 dark:text-slate-200 pr-2">{item.nombre}</span>
+                    <span className="w-1/5 text-center text-slate-600 dark:text-slate-400">{item.quantity}</span>
+                    <span className="w-1/5 text-right font-extrabold text-slate-900 dark:text-white">${(item.precio * item.quantity).toFixed(2)}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-0.5">${item.precio.toFixed(2)} c/u</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">${item.precio.toFixed(2)} c/u</span>
                 </div>
               ))}
             </div>
 
             <div className="border-t-2 border-slate-800 pt-3 mb-6">
-              <div className="flex justify-between font-extrabold text-xl text-slate-900 mb-1">
+              <div className="flex justify-between font-extrabold text-xl text-slate-900 dark:text-white mb-1">
                 <span>TOTAL</span>
                 <span>${total.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase">
+              <div className="flex justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">
                 <span>Total de artículos:</span>
                 <span>{cart.reduce((acc, i) => acc + i.quantity, 0)}</span>
               </div>
             </div>
 
             {paymentData && (
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] space-y-1.5 mb-6">
-                {paymentData.efectivo > 0 && <div className="flex justify-between"><span className="text-slate-600">PAGO EN EFECTIVO:</span><span className="font-bold">${paymentData.efectivo.toFixed(2)}</span></div>}
-                {paymentData.tarjeta > 0 && <div className="flex justify-between"><span className="text-slate-600">PAGO CON TARJETA:</span><span className="font-bold">${paymentData.tarjeta.toFixed(2)}</span></div>}
-                {paymentData.transferencia > 0 && <div className="flex justify-between"><span className="text-slate-600">PAGO EN TRANSFER.:</span><span className="font-bold">${paymentData.transferencia.toFixed(2)}</span></div>}
-                <div className="border-t border-slate-300 my-1" />
-                <div className="flex justify-between font-bold text-slate-800 pt-1">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] space-y-1.5 mb-6">
+                {paymentData.efectivo > 0 && <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">PAGO EN EFECTIVO:</span><span className="font-bold">${paymentData.efectivo.toFixed(2)}</span></div>}
+                {paymentData.tarjeta > 0 && <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">PAGO CON TARJETA:</span><span className="font-bold">${paymentData.tarjeta.toFixed(2)}</span></div>}
+                {paymentData.transferencia > 0 && <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">PAGO EN TRANSFER.:</span><span className="font-bold">${paymentData.transferencia.toFixed(2)}</span></div>}
+                <div className="border-t border-slate-300 dark:border-slate-700 my-1" />
+                <div className="flex justify-between font-bold text-slate-800 dark:text-slate-200 pt-1">
                   <span>RECIBIDO:</span>
                   <span>${paymentData.totalPagado.toFixed(2)}</span>
                 </div>
@@ -163,13 +161,13 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
             )}
 
             <div className="text-center mt-6">
-              <p className="text-[11px] font-bold text-slate-800 uppercase mb-4">¡Gracias por su compra!</p>
+              <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase mb-4">¡Gracias por su compra!</p>
               <div className="flex justify-center items-center h-12 w-full opacity-80 gap-0.5">
                 {[...Array(40)].map((_, i) => (
                   <div key={i} className="bg-slate-900 h-full" style={{ width: `${Math.max(1, Math.random() * 4)}px` }} />
                 ))}
               </div>
-              <p className="text-[10px] tracking-[0.2em] text-slate-500 mt-1">{ticketNumber}202605{Math.floor(Math.random() * 99)}</p>
+              <p className="text-[10px] tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-1">{ticketNumber}202605{Math.floor(Math.random() * 99)}</p>
             </div>
 
           </div>
