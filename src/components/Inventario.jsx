@@ -3,11 +3,10 @@ import {
   Search, Package, Plus, Loader2, Edit2, FileSpreadsheet,
   History, Truck, RotateCcw,
   AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight,
-  Settings2, X, ScanLine, ChevronRight, Layers
+  Settings2, X, ChevronRight, Layers
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
-import QRScannerModal from './QRScannerModal';
 
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 
@@ -19,10 +18,12 @@ function stockInfo(stock) {
 }
 
 const TIPO_META = {
-  entrada:      { label: 'Entrada', icon: ArrowUpRight,   cls: 'bg-accent-50 text-accent-700',    sign: '+' },
-  salida_venta: { label: 'Venta',   icon: ArrowDownRight, cls: 'bg-amber-50 text-amber-700',      sign: '-' },
-  ajuste:       { label: 'Ajuste',  icon: Settings2,      cls: 'bg-violet-50 text-violet-700',    sign: '±' },
-  inicial:      { label: 'Inicial', icon: CheckCircle,    cls: 'bg-emerald-50 text-emerald-700',  sign: '+' },
+  entrada:      { label: 'Entrada',       icon: ArrowUpRight,   cls: 'bg-accent-50 text-accent-700',    sign: '+' },
+  salida_venta: { label: 'Venta',         icon: ArrowDownRight, cls: 'bg-amber-50 text-amber-700',      sign: '-' },
+  ajuste:       { label: 'Ajuste',        icon: Settings2,      cls: 'bg-violet-50 text-violet-700',    sign: '±' },
+  inicial:      { label: 'Inicial',       icon: CheckCircle,    cls: 'bg-emerald-50 text-emerald-700',  sign: '+' },
+  salida_ruta:  { label: 'Salida Ruta',   icon: Truck,          cls: 'bg-orange-50 text-orange-600',    sign: '-' },
+  entrada_ruta: { label: 'Regreso Ruta',  icon: RotateCcw,      cls: 'bg-sky-50 text-sky-600',          sign: '+' },
 };
 
 function fmtRelative(dateStr) {
@@ -45,7 +46,6 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
   const [search, setSearch] = useState('');
   const [catFiltro, setCatFiltro] = useState('todas');
   const [orden, setOrden] = useState('nombre');
-  const [scannerOpen, setScannerOpen] = useState(false);
 
   const maxStock = useMemo(() => Math.max(...productos.map(p => p.stock), 1), [productos]);
 
@@ -85,9 +85,6 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
             className="neb-input pl-10"
           />
         </div>
-        <button onClick={() => setScannerOpen(true)} className="neb-btn neb-btn-ghost w-full sm:w-auto">
-          <ScanLine className="w-4 h-4" /> Escanear
-        </button>
         <select value={orden} onChange={e => setOrden(e.target.value)} className="neb-input w-auto !pr-3">
           <option value="nombre">A–Z</option>
           <option value="stock_asc">Stock: menor primero</option>
@@ -228,16 +225,6 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
         )}
       </div>
 
-      {scannerOpen && (
-        <QRScannerModal
-          isOpen={scannerOpen}
-          onClose={() => setScannerOpen(false)}
-          onScan={(code) => {
-            setSearch(code);
-            setScannerOpen(false);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -251,7 +238,6 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
   const [batch, setBatch] = useState([]);
   const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
   const searchRef = useRef(null);
 
   const sugeridos = useMemo(() =>
@@ -368,9 +354,6 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
               </div>
             )}
           </div>
-          <button onClick={() => setScannerOpen(true)} className="neb-btn neb-btn-ghost">
-            <ScanLine className="w-4 h-4" /> Escanear
-          </button>
         </div>
 
         {selected && (
@@ -473,17 +456,6 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
         </div>
       )}
 
-      {scannerOpen && (
-        <QRScannerModal
-          isOpen={scannerOpen}
-          onClose={() => setScannerOpen(false)}
-          onScan={(code) => {
-            const found = productos.find(p => p.sku === code);
-            if (found) { selectProduct(found); setScannerOpen(false); }
-            else { setSearch(code); setScannerOpen(false); setSearchOpen(true); }
-          }}
-        />
-      )}
     </div>
   );
 }

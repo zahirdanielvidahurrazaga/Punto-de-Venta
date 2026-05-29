@@ -47,7 +47,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Necesitamos acceso a la cámara para escanear los códigos de barras de tus productos y agilizar las ventas.</string>
 </dict>
 </plist>

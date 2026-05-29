@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Tag, Hash, DollarSign, Box, ScanLine, RefreshCw, Layers, AlertCircle } from 'lucide-react';
-import QRScannerModal from './QRScannerModal';
+import { X, Save, Tag, Hash, DollarSign, Box, RefreshCw, Layers, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function ProductModal({ onClose, onSave, product = null, categorias = [] }) {
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [existingProduct, setExistingProduct] = useState(null);
   const [formData, setFormData] = useState(product || {
     nombre: '', sku: '', categoria: '', precio: '', stock: '', precio_mayoreo: '', cantidad_mayoreo: ''
@@ -126,10 +124,6 @@ export default function ProductModal({ onClose, onSave, product = null, categori
                 className="bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 rounded-2xl flex items-center transition-colors border border-slate-200 dark:border-slate-800">
                 <RefreshCw className="w-4 h-4" />
               </button>
-              <button type="button" onClick={() => setIsScannerOpen(true)} title="Escanear"
-                className="bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 rounded-2xl flex items-center transition-colors border border-slate-200 dark:border-slate-800">
-                <ScanLine className="w-4 h-4" />
-              </button>
             </div>
           </div>
 
@@ -234,11 +228,6 @@ export default function ProductModal({ onClose, onSave, product = null, categori
         </form>
       </div>
 
-      <QRScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        onScan={(code) => { setFormData(prev => ({ ...prev, sku: code })); setIsScannerOpen(false); }}
-      />
     </div>
   );
 }

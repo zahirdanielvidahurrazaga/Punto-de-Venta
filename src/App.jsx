@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays, Settings, Menu, X } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays, Settings, Menu, X, Truck } from 'lucide-react';
 import Terminal from './components/Terminal';
 import Inventario from './components/Inventario';
 import Dashboard from './components/Dashboard';
@@ -13,6 +13,7 @@ import PedidosProgramados from './components/PedidosProgramados';
 import { supabase } from './lib/supabaseClient';
 import CambiarPinModal from './components/CambiarPinModal';
 import Ajustes from './components/Ajustes';
+import VentasEnRuta from './components/VentasEnRuta';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -280,7 +281,7 @@ function App() {
   const canSeeCaja = isEmpleado && isClockedIn;
 
   // Helper para items de sidebar
-  const SideItem = ({ id, icon: Icon, label }) => (
+  const SideItem = ({ id, icon: Icon, label, iconCls }) => (
     <button
       onClick={() => {
         setActiveTab(id);
@@ -288,7 +289,10 @@ function App() {
       }}
       className={`neb-side-item ${activeTab === id ? 'active' : ''}`}
     >
-      <Icon className="w-[16px] h-[16px] shrink-0" strokeWidth={1.8} />
+      {iconCls
+        ? <span className={`w-[22px] h-[22px] rounded-md flex items-center justify-center shrink-0 ${iconCls}`}><Icon className="w-[13px] h-[13px]" strokeWidth={2} /></span>
+        : <Icon className="w-[16px] h-[16px] shrink-0" strokeWidth={1.8} />
+      }
       <span className="truncate">{label}</span>
     </button>
   );
@@ -355,6 +359,7 @@ function App() {
               <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Administración</p>
               <div className="space-y-0.5">
                 <SideItem id="dashboard" icon={BarChart3} label="Dashboard" />
+                <SideItem id="ventas_en_ruta" icon={Truck} label="Ventas en Ruta" />
                 <SideItem id="equipo" icon={Users} label="Equipo" />
                 <SideItem id="reportes" icon={FileText} label="Reportes" />
               </div>
@@ -439,6 +444,7 @@ function App() {
           {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
           {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
           {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} userName={userName} />}
+          {activeTab === 'ventas_en_ruta' && isAdmin && <VentasEnRuta />}
           {activeTab === 'equipo' && isAdmin && <Equipo />}
           {activeTab === 'reportes' && isAdmin && <Reportes />}
           {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
