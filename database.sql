@@ -258,6 +258,98 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ==========================================
+-- CÓDIGO DE AUTORIZACIÓN ADMIN ROTATIVO (TOTP, cambia cada 30 s)
+-- ------------------------------------------------------------------
+-- Reemplaza al PIN fijo para autorizar acciones sensibles (p.ej. quitar un
+-- producto de la venta en curso). El admin ve el código en su perfil y se lo
+-- dicta al empleado; cambia cada 30 s, así que aunque alguien lo vea, caduca.
+-- Ver scripts/totp_admin.sql para aplicarlo de forma independiente en Supabase.
+-- ==========================================
+
+-- Tabla con el secreto TOTP (una sola fila). Sin políticas RLS => nadie lee
+-- directamente; solo las funciones SECURITY DEFINER lo usan.
+CREATE TABLE IF NOT EXISTS configuracion_seguridad (
+    id          smallint PRIMARY KEY DEFAULT 1,
+    totp_secret bytea NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT solo_una_fila CHECK (id = 1)
+);
+ALTER TABLE configuracion_seguridad ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO configuracion_seguridad (id, totp_secret)
+VALUES (1, gen_random_bytes(20))
+ON CONFLICT (id) DO NOTHING;
+
+-- Genera el código TOTP de 6 dígitos para un "paso" de tiempo dado (RFC 6238).
+CREATE OR REPLACE FUNCTION _totp_codigo(secreto bytea, paso bigint)
+RETURNS text AS $$
+DECLARE
+    hash        bytea;
+    offset_byte int;
+    bin_code    bigint;
+BEGIN
+    hash := hmac(int8send(paso), secreto, 'sha1');
+    offset_byte := get_byte(hash, 19) & 15;
+    bin_code := ((get_byte(hash, offset_byte)     & 127)::bigint << 24)
+              | ((get_byte(hash, offset_byte + 1) & 255)::bigint << 16)
+              | ((get_byte(hash, offset_byte + 2) & 255)::bigint << 8)
+              |  (get_byte(hash, offset_byte + 3) & 255)::bigint;
+    RETURN lpad((bin_code % 1000000)::text, 6, '0');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Devuelve el código actual + segundos restantes. SOLO administradores.
+CREATE OR REPLACE FUNCTION obtener_codigo_admin_actual()
+RETURNS jsonb SECURITY DEFINER AS $$
+DECLARE
+    secreto      bytea;
+    epoch_actual bigint;
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM usuarios_perfiles WHERE id = auth.uid() AND rol = 'admin'
+    ) THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'No autorizado');
+    END IF;
+
+    SELECT totp_secret INTO secreto FROM configuracion_seguridad WHERE id = 1;
+    IF secreto IS NULL THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'No configurado');
+    END IF;
+
+    epoch_actual := floor(extract(epoch FROM now()))::bigint;
+    RETURN jsonb_build_object(
+        'ok', true,
+        'codigo', _totp_codigo(secreto, epoch_actual / 30),
+        'segundos_restantes', 30 - (epoch_actual % 30)
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Verifica el código ingresado por un empleado (tolerancia ±30 s). Solo boolean.
+CREATE OR REPLACE FUNCTION verificar_codigo_admin(codigo_ingresado text)
+RETURNS boolean SECURITY DEFINER AS $$
+DECLARE
+    secreto bytea;
+    paso    bigint;
+BEGIN
+    SELECT totp_secret INTO secreto FROM configuracion_seguridad WHERE id = 1;
+    IF secreto IS NULL OR codigo_ingresado IS NULL THEN
+        RETURN false;
+    END IF;
+
+    paso := floor(extract(epoch FROM now()))::bigint / 30;
+    RETURN codigo_ingresado IN (
+        _totp_codigo(secreto, paso - 1),
+        _totp_codigo(secreto, paso),
+        _totp_codigo(secreto, paso + 1)
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION obtener_codigo_admin_actual() TO authenticated;
+GRANT EXECUTE ON FUNCTION verificar_codigo_admin(text)  TO authenticated;
+
 -- Trigger para automatizar la creación de perfiles cuando se crea un usuario en auth.users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$

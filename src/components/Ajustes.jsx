@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { User, Moon, Sun, Shield, Trash2, CheckCircle, AlertTriangle, Loader2, FileText } from 'lucide-react';
+import { User, Moon, Sun, Shield, Trash2, CheckCircle, AlertTriangle, Loader2, FileText, KeyRound } from 'lucide-react';
 
 export default function Ajustes({ userProfile, onProfileUpdate }) {
   const [nombre, setNombre] = useState(userProfile?.nombre_completo || '');
@@ -15,6 +15,12 @@ export default function Ajustes({ userProfile, onProfileUpdate }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // Código de autorización rotativo (solo admin)
+  const isAdmin = userProfile?.rol === 'admin';
+  const [authCode, setAuthCode] = useState(null);
+  const [authSeconds, setAuthSeconds] = useState(0);
+  const [authError, setAuthError] = useState('');
+
   // Sincronizar estado del dark mode inicial
   useEffect(() => {
     if (userProfile?.id) {
@@ -26,6 +32,39 @@ export default function Ajustes({ userProfile, onProfileUpdate }) {
       setIsDark(document.documentElement.classList.contains('dark'));
     }
   }, [userProfile?.id]);
+
+  // Código de autorización rotativo: se obtiene del servidor y se va contando
+  // localmente; al llegar a 0 se vuelve a pedir el siguiente.
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+
+    const fetchCode = async () => {
+      const { data, error } = await supabase.rpc('obtener_codigo_admin_actual');
+      if (!active) return;
+      if (error || !data?.ok) {
+        setAuthError('No se pudo obtener el código');
+        setAuthCode(null);
+        return;
+      }
+      setAuthError('');
+      setAuthCode(data.codigo);
+      setAuthSeconds(data.segundos_restantes);
+    };
+
+    fetchCode();
+    const interval = setInterval(() => {
+      setAuthSeconds((s) => {
+        if (s <= 1) {
+          fetchCode();
+          return 30;
+        }
+        return s - 1;
+      });
+    }, 1000);
+
+    return () => { active = false; clearInterval(interval); };
+  }, [isAdmin]);
 
   const toggleDarkMode = () => {
     const newDark = !isDark;
@@ -150,6 +189,55 @@ export default function Ajustes({ userProfile, onProfileUpdate }) {
           </div>
         </div>
       </section>
+
+      {/* SECCIÓN CÓDIGO DE AUTORIZACIÓN (solo admin) */}
+      {isAdmin && (
+        <section className="neb-card dark:bg-slate-900 dark:border-slate-800 p-5 lg:p-7">
+          <h2 className="text-[15px] font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+            <KeyRound className="w-4 h-4 text-accent-600" />
+            Código de Autorización
+          </h2>
+          <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-5">
+            Dicta este código a tu empleado cuando necesite autorizar una acción
+            restringida (como quitar un producto de la venta). Cambia cada 30 segundos.
+          </p>
+
+          {authError ? (
+            <p className="text-[13px] font-medium text-rose-600 bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 py-3 px-4 rounded-2xl">
+              {authError}
+            </p>
+          ) : authCode ? (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <div className="font-mono text-4xl lg:text-5xl font-extrabold tracking-[0.25em] text-slate-900 dark:text-white tabular-nums select-all">
+                {authCode.slice(0, 3)} {authCode.slice(3)}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative w-10 h-10">
+                  <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="16" fill="none" strokeWidth="3"
+                      className="stroke-slate-200 dark:stroke-slate-700" />
+                    <circle cx="18" cy="18" r="16" fill="none" strokeWidth="3" strokeLinecap="round"
+                      className="stroke-accent-600 transition-all duration-1000 ease-linear"
+                      strokeDasharray={2 * Math.PI * 16}
+                      strokeDashoffset={2 * Math.PI * 16 * (1 - authSeconds / 30)} />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold text-slate-600 dark:text-slate-300 tabular-nums">
+                    {authSeconds}
+                  </span>
+                </div>
+                <span className="text-[12px] font-semibold text-slate-400 dark:text-slate-500">
+                  segundos
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-[13px] font-medium">Generando código…</span>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* SECCIÓN APARIENCIA */}
       <section className="neb-card dark:bg-slate-900 dark:border-slate-800 p-5 lg:p-7">

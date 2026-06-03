@@ -3,10 +3,11 @@ import {
   Search, Package, Plus, Loader2, Edit2, FileSpreadsheet,
   History, Truck, RotateCcw,
   AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight,
-  Settings2, X, ChevronRight, Layers
+  Settings2, X, ChevronRight, Layers, Printer
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
+import EtiquetaModal from './EtiquetaModal';
 
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 
@@ -46,12 +47,13 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
   const [search, setSearch] = useState('');
   const [catFiltro, setCatFiltro] = useState('todas');
   const [orden, setOrden] = useState('nombre');
+  const [etiquetaProducto, setEtiquetaProducto] = useState(null);
 
   const maxStock = useMemo(() => Math.max(...productos.map(p => p.stock), 1), [productos]);
 
   const filtered = useMemo(() => {
     let list = productos.filter(p => {
-      const matchSearch = !search || p.nombre.toLowerCase().includes(search.toLowerCase()) || p.sku.includes(search);
+      const matchSearch = !search || p.nombre.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase());
       const matchCat    = catFiltro === 'todas' || p.categoria === catFiltro;
       return matchSearch && matchCat;
     });
@@ -153,9 +155,14 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${si.cls}`}>{p.stock} un.</span>
                     </div>
                     {isAdmin && (
-                      <button onClick={() => onEdit(p)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center shrink-0">
+                        <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta" className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                          <Printer className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onEdit(p)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -209,10 +216,16 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                         </td>
                         {isAdmin && (
                           <td className="px-5 py-3.5 text-center">
-                            <button onClick={() => onEdit(p)}
-                              className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
+                            <div className="inline-flex items-center gap-1">
+                              <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta"
+                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                                <Printer className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => onEdit(p)}
+                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -225,6 +238,9 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
         )}
       </div>
 
+      {etiquetaProducto && (
+        <EtiquetaModal producto={etiquetaProducto} onClose={() => setEtiquetaProducto(null)} />
+      )}
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Tag, Hash, DollarSign, Box, RefreshCw, Layers, AlertCircle } from 'lucide-react';
+import { X, Save, Tag, Hash, DollarSign, Box, RefreshCw, Layers, AlertCircle, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import EtiquetaModal from './EtiquetaModal';
 
 export default function ProductModal({ onClose, onSave, product = null, categorias = [] }) {
   const [existingProduct, setExistingProduct] = useState(null);
+  const [showEtiqueta, setShowEtiqueta] = useState(false);
   const [formData, setFormData] = useState(product || {
     nombre: '', sku: '', categoria: '', precio: '', stock: '', precio_mayoreo: '', cantidad_mayoreo: ''
   });
@@ -125,6 +127,12 @@ export default function ProductModal({ onClose, onSave, product = null, categori
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
+            {formData.sku && (
+              <button type="button" onClick={() => setShowEtiqueta(true)}
+                className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-accent-600 hover:text-accent-700 transition-colors">
+                <Printer className="w-3.5 h-3.5" /> Imprimir etiqueta con código de barras
+              </button>
+            )}
           </div>
 
           <div>
@@ -228,6 +236,12 @@ export default function ProductModal({ onClose, onSave, product = null, categori
         </form>
       </div>
 
+      {showEtiqueta && (
+        <EtiquetaModal
+          producto={{ nombre: formData.nombre, sku: formData.sku }}
+          onClose={() => setShowEtiqueta(false)}
+        />
+      )}
     </div>
   );
 }

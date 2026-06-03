@@ -76,10 +76,10 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   const handleSearch = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const skuOrName = searchTerm.trim().toLowerCase();
+      const termino = searchTerm.trim().toLowerCase();
 
       const product = productos.find(
-        p => p.sku === skuOrName || p.nombre.toLowerCase().includes(skuOrName)
+        p => p.sku?.toLowerCase() === termino || p.nombre.toLowerCase().includes(termino)
       );
 
       if (product) {
@@ -140,7 +140,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
     try {
       const { data: isValid, error } = await supabase
-        .rpc('verificar_pin_admin', { pin_ingresado: pinInput });
+        .rpc('verificar_codigo_admin', { codigo_ingresado: pinInput });
 
       if (isValid && !error) {
         localStorage.setItem('pin_attempts', '0');
@@ -156,11 +156,11 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
           setPinLockoutTime(lockoutTime);
           setPinError('Demasiados intentos. Bloqueado por 3 minutos.');
         } else {
-          setPinError(`PIN incorrecto. Intentos restantes: ${3 - attempts}`);
+          setPinError(`Código incorrecto. Intentos restantes: ${3 - attempts}`);
         }
       }
     } catch (err) {
-      setPinError('Error verificando PIN');
+      setPinError('Error verificando el código');
     }
   };
 
@@ -484,7 +484,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
               <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold mt-1.5">
                 {pinLockoutTime
                   ? 'Demasiados intentos fallidos'
-                  : 'Ingresa el PIN de administrador para continuar'}
+                  : 'Ingresa el código de administrador (cambia cada 30 s)'}
               </p>
             </div>
             <form onSubmit={handlePinSubmit} className="space-y-3.5">
@@ -498,12 +498,13 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
               ) : (
                 <input
                   ref={pinInputRef}
-                  type="password"
+                  type="text"
+                  inputMode="numeric"
                   className="neb-input text-center text-2xl tracking-[0.5em] font-mono"
-                  placeholder="••••"
+                  placeholder="------"
                   maxLength={6}
                   value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                   autoComplete="off"
                 />
               )}
