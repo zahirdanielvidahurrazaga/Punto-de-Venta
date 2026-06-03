@@ -3,7 +3,7 @@ import {
   CalendarDays, Plus, Search, X, Trash2, CheckCircle2,
   Clock, User, Phone, Package, Loader2, ShoppingBag,
   ClipboardList, AlertCircle, Tag, Banknote, CreditCard,
-  Building2, Wallet, DollarSign, Printer, Store
+  Building2, Wallet, DollarSign, Printer, Store, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -429,6 +429,7 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
         .from('pedidos_programados')
         .insert([{
           usuario_id:         userProfile.id,
+          sucursal_id:        userProfile.sucursal_id || null,
           cliente_nombre:     clienteNombre     || null,
           cliente_contacto:   clienteCtc        || null,
           fecha_entrega:      fechaEntrega,
@@ -629,8 +630,16 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
   const [statusFilter, setStatusFilter] = useState('todos');
   const [updatingId, setUpdatingId] = useState(null);
   const [pagoModal, setPagoModal] = useState(null);
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalFiltro, setSucursalFiltro] = useState('todas');
 
   useEffect(() => { fetchPedidos(); }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
+  }, [isAdmin]);
 
   const fetchPedidos = async () => {
     setLoading(true);
@@ -671,8 +680,11 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
     });
   };
 
-  const filtrados   = pedidos.filter(p => statusFilter === 'todos' || p.estado === statusFilter);
-  const urgentCount = pedidos.filter(p => p.estado === 'pendiente' && ['hoy','vencido'].includes(urgencia(p.fecha_entrega))).length;
+  const pedidosScope = (isAdmin && sucursalFiltro !== 'todas')
+    ? pedidos.filter(p => p.sucursal_id === sucursalFiltro)
+    : pedidos;
+  const filtrados   = pedidosScope.filter(p => statusFilter === 'todos' || p.estado === statusFilter);
+  const urgentCount = pedidosScope.filter(p => p.estado === 'pendiente' && ['hoy','vencido'].includes(urgencia(p.fecha_entrega))).length;
 
   return (
     <div className="h-full overflow-y-auto neb-scroll">
@@ -707,9 +719,21 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
               }`}>
               {e.label}
-              {e.key !== 'todos' && <span className="ml-1 opacity-60">· {pedidos.filter(p => p.estado === e.key).length}</span>}
+              {e.key !== 'todos' && <span className="ml-1 opacity-60">· {pedidosScope.filter(p => p.estado === e.key).length}</span>}
             </button>
           ))}
+
+          {isAdmin && sucursales.length > 1 && (
+            <div className="relative ml-auto">
+              <Store className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              <select value={sucursalFiltro} onChange={e => setSucursalFiltro(e.target.value)}
+                className="neb-input w-auto !py-1.5 pl-9 pr-9 text-[12px] font-semibold appearance-none">
+                <option value="todas">Todas las sucursales</option>
+                {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            </div>
+          )}
         </div>
 
         {/* Lista */}

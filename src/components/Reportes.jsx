@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
   Loader2, FileText, Clock, Wallet,
-  AlertTriangle, CheckCircle, Timer, ShoppingBag
+  AlertTriangle, CheckCircle, Timer, ShoppingBag, ChevronDown
 } from 'lucide-react';
 
 const FILTROS = [
@@ -59,8 +59,15 @@ export default function Reportes() {
   const [cajas, setCajas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState(0);
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalFiltro, setSucursalFiltro] = useState('todas');
 
-  useEffect(() => { fetchData(); }, [activeTab, filtro]);
+  useEffect(() => {
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
+  }, []);
+
+  useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTab, filtro, sucursalFiltro]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -78,19 +85,24 @@ export default function Reportes() {
   const fetchAsistencias = async (desde) => {
     const { data, error } = await supabase
       .from('registro_asistencia')
-      .select('*, usuarios_perfiles (nombre_completo)')
+      .select('*, usuarios_perfiles (nombre_completo, sucursal_id)')
       .gte('fecha_entrada', desde)
       .order('fecha_entrada', { ascending: false })
       .limit(100);
     if (error) throw error;
-    setAsistencias(data || []);
+    const filtrada = sucursalFiltro === 'todas'
+      ? (data || [])
+      : (data || []).filter(a => a.usuarios_perfiles?.sucursal_id === sucursalFiltro);
+    setAsistencias(filtrada);
   };
 
   const fetchCajas = async (desde) => {
-    const { data: cajasData, error } = await supabase
+    let query = supabase
       .from('sesiones_caja')
       .select('*, usuarios_perfiles (id, nombre_completo)')
-      .gte('fecha_apertura', desde)
+      .gte('fecha_apertura', desde);
+    if (sucursalFiltro !== 'todas') query = query.eq('sucursal_id', sucursalFiltro);
+    const { data: cajasData, error } = await query
       .order('fecha_apertura', { ascending: false })
       .limit(50);
     if (error) throw error;
@@ -171,15 +183,27 @@ export default function Reportes() {
             ))}
           </div>
 
-          <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1">
-            {FILTROS.map((f, i) => (
-              <button key={i} onClick={() => setFiltro(i)}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  filtro === i ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
-                }`}>
-                {f.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            {sucursales.length > 1 && (
+              <div className="relative">
+                <select value={sucursalFiltro} onChange={e => setSucursalFiltro(e.target.value)}
+                  className="neb-input w-auto !py-1.5 pr-9 text-[12px] font-semibold appearance-none">
+                  <option value="todas">Todas las sucursales</option>
+                  {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              </div>
+            )}
+            <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1">
+              {FILTROS.map((f, i) => (
+                <button key={i} onClick={() => setFiltro(i)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                    filtro === i ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                  }`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

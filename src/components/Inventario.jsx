@@ -3,7 +3,7 @@ import {
   Search, Package, Plus, Loader2, Edit2, FileSpreadsheet,
   History, Truck, RotateCcw,
   AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight,
-  Settings2, X, ChevronRight, Layers, Printer
+  Settings2, X, ChevronRight, Layers, Printer, Store
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
@@ -246,7 +246,7 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
 }
 
 // ─── Recepción ─────────────────────────────────────────────────────────────
-function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
+function RecepcionTab({ productos, onRefresh, onAjustarStock }) {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -307,20 +307,11 @@ function RecepcionTab({ productos, onRefresh, onRegistrarMovimiento }) {
     setSaving(true);
     try {
       for (const item of batch) {
-        const { error } = await supabase
-          .from('productos')
-          .update({ stock: item.stockNuevo })
-          .eq('id', item.productoId);
-        if (error) throw error;
-
-        await onRegistrarMovimiento({
-          productoId:    item.productoId,
-          nombreProducto: item.nombre,
-          tipo:          'entrada',
-          cantidad:      item.cantidad,
-          stockAnterior: item.stockAnterior,
-          stockNuevo:    item.stockNuevo,
-          notas:         notas || null,
+        await onAjustarStock({
+          productoId: item.productoId,
+          delta:      item.cantidad,
+          tipo:       'entrada',
+          notas:      notas || null,
         });
       }
       onRefresh();
@@ -629,13 +620,33 @@ export default function Inventario({ isAdmin, userProfile }) {
   const [uploadingCSV, setUploadingCSV] = useState(false);
   const fileInputRef = useRef(null);
 
-  useEffect(() => { fetchProductos(); }, []);
+  const sucursalId = userProfile?.sucursal_id;
+  const [sucursales, setSucursales] = useState([]);
+  const [vistaSucursal, setVistaSucursal] = useState(sucursalId);
+
+  // Estoy viendo una sucursal distinta a la mía
+  const viendoOtra = !!vistaSucursal && !!sucursalId && vistaSucursal !== sucursalId;
+  // El admin gestiona cualquier sucursal; el empleado solo lee las ajenas
+  const soloLectura = viendoOtra && !isAdmin;
+
+  useEffect(() => { setVistaSucursal(sucursalId); }, [sucursalId]);
+
+  useEffect(() => {
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
+  }, []);
+
+  // Un empleado que mira otra sucursal solo puede ver el catálogo
+  useEffect(() => { if (soloLectura) setSubTab('catalogo'); }, [soloLectura]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchProductos(); }, [vistaSucursal]);
 
   const fetchProductos = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('productos').select('*').order('nombre');
+        .rpc('productos_de_sucursal', { p_sucursal: vistaSucursal || sucursalId });
       if (error) throw error;
       setProductos(data || []);
     } catch (err) {
@@ -645,74 +656,66 @@ export default function Inventario({ isAdmin, userProfile }) {
     }
   };
 
+  // Único punto de cambio de stock: opera sobre la sucursal que se está viendo
+  // (el admin puede gestionar cualquiera; el empleado, solo la suya).
+  const ajustarStock = async ({ productoId, delta, tipo, notas }) => {
+    const { data, error } = await supabase.rpc('ajustar_stock', {
+      p_producto: productoId,
+      p_sucursal: vistaSucursal || sucursalId,
+      p_delta:    delta,
+      p_tipo:     tipo,
+      p_notas:    notas || null,
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error(data?.error || 'No se pudo ajustar el stock.');
+    return data;
+  };
+
   const categorias = useMemo(() =>
     [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort(),
     [productos]
   );
 
-  const registrarMovimiento = async ({ productoId, nombreProducto, tipo, cantidad, stockAnterior, stockNuevo, notas }) => {
-    try {
-      await supabase.from('movimientos_inventario').insert([{
-        producto_id:    productoId,
-        nombre_producto: nombreProducto,
-        tipo,
-        cantidad,
-        stock_anterior: stockAnterior,
-        stock_nuevo:    stockNuevo,
-        notas:          notas || null,
-        usuario_id:     userProfile?.id || null,
-      }]);
-    } catch (err) {
-      console.error('Error registrando movimiento:', err.message);
-    }
-  };
 
   const handleSaveProduct = async (productData) => {
     try {
-      if (productData._addStock && productData._existingId) {
-        const { _existingId, _addStock, ...clean } = productData;
-        const { data: existing } = await supabase
-          .from('productos').select('stock, nombre').eq('id', _existingId).single();
-        const nuevoStock = (existing?.stock || 0) + clean.stock;
-        const { error } = await supabase.from('productos').update({ stock: nuevoStock }).eq('id', _existingId);
-        if (error) throw error;
-        await registrarMovimiento({
-          productoId:    _existingId,
-          nombreProducto: existing?.nombre || clean.nombre,
-          tipo:          'entrada',
-          cantidad:      clean.stock,
-          stockAnterior: existing?.stock || 0,
-          stockNuevo:    nuevoStock,
-          notas:         'Entrada manual desde inventario',
+      // El stock se maneja por sucursal vía ajustar_stock; el catálogo (nombre,
+      // sku, categoría, precio) se guarda en productos sin la columna stock.
+      const { stock, _existingId, _addStock, ...catalogo } = productData;
+
+      if (_addStock && _existingId) {
+        // Sumar stock a un producto existente, en mi sucursal
+        await ajustarStock({
+          productoId: _existingId,
+          delta:      stock,
+          tipo:       'entrada',
+          notas:      'Entrada manual desde inventario',
         });
       } else if (selectedProduct) {
+        // Editar catálogo
         const { error } = await supabase
-          .from('productos').update(productData).eq('id', selectedProduct.id);
+          .from('productos').update(catalogo).eq('id', selectedProduct.id);
         if (error) throw error;
-        if (productData.stock !== selectedProduct.stock) {
-          await registrarMovimiento({
-            productoId:    selectedProduct.id,
-            nombreProducto: productData.nombre,
-            tipo:          'ajuste',
-            cantidad:      productData.stock - selectedProduct.stock,
-            stockAnterior: selectedProduct.stock,
-            stockNuevo:    productData.stock,
-            notas:         'Ajuste manual',
+        // Si cambió el stock mostrado (el de mi sucursal), registrar el ajuste
+        if (stock !== selectedProduct.stock) {
+          await ajustarStock({
+            productoId: selectedProduct.id,
+            delta:      stock - selectedProduct.stock,
+            tipo:       'ajuste',
+            notas:      'Ajuste manual',
           });
         }
       } else {
+        // Crear producto nuevo + stock inicial en mi sucursal
         const { data: newProd, error } = await supabase
-          .from('productos').insert([productData]).select().single();
+          .from('productos').insert([catalogo]).select().single();
         if (error) throw error;
-        if (newProd && productData.stock > 0) {
-          await registrarMovimiento({
-            productoId:    newProd.id,
-            nombreProducto: productData.nombre,
-            tipo:          'inicial',
-            cantidad:      productData.stock,
-            stockAnterior: 0,
-            stockNuevo:    productData.stock,
-            notas:         'Stock inicial al crear producto',
+        if (newProd && stock > 0) {
+          await ajustarStock({
+            productoId: newProd.id,
+            delta:      stock,
+            tipo:       'inicial',
+            notas:      'Stock inicial al crear producto',
           });
         }
       }
@@ -747,9 +750,26 @@ export default function Inventario({ isAdmin, userProfile }) {
         }
       }
       if (newProducts.length > 0) {
-        const { error } = await supabase.from('productos').insert(newProducts);
-        if (error) alert('Error al subir CSV: ' + error.message);
-        else { alert(`${newProducts.length} productos importados.`); fetchProductos(); }
+        // Insertar catálogo (sin stock) y devolver ids para asignar stock por sucursal
+        const catalogo = newProducts.map(({ stock, ...c }) => c); // eslint-disable-line no-unused-vars
+        const { data: inserted, error } = await supabase
+          .from('productos').insert(catalogo).select();
+        if (error) {
+          alert('Error al subir CSV: ' + error.message);
+        } else {
+          // Stock inicial en mi sucursal para cada producto importado
+          const porSku = Object.fromEntries(newProducts.map(p => [p.sku, p.stock]));
+          for (const prod of inserted || []) {
+            const cant = porSku[prod.sku] || 0;
+            if (cant > 0) {
+              try {
+                await ajustarStock({ productoId: prod.id, delta: cant, tipo: 'inicial', notas: 'Importación CSV' });
+              } catch (e) { console.error('Stock CSV:', e.message); }
+            }
+          }
+          alert(`${(inserted || []).length} productos importados.`);
+          fetchProductos();
+        }
       } else {
         alert('No se encontraron productos válidos. Formato: Nombre,SKU,Categoria,Precio,Stock');
       }
@@ -765,6 +785,9 @@ export default function Inventario({ isAdmin, userProfile }) {
     { key: 'recepcion', label: 'Recepción',  icon: Truck   },
     { key: 'historial', label: 'Historial',  icon: History },
   ];
+  // Al ver otra sucursal solo se permite el catálogo (lectura)
+  const subTabsVisibles = soloLectura ? SUB_TABS.filter(t => t.key === 'catalogo') : SUB_TABS;
+  const nombreVista = sucursales.find(s => s.id === vistaSucursal)?.nombre || '';
 
   return (
     <div className="h-full overflow-y-auto neb-scroll">
@@ -780,25 +803,53 @@ export default function Inventario({ isAdmin, userProfile }) {
           </p>
         </div>
 
-        {/* Sub-tabs — segmented control */}
-        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
-          {SUB_TABS.map(t => (
-            <button key={t.key} onClick={() => setSubTab(t.key)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 text-[13px] font-medium rounded-full transition-all ${
-                subTab === t.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
-              }`}>
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Sub-tabs — segmented control */}
+          <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
+            {subTabsVisibles.map(t => (
+              <button key={t.key} onClick={() => setSubTab(t.key)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 text-[13px] font-medium rounded-full transition-all ${
+                  subTab === t.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                }`}>
+                <t.icon className="w-3.5 h-3.5" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Selector de sucursal (ver el inventario de otra bodega) */}
+          {sucursales.length > 1 && (
+            <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
+              {sucursales.map(s => (
+                <button key={s.id} onClick={() => setVistaSucursal(s.id)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold rounded-full transition-all ${
+                    vistaSucursal === s.id ? 'bg-white dark:bg-slate-900 text-accent-600 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                  }`}>
+                  <Store className="w-3.5 h-3.5" />
+                  {s.nombre}{s.id === sucursalId ? ' (tú)' : ''}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {viendoOtra && (
+          <div className="flex items-center gap-2 bg-accent-50 dark:bg-accent-950/30 border border-accent-100 dark:border-accent-900/40 rounded-2xl px-4 py-2.5">
+            <Store className="w-4 h-4 text-accent-600 shrink-0" />
+            <p className="text-[13px] font-semibold text-accent-700 dark:text-accent-300">
+              {soloLectura
+                ? <>Viendo el inventario de <strong>{nombreVista}</strong> · solo lectura</>
+                : <>Gestionando el inventario de <strong>{nombreVista}</strong></>}
+            </p>
+          </div>
+        )}
 
         {subTab === 'catalogo' && (
           <CatalogoTab
-            productos={productos} isAdmin={isAdmin} categorias={categorias}
-            loading={loading}
-            onEdit={p => { if (!isAdmin) return; setSelectedProduct(p); setIsModalOpen(true); }}
-            onNew={() => { if (!isAdmin) return; setSelectedProduct(null); setIsModalOpen(true); }}
+            productos={productos} isAdmin={isAdmin && !soloLectura} categorias={categorias}
+            loading={loading} soloLectura={soloLectura}
+            onEdit={p => { if (!isAdmin || soloLectura) return; setSelectedProduct(p); setIsModalOpen(true); }}
+            onNew={() => { if (!isAdmin || soloLectura) return; setSelectedProduct(null); setIsModalOpen(true); }}
             onRefresh={fetchProductos}
             onCSV={handleCSVUpload}
             uploadingCSV={uploadingCSV}
@@ -811,7 +862,7 @@ export default function Inventario({ isAdmin, userProfile }) {
             productos={productos}
             userProfile={userProfile}
             onRefresh={fetchProductos}
-            onRegistrarMovimiento={registrarMovimiento}
+            onAjustarStock={ajustarStock}
           />
         )}
 
@@ -823,6 +874,7 @@ export default function Inventario({ isAdmin, userProfile }) {
         <ProductModal
           product={selectedProduct}
           categorias={categorias}
+          sucursalProductos={productos}
           onClose={() => { setIsModalOpen(false); setSelectedProduct(null); }}
           onSave={handleSaveProduct}
         />

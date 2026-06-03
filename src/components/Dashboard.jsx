@@ -2,14 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, TrendingDown, DollarSign, AlertTriangle, CreditCard, Banknote,
   Building2, Wallet, BarChart3, ShoppingBag, ArrowUpRight,
-  CheckCircle, Loader2, Filter, Sparkles
+  CheckCircle, Loader2, Filter, Sparkles, Store, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const SUB_TABS = [
-  { key: 'resumen',  label: 'Resumen'       },
-  { key: 'analisis', label: 'Análisis'      },
-  { key: 'flujo',    label: 'Flujo de Caja' },
+  { key: 'resumen',    label: 'Resumen'       },
+  { key: 'analisis',   label: 'Análisis'      },
+  { key: 'flujo',      label: 'Flujo de Caja' },
+  { key: 'sucursales', label: 'Sucursales'    },
 ];
 
 const PERIODS = [
@@ -171,7 +172,7 @@ function CategoryBreakdown({ ventas }) {
   );
 }
 
-export default function Dashboard({ ventas = [], userName = 'Admin' }) {
+export default function Dashboard({ ventas: ventasProp = [], userName = 'Admin' }) {
   const [subTab, setSubTab] = useState('resumen');
   const [chartPeriod, setChartPeriod] = useState('7d');
   const [cajasAbiertas, setCajasAbiertas] = useState([]);
@@ -179,34 +180,76 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
   const [todosProductos, setTodosProductos] = useState([]);
   const [loadingFlujo, setLoadingFlujo] = useState(false);
   const [loadingAnalisis, setLoadingAnalisis] = useState(false);
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalFiltro, setSucursalFiltro] = useState('todas');
+  const [resumenSucursales, setResumenSucursales] = useState([]);
 
-  useEffect(() => { fetchCajasAbiertas(); }, []);
+  // Ventas filtradas por sucursal (alimenta KPIs, gráficas, rankings, pagos, categorías)
+  const ventas = useMemo(() => (
+    sucursalFiltro === 'todas'
+      ? ventasProp
+      : ventasProp.filter(v => v.sucursal_id === sucursalFiltro)
+  ), [ventasProp, sucursalFiltro]);
 
   useEffect(() => {
-    if (subTab === 'flujo'    && sesiones30d.length    === 0) fetchSesiones();
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
+  }, []);
+
+  useEffect(() => { fetchCajasAbiertas(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [sucursalFiltro]);
+
+  useEffect(() => {
+    fetchSesiones();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab, sucursalFiltro]);
+
+  useEffect(() => {
     if (subTab === 'analisis' && todosProductos.length === 0) fetchTodosProductos();
+    if (subTab === 'sucursales') fetchResumenSucursales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subTab]);
+
+  const fetchResumenSucursales = async () => {
+    const { data: sucs } = await supabase
+      .from('sucursales').select('id, nombre').eq('activa', true).order('nombre');
+    const { data: stocks } = await supabase
+      .from('producto_stock').select('sucursal_id, stock');
+    const resumen = (sucs || []).map(s => {
+      const filas = (stocks || []).filter(x => x.sucursal_id === s.id);
+      return {
+        ...s,
+        productos: filas.length,
+        unidades: filas.reduce((a, x) => a + (x.stock || 0), 0),
+        bajos: filas.filter(x => x.stock <= 5).length,
+      };
+    });
+    setResumenSucursales(resumen);
+  };
 
   const fetchCajasAbiertas = async () => {
     try {
-      const { data } = await supabase
+      let q = supabase
         .from('sesiones_caja')
         .select('*, usuarios_perfiles(nombre_completo)')
         .eq('estado', 'abierta');
+      if (sucursalFiltro !== 'todas') q = q.eq('sucursal_id', sucursalFiltro);
+      const { data } = await q;
       setCajasAbiertas(data || []);
     } catch (e) { console.error(e); }
   };
 
   const fetchSesiones = async () => {
+    if (subTab !== 'flujo') return;
     setLoadingFlujo(true);
     try {
       const since = new Date();
       since.setDate(since.getDate() - 30);
-      const { data } = await supabase
+      let q = supabase
         .from('sesiones_caja')
         .select('*, usuarios_perfiles(nombre_completo)')
-        .gte('fecha_apertura', since.toISOString())
-        .order('fecha_apertura', { ascending: false });
+        .gte('fecha_apertura', since.toISOString());
+      if (sucursalFiltro !== 'todas') q = q.eq('sucursal_id', sucursalFiltro);
+      const { data } = await q.order('fecha_apertura', { ascending: false });
       setSesiones30d(data || []);
     } catch (e) { console.error(e); }
     finally { setLoadingFlujo(false); }
@@ -339,21 +382,35 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
         {/* Hero Apple style */}
         <DashboardHero userName={userName} />
 
-        {/* Sub-tabs — segmented control Apple */}
-        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
-          {SUB_TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setSubTab(t.key)}
-              className={`px-5 py-1.5 text-[13px] font-medium rounded-full transition-all ${
-                subTab === t.key
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        {/* Sub-tabs + filtro de sucursal */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
+            {SUB_TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setSubTab(t.key)}
+                className={`px-5 py-1.5 text-[13px] font-medium rounded-full transition-all ${
+                  subTab === t.key
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {sucursales.length > 1 && (
+            <div className="relative">
+              <Store className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              <select value={sucursalFiltro} onChange={e => setSucursalFiltro(e.target.value)}
+                className="neb-input w-auto !py-1.5 pl-9 pr-9 text-[12px] font-semibold appearance-none">
+                <option value="todas">Todas las sucursales</option>
+                {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            </div>
+          )}
         </div>
 
         {/* ══════════════════ RESUMEN ══════════════════ */}
@@ -734,6 +791,41 @@ export default function Dashboard({ ventas = [], userName = 'Admin' }) {
               )}
             </>
           )
+        )}
+
+        {/* ══════════════════ SUCURSALES ══════════════════ */}
+        {subTab === 'sucursales' && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white">Existencias por sucursal</h3>
+              <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
+                La asignación de empleados a cada sucursal se gestiona en la sección Equipo.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {resumenSucursales.map(s => (
+                <div key={s.id} className="neb-card p-5">
+                  <p className="font-bold text-slate-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                    <Store className="w-4 h-4 text-accent-600" /> {s.nombre}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.unidades}</p>
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Unidades</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.productos}</p>
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Productos</p>
+                    </div>
+                    <div>
+                      <p className={`text-2xl font-semibold neb-tabular leading-none ${s.bajos > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{s.bajos}</p>
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Stock bajo</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

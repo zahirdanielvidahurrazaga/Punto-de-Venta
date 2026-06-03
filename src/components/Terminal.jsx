@@ -30,15 +30,14 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
   useEffect(() => {
     fetchProductos();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.sucursal_id]);
 
   const fetchProductos = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('productos')
-        .select('*')
-        .order('nombre', { ascending: true });
+        .rpc('productos_de_sucursal', { p_sucursal: userProfile?.sucursal_id });
       if (error) throw error;
       setProductos(data || []);
     } catch (error) {

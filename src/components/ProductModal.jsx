@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Tag, Hash, DollarSign, Box, RefreshCw, Layers, AlertCircle, Printer } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
 import EtiquetaModal from './EtiquetaModal';
 
-export default function ProductModal({ onClose, onSave, product = null, categorias = [] }) {
+export default function ProductModal({ onClose, onSave, product = null, categorias = [], sucursalProductos = [] }) {
   const [existingProduct, setExistingProduct] = useState(null);
   const [showEtiqueta, setShowEtiqueta] = useState(false);
   const [formData, setFormData] = useState(product || {
@@ -48,29 +47,26 @@ export default function ProductModal({ onClose, onSave, product = null, categori
 
   useEffect(() => {
     if (product) return;
-    const checkSku = async () => {
-      if (!formData.sku || formData.sku.length <= 3) { setExistingProduct(null); return; }
-      try {
-        const { data } = await supabase
-          .from('productos').select('*').eq('sku', formData.sku).maybeSingle();
-        if (data) {
-          setExistingProduct(data);
-          setFormData(prev => ({
-            ...prev,
-            nombre: data.nombre,
-            categoria: data.categoria || 'General',
-            precio: data.precio.toString(),
-          }));
-        } else {
-          setExistingProduct(null);
-        }
-      } catch (err) {
-        console.error('Error buscando SKU:', err);
+    const checkSku = () => {
+      const sku = (formData.sku || '').trim();
+      if (!sku || sku.length <= 3) { setExistingProduct(null); return; }
+      // El stock mostrado es el de la sucursal del usuario (lista ya cargada).
+      const data = sucursalProductos.find(p => p.sku?.toLowerCase() === sku.toLowerCase());
+      if (data) {
+        setExistingProduct(data);
+        setFormData(prev => ({
+          ...prev,
+          nombre: data.nombre,
+          categoria: data.categoria || 'General',
+          precio: data.precio.toString(),
+        }));
+      } else {
+        setExistingProduct(null);
       }
     };
     const t = setTimeout(checkSku, 400);
     return () => clearTimeout(t);
-  }, [formData.sku, product]);
+  }, [formData.sku, product, sucursalProductos]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[60] p-4">

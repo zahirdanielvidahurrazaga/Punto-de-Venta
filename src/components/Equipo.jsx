@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Loader2, QrCode, Printer, X, UserPlus } from 'lucide-react';
+import { Users, Loader2, QrCode, Printer, X, UserPlus, Store } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import QRCodeLib from 'react-qr-code';
 
@@ -7,12 +7,30 @@ const QRCode = QRCodeLib.default || QRCodeLib.QRCode || QRCodeLib;
 
 export default function Equipo() {
   const [empleados, setEmpleados] = useState([]);
+  const [sucursales, setSucursales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     fetchEmpleados();
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
   }, []);
+
+  const handleAssignSucursal = async (empleadoId, sucursalId) => {
+    try {
+      const { error } = await supabase
+        .from('usuarios_perfiles')
+        .update({ sucursal_id: sucursalId })
+        .eq('id', empleadoId);
+      if (error) throw error;
+      setEmpleados(prev => prev.map(emp =>
+        emp.id === empleadoId ? { ...emp, sucursal_id: sucursalId } : emp
+      ));
+    } catch (error) {
+      alert('Error al asignar sucursal: ' + error.message);
+    }
+  };
 
   const fetchEmpleados = async () => {
     setLoading(true);
@@ -174,6 +192,24 @@ export default function Equipo() {
                     ID: {empleado.codigo_gafete || 'Sin código asignado'}
                   </p>
                 </div>
+
+                {sucursales.length > 0 && (
+                  <div className="w-full mt-4">
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                      <Store className="w-3.5 h-3.5" /> Sucursal asignada
+                    </label>
+                    <select
+                      value={empleado.sucursal_id || ''}
+                      onChange={(e) => handleAssignSucursal(empleado.id, e.target.value)}
+                      className="neb-input w-full !py-2 text-sm"
+                    >
+                      <option value="" disabled>Sin asignar</option>
+                      {sucursales.map(s => (
+                        <option key={s.id} value={s.id}>{s.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="w-full border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
                   {empleado.codigo_gafete ? (

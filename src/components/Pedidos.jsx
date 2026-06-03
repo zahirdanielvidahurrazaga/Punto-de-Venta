@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { ClipboardList, Search, FileText, Calendar, DollarSign, TrendingUp, Banknote, CreditCard } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ClipboardList, Search, FileText, Calendar, DollarSign, TrendingUp, Banknote, CreditCard, Store, ChevronDown } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 import TicketModal from './TicketModal';
 
 export default function Pedidos({ ventas, isAdmin }) {
@@ -7,6 +8,20 @@ export default function Pedidos({ ventas, isAdmin }) {
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [dateFilter, setDateFilter] = useState('hoy');
   const [customDate, setCustomDate] = useState('');
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalFiltro, setSucursalFiltro] = useState('todas');
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
+  }, [isAdmin]);
+
+  // Ventas acotadas por la sucursal elegida (solo afecta cuando el admin filtra)
+  const ventasScope = useMemo(() => {
+    if (!ventas) return [];
+    return sucursalFiltro === 'todas' ? ventas : ventas.filter(v => v.sucursal_id === sucursalFiltro);
+  }, [ventas, sucursalFiltro]);
 
   const toLocalDate = (dateStr) => {
     const d = new Date(dateStr);
@@ -16,9 +31,9 @@ export default function Pedidos({ ventas, isAdmin }) {
   const todayStr = toLocalDate(new Date());
 
   const filteredByDate = useMemo(() => {
-    if (!ventas) return [];
+    if (!ventasScope) return [];
 
-    return ventas.filter(v => {
+    return ventasScope.filter(v => {
       if (!v.fecha) return false;
       const ventaDate = toLocalDate(v.fecha);
 
@@ -47,7 +62,7 @@ export default function Pedidos({ ventas, isAdmin }) {
           return true;
       }
     });
-  }, [ventas, dateFilter, customDate, todayStr]);
+  }, [ventasScope, dateFilter, customDate, todayStr]);
 
   const filteredVentas = filteredByDate.filter(v => {
     if (!searchTerm) return true;
@@ -127,6 +142,18 @@ export default function Pedidos({ ventas, isAdmin }) {
                 ? 'bg-slate-900 text-white border-slate-900'
                 : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800'
             }`} />
+
+          {isAdmin && sucursales.length > 1 && (
+            <div className="relative ml-auto">
+              <Store className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              <select value={sucursalFiltro} onChange={e => setSucursalFiltro(e.target.value)}
+                className="neb-input w-auto !py-1.5 pl-9 pr-9 text-[12px] font-semibold appearance-none">
+                <option value="todas">Todas las sucursales</option>
+                {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            </div>
+          )}
         </div>
 
         {/* Métricas */}
