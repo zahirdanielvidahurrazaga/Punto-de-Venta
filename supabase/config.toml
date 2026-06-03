@@ -1,0 +1,6 @@
+project_id = "gtkymvjadgcwhdmpyhoc"
+
+# La función la dispara un Database Webhook (no un usuario autenticado),
+# por eso no verificamos JWT entrante.
+[functions.enviar-push]
+verify_jwt = false

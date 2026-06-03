@@ -14,6 +14,8 @@ import { supabase } from './lib/supabaseClient';
 import CambiarPinModal from './components/CambiarPinModal';
 import Ajustes from './components/Ajustes';
 import VentasEnRuta from './components/VentasEnRuta';
+import NotificacionesCenter from './components/NotificacionesCenter';
+import { initPush } from './lib/push';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -156,7 +158,10 @@ function App() {
   useEffect(() => {
     if (userProfile) {
       checkWorkStatus();
-      
+
+      // Solo el admin recibe avisos (centro de avisos + push nativo).
+      if (userProfile.rol === 'admin') initPush();
+
       const isDark = localStorage.getItem(`theme_user_${userProfile.id}`) === 'dark';
       if (isDark) {
         document.documentElement.classList.add('dark');
@@ -402,6 +407,7 @@ function App() {
               <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate leading-none">{userName}</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{isAdmin ? 'Administrador' : 'Empleado'}</p>
             </div>
+            {isAdmin && <NotificacionesCenter />}
           </div>
 
           {isAdmin && (
@@ -432,9 +438,12 @@ function App() {
             <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider block truncate">POS · {role}</span>
           </div>
         </div>
-        <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-rose-500 transition-colors">
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && <NotificacionesCenter />}
+          <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-rose-500 transition-colors">
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* ──────── Contenido principal — Apple ──────── */}
