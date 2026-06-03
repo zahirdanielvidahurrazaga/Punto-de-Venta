@@ -3,11 +3,12 @@ import {
   Search, Package, Plus, Loader2, Edit2, FileSpreadsheet,
   History, Truck, RotateCcw,
   AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight,
-  Settings2, X, ChevronRight, Layers, Printer, Store
+  Settings2, X, ChevronRight, Layers, Printer, Store, ArrowLeftRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
 import EtiquetaModal from './EtiquetaModal';
+import TransferenciaModal from './TransferenciaModal';
 
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 
@@ -25,6 +26,8 @@ const TIPO_META = {
   inicial:      { label: 'Inicial',       icon: CheckCircle,    cls: 'bg-emerald-50 text-emerald-700',  sign: '+' },
   salida_ruta:  { label: 'Salida Ruta',   icon: Truck,          cls: 'bg-orange-50 text-orange-600',    sign: '-' },
   entrada_ruta: { label: 'Regreso Ruta',  icon: RotateCcw,      cls: 'bg-sky-50 text-sky-600',          sign: '+' },
+  transferencia_salida:  { label: 'Transf. salida',  icon: ArrowLeftRight, cls: 'bg-indigo-50 text-indigo-600', sign: '-' },
+  transferencia_entrada: { label: 'Transf. entrada', icon: ArrowLeftRight, cls: 'bg-indigo-50 text-indigo-600', sign: '+' },
 };
 
 function fmtRelative(dateStr) {
@@ -43,11 +46,12 @@ function fmtRelative(dateStr) {
 }
 
 // ─── Catálogo ───────────────────────────────────────────────────────────────
-function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, onCSV, uploadingCSV, fileInputRef }) {
+function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, onCSV, uploadingCSV, fileInputRef, onRefresh, puedeTransferir, sucursales, vistaSucursal }) {
   const [search, setSearch] = useState('');
   const [catFiltro, setCatFiltro] = useState('todas');
   const [orden, setOrden] = useState('nombre');
   const [etiquetaProducto, setEtiquetaProducto] = useState(null);
+  const [transferProducto, setTransferProducto] = useState(null);
 
   const maxStock = useMemo(() => Math.max(...productos.map(p => p.stock), 1), [productos]);
 
@@ -156,6 +160,11 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                     </div>
                     {isAdmin && (
                       <div className="flex items-center shrink-0">
+                        {puedeTransferir && (
+                          <button onClick={() => setTransferProducto(p)} title="Transferir a otra sucursal" className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                            <ArrowLeftRight className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta" className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
                           <Printer className="w-4 h-4" />
                         </button>
@@ -217,6 +226,12 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                         {isAdmin && (
                           <td className="px-5 py-3.5 text-center">
                             <div className="inline-flex items-center gap-1">
+                              {puedeTransferir && (
+                                <button onClick={() => setTransferProducto(p)} title="Transferir a otra sucursal"
+                                  className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                                  <ArrowLeftRight className="w-4 h-4" />
+                                </button>
+                              )}
                               <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta"
                                 className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
                                 <Printer className="w-4 h-4" />
@@ -240,6 +255,16 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
 
       {etiquetaProducto && (
         <EtiquetaModal producto={etiquetaProducto} onClose={() => setEtiquetaProducto(null)} />
+      )}
+
+      {transferProducto && (
+        <TransferenciaModal
+          producto={transferProducto}
+          sucursales={sucursales || []}
+          origenDefault={vistaSucursal}
+          onClose={() => setTransferProducto(null)}
+          onDone={onRefresh}
+        />
       )}
     </div>
   );
@@ -854,6 +879,9 @@ export default function Inventario({ isAdmin, userProfile }) {
             onCSV={handleCSVUpload}
             uploadingCSV={uploadingCSV}
             fileInputRef={fileInputRef}
+            puedeTransferir={isAdmin && !soloLectura && sucursales.length > 1}
+            sucursales={sucursales}
+            vistaSucursal={vistaSucursal}
           />
         )}
 

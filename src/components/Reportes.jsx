@@ -114,6 +114,12 @@ export default function Reportes() {
       .select('user_id, pago_efectivo, pago_tarjeta, pago_transferencia, fecha')
       .gte('fecha', minFecha);
 
+    // Sangrías (retiros/depósitos) de las sesiones listadas
+    const { data: movsRaw } = await supabase
+      .from('movimientos_caja')
+      .select('sesion_caja_id, tipo, monto')
+      .in('sesion_caja_id', cajasData.map(c => c.id));
+
     const result = cajasData.map(caja => {
       const apertura = new Date(caja.fecha_apertura);
       const cierre = caja.fecha_cierre ? new Date(caja.fecha_cierre) : new Date();
@@ -135,12 +141,16 @@ export default function Reportes() {
       );
       ventas.total = ventas.efectivo + ventas.tarjeta + ventas.transferencia;
 
-      const efectivoEsperado = (Number(caja.fondo_inicial) || 0) + ventas.efectivo;
+      const movsCaja = (movsRaw || []).filter(m => m.sesion_caja_id === caja.id);
+      const retiros = movsCaja.filter(m => m.tipo === 'retiro').reduce((a, m) => a + Number(m.monto), 0);
+      const depositos = movsCaja.filter(m => m.tipo === 'deposito').reduce((a, m) => a + Number(m.monto), 0);
+
+      const efectivoEsperado = (Number(caja.fondo_inicial) || 0) + ventas.efectivo + depositos - retiros;
       const diferencia = caja.estado === 'cerrada'
         ? (Number(caja.efectivo_declarado) || 0) - efectivoEsperado
         : null;
 
-      return { ...caja, ventas, efectivoEsperado, diferencia };
+      return { ...caja, ventas, retiros, depositos, efectivoEsperado, diferencia };
     });
 
     setCajas(result);

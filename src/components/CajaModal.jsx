@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Wallet, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function CajaModal({ userProfile, onStatusChange }) {
@@ -8,6 +8,12 @@ export default function CajaModal({ userProfile, onStatusChange }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [resumenVentas, setResumenVentas] = useState(null);
   const [loadingResumen, setLoadingResumen] = useState(false);
+
+  // Sangrías (retiros / depósitos)
+  const [movimientos, setMovimientos] = useState([]);
+  const [movMonto, setMovMonto] = useState('');
+  const [movMotivo, setMovMotivo] = useState('');
+  const [savingMov, setSavingMov] = useState(false);
 
   const [billetes, setBilletes] = useState('');
   const [monedas, setMonedas] = useState('');
@@ -36,6 +42,7 @@ export default function CajaModal({ userProfile, onStatusChange }) {
       if (data) {
         setSessionCaja(data);
         fetchResumenVentas(data);
+        fetchMovimientos(data.id);
       } else {
         setSessionCaja(null);
       }
@@ -72,6 +79,41 @@ export default function CajaModal({ userProfile, onStatusChange }) {
       console.error('Error calculando resumen de ventas:', err.message);
     } finally {
       setLoadingResumen(false);
+    }
+  };
+
+  const fetchMovimientos = async (sesionId) => {
+    try {
+      const { data } = await supabase
+        .from('movimientos_caja')
+        .select('*')
+        .eq('sesion_caja_id', sesionId)
+        .order('created_at', { ascending: false });
+      setMovimientos(data || []);
+    } catch (err) {
+      console.error('Error cargando movimientos de caja:', err.message);
+    }
+  };
+
+  const registrarMovimiento = async (tipo) => {
+    const monto = parseFloat(movMonto);
+    if (!monto || monto <= 0) { alert('Ingresa un monto mayor a cero.'); return; }
+    setSavingMov(true);
+    try {
+      const { data, error } = await supabase.rpc('registrar_movimiento_caja', {
+        p_tipo: tipo,
+        p_monto: monto,
+        p_motivo: movMotivo || null,
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'No se pudo registrar.');
+      setMovMonto('');
+      setMovMotivo('');
+      if (sessionCaja) fetchMovimientos(sessionCaja.id);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setSavingMov(false);
     }
   };
 
@@ -156,7 +198,9 @@ export default function CajaModal({ userProfile, onStatusChange }) {
   const totalFondoApertura = (parseFloat(billetes) || 0) + (parseFloat(monedas) || 0);
   const fondoInicial = parseFloat(sessionCaja?.fondo_inicial) || 0;
   const efectivoVentas = resumenVentas?.efectivo || 0;
-  const efectivoEsperado = fondoInicial + efectivoVentas;
+  const totalRetiros = movimientos.filter(m => m.tipo === 'retiro').reduce((a, m) => a + Number(m.monto), 0);
+  const totalDepositos = movimientos.filter(m => m.tipo === 'deposito').reduce((a, m) => a + Number(m.monto), 0);
+  const efectivoEsperado = fondoInicial + efectivoVentas + totalDepositos - totalRetiros;
   const billetesVal = parseFloat(billetesToCierre) || 0;
   const monedasVal = parseFloat(monedasCierre) || 0;
   const efectivoDeclarado = billetesVal + monedasVal;
@@ -286,10 +330,63 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                   )}
                 </div>
 
+                {/* Sangrías: retiros y depósitos */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Wallet className="w-3.5 h-3.5" /> Retiros y depósitos
+                    </p>
+                    {(totalRetiros > 0 || totalDepositos > 0) && (
+                      <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 neb-tabular">
+                        −${totalRetiros.toFixed(2)} · +${totalDepositos.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-medium">$</span>
+                      <input type="number" step="0.01" min="0" value={movMonto}
+                        onChange={(e) => setMovMonto(e.target.value)}
+                        className="neb-input pl-8 !text-base !font-semibold neb-tabular" placeholder="Monto" />
+                    </div>
+                    <input type="text" value={movMotivo} onChange={(e) => setMovMotivo(e.target.value)}
+                      className="neb-input flex-1" placeholder="Motivo (ej. pago a proveedor)" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <button type="button" disabled={savingMov} onClick={() => registrarMovimiento('retiro')}
+                      className="neb-btn neb-btn-ghost py-2.5 text-rose-600 disabled:opacity-50">
+                      <Minus className="w-4 h-4" /> Retiro
+                    </button>
+                    <button type="button" disabled={savingMov} onClick={() => registrarMovimiento('deposito')}
+                      className="neb-btn neb-btn-ghost py-2.5 text-emerald-600 disabled:opacity-50">
+                      <Plus className="w-4 h-4" /> Depósito
+                    </button>
+                  </div>
+
+                  {movimientos.length > 0 && (
+                    <div className="mt-3 space-y-1.5 max-h-36 overflow-y-auto neb-scroll">
+                      {movimientos.map(m => (
+                        <div key={m.id} className="flex items-center justify-between text-[12px] bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-lg px-3 py-2">
+                          <span className="text-slate-600 dark:text-slate-300 truncate pr-2">
+                            <span className={`font-semibold ${m.tipo === 'retiro' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {m.tipo === 'retiro' ? 'Retiro' : 'Depósito'}
+                            </span>
+                            {m.motivo ? ` · ${m.motivo}` : ''}
+                          </span>
+                          <span className={`font-semibold neb-tabular shrink-0 ${m.tipo === 'retiro' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {m.tipo === 'retiro' ? '−' : '+'}${Number(m.monto).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center">
                   <div>
                     <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Efectivo esperado</p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">fondo + ventas en efectivo</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">fondo + ventas efectivo + depósitos − retiros</p>
                   </div>
                   <span className="font-semibold text-xl neb-tabular">${efectivoEsperado.toFixed(2)}</span>
                 </div>

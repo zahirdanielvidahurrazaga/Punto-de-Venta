@@ -210,17 +210,34 @@ export default function Dashboard({ ventas: ventasProp = [], userName = 'Admin' 
   }, [subTab]);
 
   const fetchResumenSucursales = async () => {
-    const { data: sucs } = await supabase
-      .from('sucursales').select('id, nombre').eq('activa', true).order('nombre');
-    const { data: stocks } = await supabase
-      .from('producto_stock').select('sucursal_id, stock');
-    const resumen = (sucs || []).map(s => {
-      const filas = (stocks || []).filter(x => x.sucursal_id === s.id);
+    const hace30 = new Date();
+    hace30.setDate(hace30.getDate() - 30);
+    const [sucsRes, stockRes, ventasRes] = await Promise.all([
+      supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre'),
+      supabase.from('producto_stock').select('sucursal_id, stock, productos(precio)'),
+      supabase.from('ventas').select('sucursal_id, total, venta_detalles(cantidad)').gte('fecha', hace30.toISOString()),
+    ]);
+    const sucs = sucsRes.data || [];
+    const stocks = stockRes.data || [];
+    const ventas = ventasRes.data || [];
+
+    const resumen = sucs.map(s => {
+      const filas = stocks.filter(x => x.sucursal_id === s.id);
+      const ventasS = ventas.filter(v => v.sucursal_id === s.id);
+      const ventaTotal = ventasS.reduce((a, v) => a + Number(v.total || 0), 0);
+      const tickets = ventasS.length;
+      const unidadesVendidas = ventasS.reduce(
+        (a, v) => a + (v.venta_detalles || []).reduce((b, d) => b + Number(d.cantidad || 0), 0), 0);
       return {
         ...s,
         productos: filas.length,
         unidades: filas.reduce((a, x) => a + (x.stock || 0), 0),
         bajos: filas.filter(x => x.stock <= 5).length,
+        valorInventario: filas.reduce((a, x) => a + (x.stock || 0) * Number(x.productos?.precio || 0), 0),
+        ventaTotal,
+        tickets,
+        ticketPromedio: tickets > 0 ? ventaTotal / tickets : 0,
+        unidadesVendidas,
       };
     });
     setResumenSucursales(resumen);
@@ -793,33 +810,67 @@ export default function Dashboard({ ventas: ventasProp = [], userName = 'Admin' 
           )
         )}
 
-        {/* ══════════════════ SUCURSALES ══════════════════ */}
+        {/* ══════════════════ SUCURSALES (comparativo) ══════════════════ */}
         {subTab === 'sucursales' && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white">Existencias por sucursal</h3>
+              <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white">Comparativo de sucursales</h3>
               <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                La asignación de empleados a cada sucursal se gestiona en la sección Equipo.
+                Ventas de los últimos 30 días y existencias actuales. Asignación de empleados en la sección Equipo.
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {resumenSucursales.map(s => (
-                <div key={s.id} className="neb-card p-5">
-                  <p className="font-bold text-slate-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                <div key={s.id} className="neb-card p-5 space-y-5">
+                  <p className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                     <Store className="w-4 h-4 text-accent-600" /> {s.nombre}
                   </p>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.unidades}</p>
-                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Unidades</p>
+
+                  {/* Ventas (30 días) */}
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.12em] mb-2">Ventas · últimos 30 días</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{fmt(s.ventaTotal)}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Ventas</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.tickets}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Tickets</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-slate-700 dark:text-slate-300 neb-tabular leading-none">{fmt(s.ticketPromedio)}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Ticket prom.</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-slate-700 dark:text-slate-300 neb-tabular leading-none">{s.unidadesVendidas}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Unid. vendidas</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-2xl font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.productos}</p>
-                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Productos</p>
+                  </div>
+
+                  {/* Inventario */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.12em] mb-2">Inventario actual</p>
+                    <div className="flex items-end justify-between mb-3">
+                      <div>
+                        <p className="text-2xl font-semibold text-emerald-600 neb-tabular leading-none">{fmt(s.valorInventario)}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Valor (a precio de venta)</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className={`text-2xl font-semibold neb-tabular leading-none ${s.bajos > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{s.bajos}</p>
-                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Stock bajo</p>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-base font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.unidades}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Unidades</p>
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-slate-900 dark:text-white neb-tabular leading-none">{s.productos}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Productos</p>
+                      </div>
+                      <div>
+                        <p className={`text-base font-semibold neb-tabular leading-none ${s.bajos > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{s.bajos}</p>
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1.5">Stock bajo</p>
+                      </div>
                     </div>
                   </div>
                 </div>
