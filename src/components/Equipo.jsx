@@ -188,7 +188,7 @@ export default function Equipo() {
                   </div>
                   <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">¡Empleado creado!</h3>
                   <p className="text-slate-500 dark:text-slate-400 text-[13px] mb-5 leading-relaxed">
-                    Entrégale estos datos. Deberá cambiar su PIN <strong>1234</strong> la primera vez que opere.
+                    Entrégale estos datos para que pueda iniciar sesión.
                   </p>
                   <div className="space-y-2.5 mb-6">
                     <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
@@ -198,10 +198,6 @@ export default function Equipo() {
                     <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
                       <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Contraseña</p>
                       <p className="text-sm font-semibold font-mono text-slate-900 dark:text-white">{creado.password}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
-                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">PIN inicial</p>
-                      <p className="text-sm font-semibold font-mono text-slate-900 dark:text-white">1234 (debe cambiarlo)</p>
                     </div>
                   </div>
                   <button onClick={() => setIsAddModalOpen(false)} className="w-full neb-btn neb-btn-primary py-3">

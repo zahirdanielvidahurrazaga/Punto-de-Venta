@@ -11,7 +11,6 @@ import Equipo from './components/Equipo';
 import Reportes from './components/Reportes';
 import PedidosProgramados from './components/PedidosProgramados';
 import { supabase } from './lib/supabaseClient';
-import CambiarPinModal from './components/CambiarPinModal';
 import Ajustes from './components/Ajustes';
 import VentasEnRuta from './components/VentasEnRuta';
 import NotificacionesCenter from './components/NotificacionesCenter';
@@ -21,7 +20,6 @@ function App() {
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
-  const [pinNeedsChange, setPinNeedsChange] = useState(false);
 
   // Estados de validación del flujo
   const [isClockedIn, setIsClockedIn] = useState(null);
@@ -47,24 +45,10 @@ function App() {
     }
   }, [cart]);
 
-  const checkPinRequirements = async () => {
-    try {
-      const { data, error } = await supabase.rpc('pin_necesita_cambio');
-      if (!error && data === true) {
-        setPinNeedsChange(true);
-      } else {
-        setPinNeedsChange(false);
-      }
-    } catch (e) {
-      console.error("Error comprobando estado de PIN:", e);
-    }
-  };
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        checkPinRequirements();
         fetchUserProfile(session.user.id);
       } else {
         setLoadingAuth(false);
@@ -74,11 +58,9 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        checkPinRequirements();
         fetchUserProfile(session.user.id);
       } else {
         setUserProfile(null);
-        setPinNeedsChange(false);
         setLoadingAuth(false);
       }
     });
@@ -304,10 +286,6 @@ function App() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex font-sans">
-      {pinNeedsChange && (
-        <CambiarPinModal onPinChanged={() => setPinNeedsChange(false)} />
-      )}
-
       {/* Scrim Overlay for Mobile */}
       {isMobileMenuOpen && (
         <div 
