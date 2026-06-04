@@ -1,15 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Loader2, QrCode, Printer, X, UserPlus, Store } from 'lucide-react';
+import { Users, Loader2, QrCode, Printer, X, UserPlus, Store, Mail, Lock, User, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import QRCodeLib from 'react-qr-code';
 
 const QRCode = QRCodeLib.default || QRCodeLib.QRCode || QRCodeLib;
+
+// Genera una contraseña temporal legible (sin caracteres ambiguos).
+function generarPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
 
 export default function Equipo() {
   const [empleados, setEmpleados] = useState([]);
   const [sucursales, setSucursales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [form, setForm] = useState({ nombre_completo: '', email: '', password: '', sucursal_id: '' });
+  const [creando, setCreando] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [creado, setCreado] = useState(null); // { email, password } tras crear
+
+  const abrirModal = () => {
+    setForm({ nombre_completo: '', email: '', password: generarPassword(), sucursal_id: '' });
+    setFormError('');
+    setCreado(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleCrearEmpleado = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!form.nombre_completo.trim() || !form.email.trim() || form.password.length < 6) {
+      setFormError('Completa nombre, correo y una contraseña de 6+ caracteres.');
+      return;
+    }
+    setCreando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('crear-empleado', {
+        body: {
+          nombre_completo: form.nombre_completo.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          sucursal_id: form.sucursal_id || null,
+        },
+      });
+      // functions.invoke no lanza en errores HTTP; el cuerpo trae { error }.
+      if (error) throw new Error(data?.error || error.message);
+      if (data?.error) throw new Error(data.error);
+
+      setCreado({ email: form.email.trim(), password: form.password });
+      await fetchEmpleados();
+    } catch (err) {
+      setFormError(err.message || 'No se pudo crear el empleado.');
+    } finally {
+      setCreando(false);
+    }
+  };
 
   useEffect(() => {
     fetchEmpleados();
@@ -121,7 +168,7 @@ export default function Equipo() {
               Gestión de empleados y gafetes QR · {empleados.length} miembros
             </p>
           </div>
-          <button onClick={() => setIsAddModalOpen(true)} className="neb-btn neb-btn-primary">
+          <button onClick={abrirModal} className="neb-btn neb-btn-primary">
             <UserPlus className="w-4 h-4" /> Añadir empleado
           </button>
         </div>
@@ -132,29 +179,104 @@ export default function Equipo() {
               <button onClick={() => setIsAddModalOpen(false)} className="absolute top-4 right-4 w-9 h-9 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 flex items-center justify-center transition-colors">
                 <X className="w-4 h-4" />
               </button>
-              <div className="w-14 h-14 bg-accent-50 border border-accent-100 rounded-2xl flex items-center justify-center mb-5">
-                <Users className="w-7 h-7 text-accent-700" />
-              </div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">Añadir nuevo empleado</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-[13px] mb-5 leading-relaxed">
-                Por seguridad, los accesos se gestionan directamente desde el servidor (Supabase). Sigue estos pasos:
-              </p>
-              <ol className="space-y-3 text-[13px] font-medium text-slate-700 dark:text-slate-300 mb-7">
-                {[
-                  ['Ingresa al portal de', 'Supabase', 'de tu proyecto.'],
-                  ['Ve a la sección', 'Authentication > Users', '.'],
-                  ['Haz clic en', 'Add User', 'y crea la cuenta con su correo y contraseña.'],
-                  ['El perfil aparecerá automáticamente en esta pantalla para asignarle su gafete.', '', ''],
-                ].map((step, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-accent-50 border border-accent-100 flex items-center justify-center text-accent-700 text-xs font-extrabold shrink-0">{i+1}</span>
-                    <span>{step[0]} {step[1] && <strong>{step[1]}</strong>} {step[2]}</span>
-                  </li>
-                ))}
-              </ol>
-              <button onClick={() => setIsAddModalOpen(false)} className="w-full neb-btn neb-btn-primary py-3">
-                Entendido
-              </button>
+
+              {creado ? (
+                /* Confirmación con las credenciales para entregar al empleado */
+                <div>
+                  <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mb-5">
+                    <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">¡Empleado creado!</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-[13px] mb-5 leading-relaxed">
+                    Entrégale estos datos. Deberá cambiar su PIN <strong>1234</strong> la primera vez que opere.
+                  </p>
+                  <div className="space-y-2.5 mb-6">
+                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Correo</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white break-all">{creado.email}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Contraseña</p>
+                      <p className="text-sm font-semibold font-mono text-slate-900 dark:text-white">{creado.password}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">PIN inicial</p>
+                      <p className="text-sm font-semibold font-mono text-slate-900 dark:text-white">1234 (debe cambiarlo)</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsAddModalOpen(false)} className="w-full neb-btn neb-btn-primary py-3">
+                    Listo
+                  </button>
+                </div>
+              ) : (
+                /* Formulario de alta */
+                <form onSubmit={handleCrearEmpleado}>
+                  <div className="w-14 h-14 bg-accent-50 border border-accent-100 rounded-2xl flex items-center justify-center mb-5">
+                    <UserPlus className="w-7 h-7 text-accent-700" />
+                  </div>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">Añadir nuevo empleado</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-[13px] mb-5 leading-relaxed">
+                    Se crea su cuenta y su gafete QR automáticamente.
+                  </p>
+
+                  <div className="space-y-3.5">
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                        <User className="w-3.5 h-3.5" /> Nombre completo
+                      </label>
+                      <input
+                        type="text" value={form.nombre_completo} autoFocus
+                        onChange={(e) => setForm(f => ({ ...f, nombre_completo: e.target.value }))}
+                        placeholder="Ej. Juan Pérez" className="neb-input w-full" />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                        <Mail className="w-3.5 h-3.5" /> Correo
+                      </label>
+                      <input
+                        type="email" value={form.email}
+                        onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="empleado@correo.com" className="neb-input w-full" />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                        <Lock className="w-3.5 h-3.5" /> Contraseña
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text" value={form.password}
+                          onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
+                          className="neb-input w-full font-mono text-sm" />
+                        <button type="button" onClick={() => setForm(f => ({ ...f, password: generarPassword() }))}
+                          className="neb-btn neb-btn-ghost shrink-0 !px-3" title="Generar otra">
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {sucursales.length > 0 && (
+                      <div>
+                        <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                          <Store className="w-3.5 h-3.5" /> Sucursal
+                        </label>
+                        <select value={form.sucursal_id}
+                          onChange={(e) => setForm(f => ({ ...f, sucursal_id: e.target.value }))}
+                          className="neb-input w-full">
+                          <option value="">Sin asignar</option>
+                          {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {formError && (
+                    <p className="text-[12px] text-rose-600 dark:text-rose-400 mt-4 font-medium">{formError}</p>
+                  )}
+
+                  <button type="submit" disabled={creando} className="w-full neb-btn neb-btn-primary py-3 mt-6 disabled:opacity-60">
+                    {creando ? <><Loader2 className="w-4 h-4 animate-spin" /> Creando…</> : <><UserPlus className="w-4 h-4" /> Crear empleado</>}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         )}

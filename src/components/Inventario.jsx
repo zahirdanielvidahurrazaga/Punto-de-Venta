@@ -493,14 +493,14 @@ function RecepcionTab({ productos, onRefresh, onAjustarStock }) {
 }
 
 // ─── Historial ─────────────────────────────────────────────────────────────
-function HistorialTab() {
+function HistorialTab({ sucursal }) {
   const [movimientos, setMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tipoFiltro, setTipoFiltro] = useState('todos');
   const [diasFiltro, setDiasFiltro] = useState(7);
   const [searchProd, setSearchProd] = useState('');
 
-  useEffect(() => { fetchMovimientos(); }, [diasFiltro]);
+  useEffect(() => { fetchMovimientos(); }, [diasFiltro, sucursal]);
 
   const fetchMovimientos = async () => {
     setLoading(true);
@@ -509,12 +509,17 @@ function HistorialTab() {
       desde.setDate(desde.getDate() - diasFiltro);
       desde.setHours(0, 0, 0, 0);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('movimientos_inventario')
         .select('*, usuarios_perfiles (nombre_completo)')
         .gte('created_at', desde.toISOString())
         .order('created_at', { ascending: false })
         .limit(300);
+
+      // Mostrar solo los movimientos de la sucursal que se está viendo.
+      if (sucursal) query = query.eq('sucursal_id', sucursal);
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setMovimientos(data || []);
@@ -894,7 +899,7 @@ export default function Inventario({ isAdmin, userProfile }) {
           />
         )}
 
-        {subTab === 'historial' && <HistorialTab />}
+        {subTab === 'historial' && <HistorialTab sucursal={vistaSucursal || sucursalId} />}
 
       </div>
 
