@@ -72,7 +72,7 @@ function App() {
     try {
       const { data, error } = await supabase
         .from('usuarios_perfiles')
-        .select('*')
+        .select('*, sucursales(nombre, direccion)')
         .eq('id', userId)
         .single();
 

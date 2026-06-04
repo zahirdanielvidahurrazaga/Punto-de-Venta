@@ -1,67 +1,105 @@
 import React from 'react';
 import { Printer, X, CheckCircle, Store, Mail, Phone } from 'lucide-react';
+import { datosTienda } from '../config/tienda';
 
-export default function TicketModal({ cart, total, paymentData, onClose }) {
+export default function TicketModal({ cart, total, paymentData, sucursal, onClose }) {
+  const tienda = datosTienda(sucursal);
+
   const ticketNumber = (Math.floor(Math.random() * 10000)).toString().padStart(4, '0');
   const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  const time = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute:'2-digit' });
+  const time = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const totalArticulos = cart.reduce((acc, i) => acc + i.quantity, 0);
+
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+  // Genera el HTML del ticket térmico desde los DATOS (no copia el DOM decorado),
+  // para que salga limpio en blanco y negro a 80mm.
+  const buildTicketHTML = () => {
+    const headerLines = [
+      `<div class="big center bold">${esc(tienda.negocio)}</div>`,
+      tienda.rfc ? `<div class="center">RFC: ${esc(tienda.rfc)}</div>` : '',
+      tienda.sucursalNombre ? `<div class="center bold">${esc(tienda.sucursalNombre)}</div>` : '',
+      tienda.direccion ? `<div class="center small">${esc(tienda.direccion)}</div>` : '',
+      tienda.telefono ? `<div class="center small">Tel: ${esc(tienda.telefono)}</div>` : '',
+    ].filter(Boolean).join('');
+
+    const itemsRows = cart.map((item) => `
+      <div class="item">
+        <div class="name">${esc(item.nombre)}</div>
+        <div class="row small">
+          <span>${item.quantity} x ${money(item.precio)}</span>
+          <span>${money(item.precio * item.quantity)}</span>
+        </div>
+      </div>`).join('');
+
+    const pagos = paymentData ? [
+      paymentData.efectivo > 0 ? `<div class="row"><span>Efectivo</span><span>${money(paymentData.efectivo)}</span></div>` : '',
+      paymentData.tarjeta > 0 ? `<div class="row"><span>Tarjeta</span><span>${money(paymentData.tarjeta)}</span></div>` : '',
+      paymentData.transferencia > 0 ? `<div class="row"><span>Transferencia</span><span>${money(paymentData.transferencia)}</span></div>` : '',
+      `<div class="row"><span>Recibido</span><span>${money(paymentData.totalPagado)}</span></div>`,
+      `<div class="row bold"><span>Cambio</span><span>${money(paymentData.cambio || 0)}</span></div>`,
+    ].filter(Boolean).join('') : '';
+
+    const pie = (tienda.pie || []).map((l) => `<div class="center">${esc(l)}</div>`).join('');
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Ticket</title>
+          <style>
+            * { box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; background: #fff; }
+            body {
+              width: 80mm;
+              padding: 4mm 3mm 6mm;
+              color: #000;
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 12px;
+              line-height: 1.35;
+              -webkit-font-smoothing: none;
+            }
+            .center { text-align: center; }
+            .bold { font-weight: 700; }
+            .big { font-size: 15px; letter-spacing: 0.5px; }
+            .small { font-size: 11px; }
+            .row { display: flex; justify-content: space-between; gap: 6px; }
+            .name { font-weight: 700; word-break: break-word; }
+            .item { margin-bottom: 5px; }
+            .sep { border-top: 1px dashed #000; margin: 6px 0; }
+            .total { font-size: 16px; font-weight: 800; }
+            .head { margin-bottom: 4px; }
+            @media print { @page { margin: 0; size: 80mm auto; } }
+          </style>
+        </head>
+        <body>
+          <div class="head">${headerLines}</div>
+          <div class="sep"></div>
+          <div class="row small"><span>FECHA: ${date}</span><span>CAJA: 01</span></div>
+          <div class="row small"><span>HORA: ${time}</span><span>TICKET: ${ticketNumber}</span></div>
+          <div class="sep"></div>
+          ${itemsRows}
+          <div class="sep"></div>
+          <div class="row total"><span>TOTAL</span><span>${money(total)}</span></div>
+          <div class="row small"><span>Artículos</span><span>${totalArticulos}</span></div>
+          ${pagos ? `<div class="sep"></div>${pagos}` : ''}
+          <div class="sep"></div>
+          ${pie}
+          <div style="height:6mm"></div>
+        </body>
+      </html>`;
+  };
 
   const handlePrint = () => {
-    const ticketContent = document.getElementById('ticket-termico');
-    if (!ticketContent) return;
-
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
     document.body.appendChild(iframe);
 
     const printDoc = iframe.contentWindow.document;
     printDoc.open();
-    printDoc.write(`
-      <html>
-        <head>
-          <title>Imprimir Ticket</title>
-          <style>
-            body { margin: 0; padding: 10px; background: white; font-family: 'Courier New', Courier, monospace; }
-            .ticket-print { width: 100%; max-width: 80mm; margin: 0 auto; color: #000; }
-            .ticket-print * { font-size: 11px; line-height: 1.4; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .font-black { font-weight: 950; }
-            .font-bold { font-weight: 700; }
-            .text-2xl { font-size: 18px; font-weight: 900; }
-            .border-y { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-            .border-b { border-bottom: 1px solid #000; }
-            .border-t-2 { border-top: 2px solid #000; }
-            .py-3 { padding-top: 8px; padding-bottom: 8px; }
-            .pb-2 { padding-bottom: 4px; }
-            .mb-1 { margin-bottom: 4px; }
-            .mb-3 { margin-bottom: 10px; }
-            .mb-4 { margin-bottom: 14px; }
-            .mb-6 { margin-bottom: 20px; }
-            .mt-2 { margin-top: 6px; }
-            .mt-3 { margin-top: 10px; }
-            .mt-6 { margin-top: 20px; }
-            .flex { display: flex; }
-            .justify-between { justify-content: space-between; }
-            .flex-col { flex-direction: column; }
-            .items-center { align-items: center; }
-            .w-3\\/5 { width: 60%; }
-            .w-1\\/5 { width: 20%; }
-            .bg-slate-50 dark:bg-slate-900/50 { background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; }
-            @media print { @page { margin: 0; size: auto; } }
-          </style>
-        </head>
-        <body>
-          <div class="ticket-print">${ticketContent.innerHTML}</div>
-          <script>
-            window.onload = function() {
-              window.focus(); window.print();
-              setTimeout(function() { window.parent.document.body.removeChild(window.frameElement); }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `);
+    printDoc.write(buildTicketHTML());
+    printDoc.write(`<script>window.onload=function(){window.focus();window.print();setTimeout(function(){window.parent.document.body.removeChild(window.frameElement);},800);};<\/script>`);
     printDoc.close();
   };
 
@@ -92,14 +130,16 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
               <div className="w-12 h-12 neb-grad-primary text-white rounded-xl flex items-center justify-center mb-3">
                 <Store className="w-5 h-5" />
               </div>
-              <h3 className="font-extrabold text-xl uppercase tracking-[0.18em] text-slate-900 dark:text-white mb-1">Plásticos POS</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-bold">Sucursal Centro</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-bold">Av. Principal #123, Ciudad</p>
+              <h3 className="font-extrabold text-xl uppercase tracking-[0.12em] text-slate-900 dark:text-white mb-1">{tienda.negocio}</h3>
+              {tienda.rfc && <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">RFC: {tienda.rfc}</p>}
+              {tienda.sucursalNombre && <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-bold">{tienda.sucursalNombre}</p>}
+              {tienda.direccion && <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">{tienda.direccion}</p>}
 
-              <div className="flex items-center justify-center gap-3 mt-3 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> 555-0192</span>
-                <span className="flex items-center gap-1"><Mail className="w-3 h-3"/> hola@pos.com</span>
-              </div>
+              {tienda.telefono && (
+                <div className="flex items-center justify-center gap-3 mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {tienda.telefono}</span>
+                </div>
+              )}
             </div>
 
             <div className="border-y border-dashed border-slate-300 dark:border-slate-700 py-3 mb-4 text-[11px] font-bold text-slate-600 dark:text-slate-400 flex justify-between">
@@ -139,7 +179,7 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
               </div>
               <div className="flex justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">
                 <span>Total de artículos:</span>
-                <span>{cart.reduce((acc, i) => acc + i.quantity, 0)}</span>
+                <span>{totalArticulos}</span>
               </div>
             </div>
 
@@ -160,35 +200,19 @@ export default function TicketModal({ cart, total, paymentData, onClose }) {
               </div>
             )}
 
-            <div className="text-center mt-6">
-              <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase mb-4">¡Gracias por su compra!</p>
-              <div className="flex justify-center items-center h-12 w-full opacity-80 gap-0.5">
-                {[...Array(40)].map((_, i) => (
-                  <div key={i} className="bg-slate-900 h-full" style={{ width: `${Math.max(1, Math.random() * 4)}px` }} />
-                ))}
-              </div>
-              <p className="text-[10px] tracking-[0.2em] text-slate-500 dark:text-slate-400 mt-1">{ticketNumber}202605{Math.floor(Math.random() * 99)}</p>
+            <div className="text-center mt-6 space-y-1">
+              {(tienda.pie || []).map((l, i) => (
+                <p key={i} className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase">{l}</p>
+              ))}
             </div>
 
           </div>
         </div>
 
         <div className="p-4 md:p-5 border-t border-slate-100/80 flex flex-col gap-2.5 shrink-0 z-10">
-          <div className="flex gap-2.5">
-            <button onClick={handlePrint} className="flex-1 neb-btn neb-btn-ghost py-3">
-              <Printer className="w-4 h-4" /> Imprimir
-            </button>
-            <button
-              onClick={async () => {
-                console.log("Intentando conectar a impresora Bluetooth (Capacitor/WebBluetooth)...");
-                alert("La impresión por Bluetooth está en preparación para la App Nativa.");
-                onClose();
-              }}
-              className="flex-1 neb-btn neb-btn-accent py-3"
-            >
-              <Printer className="w-4 h-4" /> Bluetooth
-            </button>
-          </div>
+          <button onClick={handlePrint} className="w-full neb-btn neb-btn-ghost py-3">
+            <Printer className="w-4 h-4" /> Imprimir ticket
+          </button>
           <button onClick={onClose} className="w-full neb-btn neb-btn-primary py-3.5 text-base">
             Nueva venta
           </button>

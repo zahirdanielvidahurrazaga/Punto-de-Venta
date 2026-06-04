@@ -543,6 +543,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
           cart={cart}
           total={total}
           paymentData={paymentData}
+          sucursal={userProfile?.sucursales}
           onClose={handleNewSale}
         />
       )}
