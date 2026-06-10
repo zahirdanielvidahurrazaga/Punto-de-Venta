@@ -138,6 +138,11 @@
   .neb-chip-warning  { background:#fffbeb; color:#d97706; }
   .neb-chip-neutral  { background:#f1f5f9; color:#475569; }
   .neb-chip-info     { background:#eff6ff; color:#2563eb; }
+  .dark .neb-chip-positive { background: rgba(16,185,129,0.15);  color:#34d399; }
+  .dark .neb-chip-negative { background: rgba(244,63,94,0.15);   color:#fb7185; }
+  .dark .neb-chip-warning  { background: rgba(245,158,11,0.15);  color:#fbbf24; }
+  .dark .neb-chip-neutral  { background: rgba(148,163,184,0.15); color:#cbd5e1; }
+  .dark .neb-chip-info     { background: rgba(59,130,246,0.15);  color:#60a5fa; }
 
   /* Estados */
   .neb-status-dot {
@@ -366,6 +371,13 @@
     -webkit-text-fill-color: transparent;
     color: transparent;
   }
+
+  /* En oscuro los degradados arrancan en tonos claros para no perderse contra
+     el fondo (los KPIs del Dashboard usan estas clases). */
+  .dark .neb-text-gradient         { background: linear-gradient(135deg, #f8fafc 0%, #93c5fd 55%, #60a5fa 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+  .dark .neb-text-gradient-emerald { background: linear-gradient(135deg, #6ee7b7 0%, #10b981 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+  .dark .neb-text-gradient-warm    { background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+  .dark .neb-text-gradient-rose    { background: linear-gradient(135deg, #fda4af 0%, #fb7185 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
 
   /* Numerals tabulares para que los precios se alineen */
   .neb-tabular {

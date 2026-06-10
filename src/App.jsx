@@ -150,8 +150,14 @@ function App() {
       } else {
         document.documentElement.classList.remove('dark');
       }
+      // Recordar el último tema de este dispositivo para aplicarlo antes del
+      // primer render en el próximo arranque (anti-parpadeo, ver index.html).
+      localStorage.setItem('theme_last', isDark ? 'dark' : 'light');
     } else {
-      document.documentElement.classList.remove('dark');
+      // Sin sesión (login): respetar el último tema del dispositivo para que no
+      // haya parpadeo respecto a lo que aplicó index.html antes del render.
+      const last = localStorage.getItem('theme_last');
+      document.documentElement.classList.toggle('dark', last === 'dark');
     }
   }, [userProfile]);
 

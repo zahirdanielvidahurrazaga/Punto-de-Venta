@@ -80,6 +80,8 @@ export default function Ajustes({ userProfile, onProfileUpdate }) {
     if (userProfile?.id) {
       localStorage.setItem(`theme_user_${userProfile.id}`, newDark ? 'dark' : 'light');
     }
+    // Último tema del dispositivo (anti-parpadeo en el próximo arranque)
+    localStorage.setItem('theme_last', newDark ? 'dark' : 'light');
   };
 
   const handleSaveProfile = async () => {
@@ -349,9 +351,9 @@ export default function Ajustes({ userProfile, onProfileUpdate }) {
 
       {/* MODAL PRIVACIDAD */}
       {showPrivacy && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 dark:bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col neb-shadow-lg border border-slate-100 dark:border-slate-800 dark:border-slate-800">
-            <div className="p-5 lg:p-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 dark:border-slate-800">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col neb-shadow-lg border border-slate-100 dark:border-slate-800">
+            <div className="p-5 lg:p-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Política de Privacidad</h2>
               <button 
                 onClick={() => setShowPrivacy(false)}

@@ -7,6 +7,9 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0f172a" />
     <title>Plásticos POS - Sistema de Punto de Venta</title>
+    <!-- Aplica el último tema conocido antes del primer render para evitar el
+         parpadeo claro al entrar. App.jsx lo corrige por usuario al cargar. -->
+    <script>try{if(localStorage.getItem('theme_last')==='dark')document.documentElement.classList.add('dark')}catch(e){}</script>
     <!-- Google Fonts - Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
