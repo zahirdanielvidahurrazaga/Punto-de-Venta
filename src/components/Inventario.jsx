@@ -3,7 +3,7 @@ import {
   Search, Package, Plus, Loader2, Edit2, FileSpreadsheet,
   History, Truck, RotateCcw,
   AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight,
-  Settings2, X, ChevronRight, Layers, Printer, Store, ArrowLeftRight
+  Settings2, X, ChevronRight, Layers, Printer, Store, ArrowLeftRight, Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import ProductModal from './ProductModal';
@@ -46,12 +46,32 @@ function fmtRelative(dateStr) {
 }
 
 // ─── Catálogo ───────────────────────────────────────────────────────────────
-function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, onCSV, uploadingCSV, fileInputRef, onRefresh, puedeTransferir, sucursales, vistaSucursal }) {
+function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, onCSV, uploadingCSV, fileInputRef, onRefresh, puedeTransferir, sucursales, vistaSucursal, onDelete }) {
   const [search, setSearch] = useState('');
   const [catFiltro, setCatFiltro] = useState('todas');
   const [orden, setOrden] = useState('nombre');
   const [etiquetaProducto, setEtiquetaProducto] = useState(null);
   const [transferProducto, setTransferProducto] = useState(null);
+  const [eliminando, setEliminando] = useState(null);
+
+  const pedirEliminar = async (p) => {
+    if (eliminando) return;
+    const ok = window.confirm(
+      `¿Quitar "${p.nombre}" del catálogo?\n\n` +
+      `Si nunca se ha vendido, se elimina por completo. ` +
+      `Si ya tiene ventas o pedidos, se archiva (deja de aparecer pero su historial se conserva).`
+    );
+    if (!ok) return;
+    setEliminando(p.id);
+    try {
+      const res = await onDelete(p);
+      if (res?.accion === 'archivado') {
+        alert(`"${p.nombre}" se archivó (tenía historial de ventas/pedidos).`);
+      }
+    } finally {
+      setEliminando(null);
+    }
+  };
 
   const maxStock = useMemo(() => Math.max(...productos.map(p => p.stock), 1), [productos]);
 
@@ -161,15 +181,19 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                     {isAdmin && (
                       <div className="flex items-center shrink-0">
                         {puedeTransferir && (
-                          <button onClick={() => setTransferProducto(p)} title="Transferir a otra sucursal" className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                          <button onClick={() => setTransferProducto(p)} title="Transferir a otra sucursal" className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                             <ArrowLeftRight className="w-4 h-4" />
                           </button>
                         )}
-                        <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta" className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                        <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta" className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                           <Printer className="w-4 h-4" />
                         </button>
-                        <button onClick={() => onEdit(p)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                        <button onClick={() => onEdit(p)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                           <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => pedirEliminar(p)} disabled={eliminando === p.id} title="Eliminar / archivar"
+                          className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-40">
+                          {eliminando === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                         </button>
                       </div>
                     )}
@@ -228,17 +252,21 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                             <div className="inline-flex items-center gap-1">
                               {puedeTransferir && (
                                 <button onClick={() => setTransferProducto(p)} title="Transferir a otra sucursal"
-                                  className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                                  className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                                   <ArrowLeftRight className="w-4 h-4" />
                                 </button>
                               )}
                               <button onClick={() => setEtiquetaProducto(p)} title="Imprimir etiqueta"
-                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-accent-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                                 <Printer className="w-4 h-4" />
                               </button>
                               <button onClick={() => onEdit(p)}
-                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 dark:bg-slate-800 rounded-lg transition-colors">
+                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                                 <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => pedirEliminar(p)} disabled={eliminando === p.id} title="Eliminar / archivar"
+                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-40">
+                                {eliminando === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                               </button>
                             </div>
                           </td>
@@ -271,7 +299,7 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
 }
 
 // ─── Recepción ─────────────────────────────────────────────────────────────
-function RecepcionTab({ productos, onRefresh, onAjustarStock }) {
+function RecepcionTab({ productos, onRefresh, onAjustarLote }) {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -331,14 +359,9 @@ function RecepcionTab({ productos, onRefresh, onAjustarStock }) {
     if (batch.length === 0) return;
     setSaving(true);
     try {
-      for (const item of batch) {
-        await onAjustarStock({
-          productoId: item.productoId,
-          delta:      item.cantidad,
-          tipo:       'entrada',
-          notas:      notas || null,
-        });
-      }
+      // Todo el lote entra en una sola transacción: si algo falla, no queda
+      // ninguna entrada aplicada a medias.
+      await onAjustarLote(batch, 'entrada', notas || null);
       onRefresh();
       setBatch([]);
       setNotas('');
@@ -395,7 +418,7 @@ function RecepcionTab({ productos, onRefresh, onAjustarStock }) {
                 <p className="font-medium text-slate-900 dark:text-white">{selected.nombre}</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{selected.sku} · Stock actual: <span className="font-semibold neb-tabular">{selected.stock}</span></p>
               </div>
-              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 rounded-lg">
+              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -579,7 +602,7 @@ function HistorialTab({ sucursal }) {
           ].map(f => (
             <button key={f.key} onClick={() => setTipoFiltro(f.key)}
               className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                tipoFiltro === f.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                tipoFiltro === f.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}>{f.label}</button>
           ))}
         </div>
@@ -587,7 +610,7 @@ function HistorialTab({ sucursal }) {
           {[7, 14, 30].map(d => (
             <button key={d} onClick={() => setDiasFiltro(d)}
               className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                diasFiltro === d ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                diasFiltro === d ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}>{d}d</button>
           ))}
         </div>
@@ -698,6 +721,38 @@ export default function Inventario({ isAdmin, userProfile }) {
     });
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'No se pudo ajustar el stock.');
+    return data;
+  };
+
+  // Recepción por lote: una sola transacción en la BD (todo o nada). Si el RPC
+  // aún no está desplegado, cae al método anterior (uno por uno).
+  const ajustarStockLote = async (items, tipo, notas) => {
+    const payload = items.map(i => ({ producto_id: i.productoId, cantidad: i.cantidad }));
+    const { data, error } = await supabase.rpc('ajustar_stock_lote', {
+      p_items:    payload,
+      p_sucursal: vistaSucursal || sucursalId,
+      p_tipo:     tipo,
+      p_notas:    notas || null,
+    });
+    if (error) {
+      if (error.code === '42883' || /does not exist|function/i.test(error.message || '')) {
+        for (const i of items) {
+          await ajustarStock({ productoId: i.productoId, delta: i.cantidad, tipo, notas });
+        }
+        return { ok: true, aplicados: items.length, fallback: true };
+      }
+      throw error;
+    }
+    if (!data?.ok) throw new Error(data?.error || 'No se pudo registrar la entrada.');
+    return data;
+  };
+
+  // Quitar un producto del catálogo (borra si no tiene historial; si no, archiva).
+  const handleDeleteProduct = async (producto) => {
+    const { data, error } = await supabase.rpc('eliminar_producto', { p_id: producto.id });
+    if (error) { alert('No se pudo eliminar: ' + error.message); return; }
+    if (!data?.ok) { alert(data?.error || 'No se pudo eliminar el producto.'); return; }
+    await fetchProductos();
     return data;
   };
 
@@ -839,7 +894,7 @@ export default function Inventario({ isAdmin, userProfile }) {
             {subTabsVisibles.map(t => (
               <button key={t.key} onClick={() => setSubTab(t.key)}
                 className={`flex items-center gap-1.5 px-4 py-1.5 text-[13px] font-medium rounded-full transition-all ${
-                  subTab === t.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                  subTab === t.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}>
                 <t.icon className="w-3.5 h-3.5" />
                 {t.label}
@@ -853,7 +908,7 @@ export default function Inventario({ isAdmin, userProfile }) {
               {sucursales.map(s => (
                 <button key={s.id} onClick={() => setVistaSucursal(s.id)}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold rounded-full transition-all ${
-                    vistaSucursal === s.id ? 'bg-white dark:bg-slate-900 text-accent-600 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'
+                    vistaSucursal === s.id ? 'bg-white dark:bg-slate-900 text-accent-600 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}>
                   <Store className="w-3.5 h-3.5" />
                   {s.nombre}{s.id === sucursalId ? ' (tú)' : ''}
@@ -887,6 +942,7 @@ export default function Inventario({ isAdmin, userProfile }) {
             puedeTransferir={isAdmin && !soloLectura && sucursales.length > 1}
             sucursales={sucursales}
             vistaSucursal={vistaSucursal}
+            onDelete={handleDeleteProduct}
           />
         )}
 
@@ -895,7 +951,7 @@ export default function Inventario({ isAdmin, userProfile }) {
             productos={productos}
             userProfile={userProfile}
             onRefresh={fetchProductos}
-            onAjustarStock={ajustarStock}
+            onAjustarLote={ajustarStockLote}
           />
         )}
 
