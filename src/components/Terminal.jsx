@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Lock, Plus, Minus, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import CheckoutModal from './CheckoutModal';
@@ -72,19 +72,39 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart]);
 
+  // Filtrado en vivo: sin búsqueda muestra los "frecuentes"; al escribir filtra
+  // por nombre o SKU, priorizando los que INICIAN con el término.
+  const buscando = searchTerm.trim().length > 0;
+  const filtered = useMemo(() => {
+    const t = searchTerm.trim().toLowerCase();
+    if (!t) return productos.slice(0, 16);
+    const empieza = (p) =>
+      p.nombre.toLowerCase().startsWith(t) || (p.sku || '').toLowerCase().startsWith(t);
+    return productos
+      .filter(p => p.nombre.toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t))
+      .sort((a, b) => {
+        const ai = empieza(a), bi = empieza(b);
+        if (ai !== bi) return ai ? -1 : 1;
+        return a.nombre.localeCompare(b.nombre);
+      })
+      .slice(0, 24);
+  }, [productos, searchTerm]);
+
   const handleSearch = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       const termino = searchTerm.trim().toLowerCase();
+      if (!termino) return;
 
-      const product = productos.find(
-        p => p.sku?.toLowerCase() === termino || p.nombre.toLowerCase().includes(termino)
-      );
+      // 1) Coincidencia exacta de SKU (escáner). 2) Si la búsqueda deja un solo
+      //    resultado, ese. Si hay varios, dejamos que el cajero toque la tarjeta.
+      let product = productos.find(p => p.sku?.toLowerCase() === termino);
+      if (!product && filtered.length === 1) product = filtered[0];
 
       if (product) {
         addToCart(product);
+        setSearchTerm('');
       }
-      setSearchTerm('');
       inputRef.current?.focus();
     }
   };
@@ -385,7 +405,8 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
         <div className="flex-1 overflow-y-auto neb-scroll pr-1 pb-20 lg:pb-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[15px] font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Box className="w-4 h-4 text-accent-600" /> Productos frecuentes
+              <Box className="w-4 h-4 text-accent-600" />
+              {buscando ? `Resultados (${filtered.length})` : 'Productos frecuentes'}
             </h2>
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">Tap para agregar</span>
           </div>
@@ -394,21 +415,28 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                <Loader2 className="w-7 h-7 animate-spin mb-3 text-accent-500" />
                <p className="text-sm font-bold">Cargando productos...</p>
              </div>
+          ) : buscando && filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-10 text-slate-400 dark:text-slate-500">
+              <Search className="w-7 h-7 mb-3 opacity-50" />
+              <p className="text-sm font-bold">Sin resultados para “{searchTerm.trim()}”</p>
+              <p className="text-[12px]">Revisa el nombre o el SKU.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {productos.slice(0, 16).map((product) => (
+              {filtered.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="neb-card p-4 flex flex-col items-start gap-2 group text-left h-full hover:-translate-y-0.5 hover:border-accent-200 transition-all active:scale-[0.97]"
+                  title={product.nombre}
+                  className="neb-card p-4 flex flex-col items-start gap-2 group text-left h-full min-w-0 hover:-translate-y-0.5 hover:border-accent-200 transition-all active:scale-[0.97]"
                 >
                   <div className="bg-accent-50 p-2 rounded-xl group-hover:bg-accent-100 transition-colors">
                     <Tag className="w-4 h-4 text-accent-700" />
                   </div>
-                  <div className="font-extrabold text-slate-900 dark:text-white text-sm line-clamp-2 leading-tight">
+                  <div className="w-full font-extrabold text-slate-900 dark:text-white text-sm line-clamp-2 break-words leading-tight min-h-[2.4em]">
                     {product.nombre}
                   </div>
-                  <div className="text-slate-400 dark:text-slate-500 font-mono text-[10px]">{product.sku}</div>
+                  <div className="w-full truncate text-slate-400 dark:text-slate-500 font-mono text-[10px]">{product.sku}</div>
                   <div className="text-slate-900 dark:text-white font-extrabold mt-auto text-base">
                     ${Number(product.precio).toFixed(2)}
                   </div>
