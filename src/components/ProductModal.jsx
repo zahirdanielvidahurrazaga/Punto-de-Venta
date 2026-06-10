@@ -9,10 +9,15 @@ export default function ProductModal({ onClose, onSave, product = null, categori
     nombre: '', sku: '', categoria: '', precio: '', stock: '', precio_mayoreo: '', cantidad_mayoreo: ''
   });
 
+  // Genera el siguiente SKU correlativo TIT-000X a partir del catálogo actual.
+  // Mantiene los códigos cortos y ordenados para imprimir barras (Code128) limpias.
   const generateSKU = () => {
-    const ts  = Date.now().toString(36).toUpperCase();
-    const rnd = Math.random().toString(36).substring(2, 6).toUpperCase();
-    setFormData(prev => ({ ...prev, sku: `SKU-${ts}-${rnd}` }));
+    const maxNum = sucursalProductos.reduce((max, p) => {
+      const m = /^TIT-(\d+)$/i.exec((p.sku || '').trim());
+      return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 0);
+    const next = String(maxNum + 1).padStart(4, '0');
+    setFormData(prev => ({ ...prev, sku: `TIT-${next}` }));
     setExistingProduct(null);
   };
 
