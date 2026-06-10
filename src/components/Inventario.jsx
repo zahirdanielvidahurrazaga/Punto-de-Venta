@@ -52,24 +52,21 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
   const [orden, setOrden] = useState('nombre');
   const [etiquetaProducto, setEtiquetaProducto] = useState(null);
   const [transferProducto, setTransferProducto] = useState(null);
-  const [eliminando, setEliminando] = useState(null);
+  const [delTarget, setDelTarget] = useState(null);   // producto a eliminar
+  const [delBusy, setDelBusy]     = useState(false);
+  const [delResult, setDelResult] = useState(null);   // { accion, nombre } al terminar
 
-  const pedirEliminar = async (p) => {
-    if (eliminando) return;
-    const ok = window.confirm(
-      `¿Quitar "${p.nombre}" del catálogo?\n\n` +
-      `Si nunca se ha vendido, se elimina por completo. ` +
-      `Si ya tiene ventas o pedidos, se archiva (deja de aparecer pero su historial se conserva).`
-    );
-    if (!ok) return;
-    setEliminando(p.id);
+  const confirmarEliminar = async () => {
+    if (!delTarget || delBusy) return;
+    setDelBusy(true);
     try {
-      const res = await onDelete(p);
-      if (res?.accion === 'archivado') {
-        alert(`"${p.nombre}" se archivó (tenía historial de ventas/pedidos).`);
+      const res = await onDelete(delTarget);
+      if (res?.ok || res?.accion) {
+        setDelResult({ accion: res.accion, nombre: delTarget.nombre });
+        setDelTarget(null);
       }
     } finally {
-      setEliminando(null);
+      setDelBusy(false);
     }
   };
 
@@ -191,9 +188,9 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                         <button onClick={() => onEdit(p)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => pedirEliminar(p)} disabled={eliminando === p.id} title="Eliminar / archivar"
-                          className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-40">
-                          {eliminando === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        <button onClick={() => setDelTarget(p)} title="Eliminar / archivar"
+                          className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors">
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     )}
@@ -264,9 +261,9 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
                                 className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                                 <Edit2 className="w-4 h-4" />
                               </button>
-                              <button onClick={() => pedirEliminar(p)} disabled={eliminando === p.id} title="Eliminar / archivar"
-                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-40">
-                                {eliminando === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              <button onClick={() => setDelTarget(p)} title="Eliminar / archivar"
+                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors">
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -293,6 +290,62 @@ function CatalogoTab({ productos, isAdmin, categorias, loading, onEdit, onNew, o
           onClose={() => setTransferProducto(null)}
           onDone={onRefresh}
         />
+      )}
+
+      {/* Confirmación de borrado */}
+      {delTarget && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-md p-4"
+          onClick={() => !delBusy && setDelTarget(null)}>
+          <div className="neb-glass-strong rounded-3xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-6 text-center">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-500/15 flex items-center justify-center mb-4">
+                <Trash2 className="w-7 h-7 text-rose-600 dark:text-rose-400" />
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">¿Eliminar producto?</h2>
+              <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200 break-words">{delTarget.nombre}</p>
+              <p className="mt-3 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                Si nunca se ha vendido, se elimina por completo. Si ya tiene ventas o pedidos,
+                se <strong className="text-slate-700 dark:text-slate-200">archiva</strong>: deja de aparecer
+                pero su historial se conserva.
+              </p>
+            </div>
+            <div className="p-4 pt-0 flex gap-2.5">
+              <button type="button" onClick={() => setDelTarget(null)} disabled={delBusy}
+                className="flex-1 neb-btn neb-btn-ghost py-3 disabled:opacity-50">Cancelar</button>
+              <button type="button" onClick={confirmarEliminar} disabled={delBusy}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-[0.625rem] font-semibold text-[0.8125rem] text-white bg-rose-600 hover:bg-rose-700 transition-colors disabled:opacity-60">
+                {delBusy ? <><Loader2 className="w-4 h-4 animate-spin" /> Eliminando…</> : <><Trash2 className="w-4 h-4" /> Eliminar</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resultado del borrado */}
+      {delResult && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-md p-4"
+          onClick={() => setDelResult(null)}>
+          <div className="neb-glass-strong rounded-3xl w-full max-w-sm overflow-hidden text-center" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${delResult.accion === 'archivado' ? 'bg-amber-100 dark:bg-amber-500/15' : 'bg-emerald-100 dark:bg-emerald-500/15'}`}>
+                {delResult.accion === 'archivado'
+                  ? <AlertTriangle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+                  : <CheckCircle className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />}
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                {delResult.accion === 'archivado' ? 'Producto archivado' : 'Producto eliminado'}
+              </h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                {delResult.accion === 'archivado'
+                  ? <><strong className="text-slate-700 dark:text-slate-200">{delResult.nombre}</strong> ya tenía historial de ventas o pedidos, así que se archivó. Dejó de aparecer en el catálogo, pero su historial se conserva.</>
+                  : <><strong className="text-slate-700 dark:text-slate-200">{delResult.nombre}</strong> se eliminó del catálogo.</>}
+              </p>
+            </div>
+            <div className="p-4 pt-0">
+              <button type="button" onClick={() => setDelResult(null)} className="w-full neb-btn neb-btn-primary py-3">Listo</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
