@@ -32,3 +32,7 @@ dist-ssr
 
 # Supabase CLI temp
 supabase/.temp/
+
+# Respaldos de base de datos (script scripts/backup_supabase.sh)
+backups/
+scripts/.backup.env
