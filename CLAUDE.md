@@ -64,5 +64,14 @@ Avisos para el admin en 4 eventos: **stock bajo/agotado, asistencia (entrada/sal
   3. Crear el Database Webhook (Dashboard → Database → Webhooks) en `notificaciones` INSERT → POST a `https://gtkymvjadgcwhdmpyhoc.supabase.co/functions/v1/enviar-push`.
   4. **iOS:** en Xcode agregar `GoogleService-Info.plist` al target, capability **Push Notifications** + **Background Modes → Remote notifications**; en Apple Developer habilitar Push para el App ID y generar **APNs Auth Key (.p8)**, subirla a Firebase → Cloud Messaging.
 
+## Estado App Store / iOS (última sesión: 2026-06-11)
+- **App:** "Plásticos y Jarciaría Tito" — versión **1.0.0**.
+- **Rechazo original:** Guideline **3.2.0** (app de un solo negocio).
+- **Vía aprobada:** **Unlisted App Distribution** aprobada por Developer Support (Rafael) el 2026-06-11. **Case #102907102404**. La unlisted aprueba la cuenta, NO el build: hay que lograr que App Review apruebe la app; se distribuye por **enlace directo** (en *Pricing and Availability*), no aparece en búsquedas.
+- **Builds:** el **build 2** (subido 8-jun desde esta Mac) quedó **viejo** (no incluía el trabajo del 10-jun: SKU TIT-000X, modo oscuro, inventario atómico, terminal en vivo, mayoreo). Por eso se compiló el **build 3** (`CURRENT_PROJECT_VERSION = 3`, `npm run build` + `npx cap copy ios` el 11-jun) y se subió a TestFlight.
+- **Acción hecha 11-jun:** se respondió a App Review en Resolution Center citando la aprobación de unlisted; se hizo **Remove** del item con build 2 del envío y se **reenvió con el build 3**. Esperando veredicto de App Review.
+- **OJO para subir builds nuevos:** subir `CURRENT_PROJECT_VERSION` en `ios/App/App.xcodeproj/project.pbxproj` (Debug+Release), `npm run build`, `npx cap copy ios`, Archive en Xcode. El bundle web vive en `ios/App/App/public/` — verificar su fecha tras `cap copy` para confirmar que lleva el código actual.
+
 ## Pendientes / fuera de alcance
+- **Android (pendiente, OTRA PC):** todo el flujo de Android Studio / generación del AAB se hace en la otra PC; este equipo (Mac) solo cubre iOS. Falta empaquetar/subir la versión con el código del 10-jun para Google Play.
 - **Costos y gastos**: el dueño los maneja por fuera; por eso el sistema mide ingresos, no utilidad. La valuación de inventario es a **precio de venta**.
