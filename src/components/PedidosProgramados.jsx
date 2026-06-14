@@ -381,10 +381,10 @@ function NuevoPedidoModal({ userProfile, onClose, onSaved }) {
   }, []);
 
   const fetchProductos = async () => {
+    // Stock por sucursal (producto_stock) vía RPC, igual que Terminal/Inventario;
+    // la columna legacy productos.stock ya no refleja el inventario real.
     const { data } = await supabase
-      .from('productos')
-      .select('id, nombre, sku, precio, stock, categoria')
-      .order('nombre');
+      .rpc('productos_de_sucursal', { p_sucursal: userProfile?.sucursal_id });
     setProductos(data || []);
   };
 

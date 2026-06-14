@@ -14,6 +14,7 @@ POS para una papelería/jarciería con **dos sucursales**: **Tito Centro** (prin
 - `scripts/*.sql` = migraciones incrementales que se **pegan y ejecutan a mano en el SQL Editor de Supabase** (no hay migraciones automáticas).
   - `actualizacion_bd.sql` — precios de mayoreo, `delete_user()`.
   - `ventas_en_ruta.sql` — módulo de rutas.
+  - `ventas_en_ruta_multisucursal.sql` — reconecta las rutas al stock por sucursal (`producto_stock`) en vez de la columna legacy; agrega `rutas.sucursal_id` y cambia la firma de `iniciar_ruta` a `(p_nombre, p_productos, p_sucursal)`. **Hay que ejecutarlo para que vuelvan a aparecer productos al armar una ruta.**
   - `totp_admin.sql` — código admin rotativo (TOTP).
   - `multisucursal.sql` — multi-sucursal (ver abajo).
   - `sangrias_y_transferencias.sql` — retiros/depósitos de caja y transferencias de stock.

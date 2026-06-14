@@ -4,7 +4,7 @@ import {
   CheckCircle2, Loader2, X, AlertCircle,
   RotateCcw, Clock, ChevronRight,
   Receipt, Percent, Box, ArrowLeft, Printer,
-  Store, Mail, Phone
+  Store, Mail, Phone, Banknote
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -232,7 +232,7 @@ function TicketRuta({ ruta, carga, onClose }) {
 }
 
 // ── Componente Principal ─────────────────────────────────────────────────
-export default function VentasEnRuta() {
+export default function VentasEnRuta({ userProfile }) {
   const [vista, setVista] = useState('lista');
   const [rutas, setRutas] = useState([]);
   const [rutaActiva, setRutaActiva] = useState(null);
@@ -243,10 +243,14 @@ export default function VentasEnRuta() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Sucursales (la carga de ruta sale del stock de la sucursal elegida)
+  const [sucursales, setSucursales] = useState([]);
+
   // Paso 1 — Carga
   const [nombreRuta, setNombreRuta] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [cargaItems, setCargaItems] = useState([]); // [{...producto, qty}]
+  const [sucursalRuta, setSucursalRuta] = useState(userProfile?.sucursal_id || null);
 
   // Paso 2 — Descarga
   const [sobrantes, setSobrantes] = useState({}); // {carga_id: cantidad_sobrante}
@@ -280,16 +284,17 @@ export default function VentasEnRuta() {
     }
   };
 
-  const fetchProductos = async () => {
+  // Los productos de la ruta se cargan del stock REAL de la sucursal elegida
+  // (producto_stock vía RPC), no de la columna legacy productos.stock que ya
+  // no refleja el inventario por sucursal.
+  const fetchProductos = async (sucursalId) => {
+    if (!sucursalId) { setProductos([]); return; }
     setLoadingProductos(true);
     try {
       const { data, error } = await supabase
-        .from('productos')
-        .select('id, nombre, sku, precio, stock, categoria')
-        .gt('stock', 0)
-        .order('nombre');
+        .rpc('productos_de_sucursal', { p_sucursal: sucursalId });
       if (error) throw error;
-      setProductos(data || []);
+      setProductos((data || []).filter(p => p.stock > 0));
     } catch (e) {
       console.error(e);
     } finally {
@@ -299,16 +304,30 @@ export default function VentasEnRuta() {
 
   useEffect(() => {
     fetchRutas();
+    supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
+      .then(({ data }) => setSucursales(data || []));
   }, []);
 
   // ── Navegación ──────────────────────────────────────────────────────
   const irANuevaRuta = () => {
+    const suc = userProfile?.sucursal_id || sucursales[0]?.id || null;
     setCargaItems([]);
     setNombreRuta('');
     setSearchTerm('');
     setError('');
-    fetchProductos();
+    setSucursalRuta(suc);
+    fetchProductos(suc);
     setVista('carga');
+  };
+
+  // Cambiar la sucursal de origen: el stock difiere, así que se reinicia la carga
+  const cambiarSucursalRuta = (sucId) => {
+    if (sucId === sucursalRuta) return;
+    setSucursalRuta(sucId);
+    setCargaItems([]);
+    setSearchTerm('');
+    setError('');
+    fetchProductos(sucId);
   };
 
   const irADescarga = () => {
@@ -348,12 +367,14 @@ export default function VentasEnRuta() {
 
   const handleIniciarRuta = async () => {
     if (cargaItems.length === 0) { setError('Agrega al menos un producto.'); return; }
+    if (!sucursalRuta) { setError('Selecciona la sucursal de origen.'); return; }
     setSaving(true); setError('');
     try {
       const productosJson = cargaItems.map(i => ({ id: i.id, cantidad: i.qty }));
       const { data, error } = await supabase.rpc('iniciar_ruta', {
         p_nombre: nombreRuta.trim(),
         p_productos: productosJson,
+        p_sucursal: sucursalRuta,
       });
       if (error) throw error;
       if (!data.ok) throw new Error(data.error);
@@ -629,6 +650,29 @@ export default function VentasEnRuta() {
               onChange={e => setNombreRuta(e.target.value)}
             />
           </div>
+
+          {/* Sucursal de origen (de dónde sale la mercancía) */}
+          {sucursales.length > 1 && (
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-1.5">
+                Sucursal de origen
+              </label>
+              <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 w-fit">
+                {sucursales.map(s => (
+                  <button key={s.id} type="button" onClick={() => cambiarSucursalRuta(s.id)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold rounded-full transition-all ${
+                      sucursalRuta === s.id ? 'bg-white dark:bg-slate-900 text-accent-600 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}>
+                    <Store className="w-3.5 h-3.5" />
+                    {s.nombre}{s.id === userProfile?.sucursal_id ? ' (tú)' : ''}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
+                La carga descuenta del inventario de esta sucursal; los sobrantes regresan a ella.
+              </p>
+            </div>
+          )}
 
           {/* Buscador de productos */}
           <div>

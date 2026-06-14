@@ -819,7 +819,20 @@ export default function Inventario({ isAdmin, userProfile }) {
     try {
       // El stock se maneja por sucursal vía ajustar_stock; el catálogo (nombre,
       // sku, categoría, precio) se guarda en productos sin la columna stock.
-      const { stock, _existingId, _addStock, ...catalogo } = productData;
+      // Se arma un payload con SOLO las columnas reales de `productos`: el
+      // producto que llega al editar trae campos extra de la RPC
+      // productos_de_sucursal (id, sucursal_id, created_at, updated_at) que NO
+      // existen en la tabla y rompían el .update() con "Could not find the
+      // 'sucursal_id' column".
+      const { stock, _existingId, _addStock } = productData;
+      const catalogo = {
+        nombre:           productData.nombre,
+        sku:              productData.sku,
+        categoria:        productData.categoria,
+        precio:           productData.precio,
+        precio_mayoreo:   productData.precio_mayoreo,
+        cantidad_mayoreo: productData.cantidad_mayoreo,
+      };
 
       if (_addStock && _existingId) {
         // Sumar stock a un producto existente, en mi sucursal
