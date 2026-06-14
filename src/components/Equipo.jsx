@@ -45,8 +45,17 @@ export default function Equipo() {
           sucursal_id: form.sucursal_id || null,
         },
       });
-      // functions.invoke no lanza en errores HTTP; el cuerpo trae { error }.
-      if (error) throw new Error(data?.error || error.message);
+      // En errores HTTP, supabase-js deja data=null y el mensaje real en el
+      // cuerpo de la Response (error.context), no en `error.message` (que es el
+      // genérico "Edge Function returned a non-2xx status code"). Lo leemos.
+      if (error) {
+        let msg = error.message;
+        try {
+          const body = await error.context?.json();
+          if (body?.error) msg = body.error;
+        } catch { /* el cuerpo no era JSON; usamos el mensaje genérico */ }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       setCreado({ email: form.email.trim(), password: form.password });
