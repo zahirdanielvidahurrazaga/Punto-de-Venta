@@ -1,16 +1,20 @@
 -- =====================================================================
 -- FIX: "Database error creating new user" al dar de alta un empleado
 -- ---------------------------------------------------------------------
--- La versión multi-sucursal de handle_new_user agregó
---     SELECT id INTO v_sucursal FROM sucursales WHERE es_principal ...
--- con la tabla SIN calificar el esquema. El trigger de Auth corre como el
--- rol `supabase_auth_admin`, cuyo search_path NO incluye `public`, así que
--- `sucursales` no se resuelve y Postgres lanza un error que GoTrue reporta
--- como "Database error creating new user" (bloquea TODA alta de usuario).
+-- Causa REAL (confirmada en producción): el trigger handle_new_user
+-- insertaba en `public.usuarios_credenciales` (PIN bcrypt), pero esa tabla
+-- NO existe en la base. El INSERT fallaba y GoTrue lo reportaba como
+-- "Database error creating new user", bloqueando TODA alta de usuario.
 --
--- Solución: calificar los objetos con `public.` / `extensions.` y fijar un
--- search_path explícito en la función (recomendación estándar de Supabase
--- para funciones SECURITY DEFINER que disparan triggers de Auth).
+-- El subsistema de PIN/credenciales está muerto: no existe la tabla ni
+-- ninguna función que la use. El código admin rotativo (TOTP,
+-- verificar_codigo_admin / configuracion_seguridad) reemplazó al PIN para
+-- autorizar acciones sensibles. Por eso se ELIMINA ese INSERT del trigger.
+--
+-- De paso se endurece la función (recomendación estándar de Supabase para
+-- triggers de Auth SECURITY DEFINER): se califica `public.sucursales` y se
+-- fija un search_path explícito, porque el rol supabase_auth_admin que
+-- dispara el trigger no tiene `public` en su search_path.
 --
 -- Idempotente. Pegar y ejecutar en el SQL Editor de Supabase.
 -- =====================================================================
@@ -38,11 +42,6 @@ BEGIN
         'GAF-' || substring(new.id::text, 1, 8),
         v_sucursal
     );
-
-    -- crypt/gen_salt (pgcrypto) sin calificar: el search_path de arriba cubre
-    -- tanto `extensions` como `public`, donde puede vivir la extensión.
-    INSERT INTO public.usuarios_credenciales (usuario_id, pin_seguridad, pin_debe_cambiar)
-    VALUES (new.id, crypt('1234', gen_salt('bf', 10)), true);
 
     RETURN NEW;
 END;

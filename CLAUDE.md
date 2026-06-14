@@ -17,7 +17,7 @@ POS para una papelería/jarciería con **dos sucursales**: **Tito Centro** (prin
   - `ventas_en_ruta_multisucursal.sql` — reconecta las rutas al stock por sucursal (`producto_stock`) en vez de la columna legacy; agrega `rutas.sucursal_id` y cambia la firma de `iniciar_ruta` a `(p_nombre, p_productos, p_sucursal)`. **Hay que ejecutarlo para que vuelvan a aparecer productos al armar una ruta.**
   - `totp_admin.sql` — código admin rotativo (TOTP).
   - `multisucursal.sql` — multi-sucursal (ver abajo).
-  - `fix_handle_new_user_sucursal.sql` — arregla "Database error creating new user" al crear empleados: la versión multi-sucursal de `handle_new_user` consultaba `sucursales` sin calificar el esquema y el rol `supabase_auth_admin` no tiene `public` en su search_path. Califica `public.sucursales` y fija `SET search_path = public, extensions`.
+  - `fix_handle_new_user_sucursal.sql` — arregla "Database error creating new user" al crear empleados. **Causa real:** el trigger `handle_new_user` insertaba en `usuarios_credenciales` (PIN), tabla que NO existe en producción → fallaba toda alta. El PIN está muerto (lo reemplazó el TOTP `verificar_codigo_admin`); se ELIMINA ese insert. También endurece la función: califica `public.sucursales` + `SET search_path = public, extensions` (el rol `supabase_auth_admin` que dispara el trigger no tiene `public` en su search_path).
   - `sangrias_y_transferencias.sql` — retiros/depósitos de caja y transferencias de stock.
 - ⚠️ Al pegar SQL grande en Supabase puede corromperse (caracteres caídos). Si pasa, pegar en bloques más chicos.
 
