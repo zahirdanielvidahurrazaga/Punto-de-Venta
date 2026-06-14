@@ -29,8 +29,8 @@ export default function Login() {
 
         {/* Brand mark — logo del negocio */}
         <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-4 overflow-hidden shadow-sm">
-            <img src="/tito-logo-mask.png" alt={TIENDA.nombre} className="w-12 h-12 object-contain" />
+          <div className="w-24 h-24 rounded-3xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-4 overflow-hidden shadow-sm">
+            <img src="/tito-logo-mask.png" alt={TIENDA.nombre} className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white text-center leading-tight">
             {TIENDA.nombre}
@@ -98,7 +98,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-10">
+        <p className="text-[9px] text-slate-400 dark:text-slate-500 text-center mt-10">
           Zahir Daniel · Gestión Comercial
         </p>
       </div>
