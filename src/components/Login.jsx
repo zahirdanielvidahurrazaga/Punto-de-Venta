@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Box, Lock, Mail, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
+import { TIENDA } from '../config/tienda';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -26,13 +27,13 @@ export default function Login() {
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900/50">
       <div className="w-full max-w-sm">
 
-        {/* Brand mark — minimal */}
+        {/* Brand mark — logo del negocio */}
         <div className="flex flex-col items-center mb-10">
-          <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center mb-4">
-            <Box className="w-6 h-6 text-white" />
+          <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-4 overflow-hidden shadow-sm">
+            <img src="/tito-logo-mask.png" alt={TIENDA.nombre} className="w-12 h-12 object-contain" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
-            Plásticos POS
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white text-center leading-tight">
+            {TIENDA.nombre}
           </h1>
           <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
             Inicia sesión en tu cuenta
