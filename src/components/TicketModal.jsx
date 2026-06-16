@@ -56,9 +56,9 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
               width: 72mm;
               padding: 3mm 2mm 8mm;
               color: #000;
-              font-family: 'Courier New', Courier, monospace;
+              font-family: Consolas, 'Courier New', monospace;
               font-size: 12px;
-              font-weight: 600;
+              font-weight: 500;
               line-height: 1.4;
               -webkit-font-smoothing: none;
               word-break: break-word;
