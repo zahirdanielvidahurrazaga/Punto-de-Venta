@@ -49,16 +49,18 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
           <meta charset="utf-8" />
           <title>Ticket</title>
           <style>
+            @page { margin: 0; size: 80mm auto; }
             * { box-sizing: border-box; }
             html, body { margin: 0; padding: 0; background: #fff; }
             body {
-              width: 80mm;
-              padding: 4mm 3mm 6mm;
+              width: 72mm;
+              padding: 3mm 2mm 8mm;
               color: #000;
               font-family: 'Courier New', Courier, monospace;
               font-size: 12px;
-              line-height: 1.35;
+              line-height: 1.4;
               -webkit-font-smoothing: none;
+              word-break: break-word;
             }
             .center { text-align: center; }
             .bold { font-weight: 700; }
@@ -66,11 +68,10 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
             .small { font-size: 11px; }
             .row { display: flex; justify-content: space-between; gap: 6px; }
             .name { font-weight: 700; word-break: break-word; }
-            .item { margin-bottom: 5px; }
+            .item { margin-bottom: 6px; page-break-inside: avoid; }
             .sep { border-top: 1px dashed #000; margin: 6px 0; }
             .total { font-size: 16px; font-weight: 800; }
             .head { margin-bottom: 4px; }
-            @media print { @page { margin: 0; size: 80mm auto; } }
           </style>
         </head>
         <body>
@@ -93,13 +94,20 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
 
   const handlePrint = () => {
     const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
     document.body.appendChild(iframe);
 
     const printDoc = iframe.contentWindow.document;
     printDoc.open();
     printDoc.write(buildTicketHTML());
-    printDoc.write(`<script>window.onload=function(){window.focus();window.print();setTimeout(function(){window.parent.document.body.removeChild(window.frameElement);},800);};<\/script>`);
+    printDoc.write(`<script>
+      window.addEventListener('load', function() {
+        setTimeout(function() { window.focus(); window.print(); }, 150);
+      });
+      window.addEventListener('afterprint', function() {
+        try { window.parent.document.body.removeChild(window.frameElement); } catch(e) {}
+      });
+    <\/script>`);
     printDoc.close();
   };
 
