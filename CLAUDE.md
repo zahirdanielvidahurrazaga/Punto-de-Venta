@@ -74,6 +74,22 @@ Avisos para el admin en 4 eventos: **stock bajo/agotado, asistencia (entrada/sal
 - **Acción hecha 11-jun:** se respondió a App Review en Resolution Center citando la aprobación de unlisted; se hizo **Remove** del item con build 2 del envío y se **reenvió con el build 3**. Esperando veredicto de App Review.
 - **OJO para subir builds nuevos:** subir `CURRENT_PROJECT_VERSION` en `ios/App/App.xcodeproj/project.pbxproj` (Debug+Release), `npm run build`, `npx cap copy ios`, Archive en Xcode. El bundle web vive en `ios/App/App/public/` — verificar su fecha tras `cap copy` para confirmar que lleva el código actual.
 
+## Impresora térmica (PC de caja)
+
+- **Modelo:** POS-80, driver 11.3.0.1, USB001, resolución 203 DPI, modo gráfico (Print as image).
+- **Área imprimible real:** 72 mm (papel 80 mm total — el driver lo reporta como `80(72)`).
+- **Sin cajón de dinero** — configurar en Propiedades → Configuración del dispositivo → Cash Drawer → **None**. Si no se hace, la impresora genera un error silencioso antes de cada impresión.
+- **Ticket (`src/components/TicketModal.jsx`):**
+  - CSS: `@page { margin:0; size:80mm auto }` al top-level (fuera de `@media print`).
+  - `body { width:70mm; padding:3mm 4mm 8mm; font-family:'Lucida Console',Consolas,monospace; font-weight:400; }` — 70 mm deja un buffer de 2 mm respecto al área imprimible para evitar cortes en el borde derecho.
+  - Texto en negrita: `.bold { font-weight:700 }` — encabezados, totales y precios. El weight 400 base es suficiente para texto corriente a 203 DPI con Lucida Console.
+  - `handlePrint` usa un `<iframe>` invisible; dispara `window.print()` tras 150 ms en `load` y limpia el iframe con `afterprint` (no con `setTimeout`).
+- **Impresión sin diálogo de Chrome:**
+  - Script `C:\Proyectos\punto-de-venta.bat`: cierra Chrome y lo relanza con `--kiosk-printing --app="https://punto-de-venta-car.pages.dev/"`.
+  - El acceso directo del escritorio apunta al `.bat` con ventana minimizada.
+  - La primera impresión en una PC nueva sí muestra el diálogo; hay que seleccionar POS-80, Márgenes: Ninguno, sin encabezados — Chrome lo recuerda para esa impresora.
+- **Checklist para PC nueva:** (1) instalar driver POS-80, (2) deshabilitar Cash Drawer, (3) copiar/crear `punto-de-venta.bat`, (4) crear acceso directo apuntando al `.bat` con ventana minimizada, (5) primera impresión manual para fijar ajustes en Chrome.
+
 ## Pendientes / fuera de alcance
 - **Android (pendiente, OTRA PC):** todo el flujo de Android Studio / generación del AAB se hace en la otra PC; este equipo (Mac) solo cubre iOS. Falta empaquetar/subir la versión con el código del 10-jun para Google Play.
 - **Costos y gastos**: el dueño los maneja por fuera; por eso el sistema mide ingresos, no utilidad. La valuación de inventario es a **precio de venta**.
