@@ -58,14 +58,15 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
               color: #000;
               font-family: 'Courier New', Courier, monospace;
               font-size: 12px;
+              font-weight: 600;
               line-height: 1.4;
               -webkit-font-smoothing: none;
               word-break: break-word;
             }
             .center { text-align: center; }
             .bold { font-weight: 700; }
-            .big { font-size: 15px; letter-spacing: 0.5px; }
-            .small { font-size: 11px; }
+            .big { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; }
+            .small { font-size: 12px; }
             .row { display: flex; justify-content: space-between; gap: 6px; }
             .name { font-weight: 700; word-break: break-word; }
             .item { margin-bottom: 6px; page-break-inside: avoid; }
