@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, TrendingDown, DollarSign, AlertTriangle, CreditCard, Banknote,
   Building2, Wallet, BarChart3, ShoppingBag, ArrowUpRight,
-  CheckCircle, Loader2, Filter, Sparkles, Store, ChevronDown
+  CheckCircle, Loader2, Sparkles, Store, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useRealtime } from '../lib/useRealtime';
 
 const SUB_TABS = [
   { key: 'resumen',    label: 'Resumen'       },
@@ -204,10 +205,25 @@ export default function Dashboard({ ventas: ventasProp = [], userName = 'Admin' 
   }, [subTab, sucursalFiltro]);
 
   useEffect(() => {
-    if (subTab === 'analisis' && todosProductos.length === 0) fetchTodosProductos();
+    // Depende también de la sucursal: el análisis y el comparativo cambian al
+    // cambiar el filtro, no solo al cambiar de pestaña.
+    if (subTab === 'analisis') fetchTodosProductos();
     if (subTab === 'sucursales') fetchResumenSucursales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subTab]);
+  }, [subTab, sucursalFiltro]);
+
+  // Panel en vivo: cajas que se abren o cierran, existencias y ventas nuevas.
+  // (las ventas llegan por props desde App, que ya está suscrito).
+  useRealtime('sesiones_caja', () => { fetchCajasAbiertas(); fetchSesiones(); });
+
+  useRealtime(
+    ['producto_stock', 'ventas'],
+    () => {
+      if (subTab === 'analisis') fetchTodosProductos();
+      if (subTab === 'sucursales') fetchResumenSucursales();
+    },
+    { activo: subTab === 'analisis' || subTab === 'sucursales' }
+  );
 
   const fetchResumenSucursales = async () => {
     const hace30 = new Date();
@@ -275,11 +291,26 @@ export default function Dashboard({ ventas: ventasProp = [], userName = 'Admin' 
   const fetchTodosProductos = async () => {
     setLoadingAnalisis(true);
     try {
+      // El stock real vive en producto_stock (una fila por sucursal).
+      // productos.stock es una columna legacy que solo sigue a la principal:
+      // al filtrar por Aviación mostraba las existencias de Centro.
       const { data } = await supabase
-        .from('productos')
-        .select('id, nombre, sku, categoria, stock')
-        .order('nombre');
-      setTodosProductos(data || []);
+        .from('producto_stock')
+        .select('stock, sucursal_id, productos!inner(id, nombre, sku, categoria, activo)');
+
+      const porProducto = new Map();
+      for (const fila of data || []) {
+        const p = fila.productos;
+        if (!p || p.activo === false) continue;
+        if (sucursalFiltro !== 'todas' && fila.sucursal_id !== sucursalFiltro) continue;
+        const acumulado = porProducto.get(p.id);
+        if (acumulado) acumulado.stock += fila.stock || 0;
+        else porProducto.set(p.id, { ...p, stock: fila.stock || 0 });
+      }
+
+      setTodosProductos(
+        [...porProducto.values()].sort((a, b) => a.nombre.localeCompare(b.nombre))
+      );
     } catch (e) { console.error(e); }
     finally { setLoadingAnalisis(false); }
   };
@@ -567,9 +598,6 @@ export default function Dashboard({ ventas: ventasProp = [], userName = 'Admin' 
                   <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">Transacciones Recientes</h2>
                   <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Últimas operaciones del periodo</p>
                 </div>
-                <button className="text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors inline-flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5" /> Filtrar
-                </button>
               </div>
               <div className="overflow-x-auto neb-scroll">
                 <table className="w-full min-w-[600px] text-sm">

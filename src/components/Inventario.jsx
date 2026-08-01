@@ -6,6 +6,7 @@ import {
   Settings2, X, ChevronRight, Layers, Printer, Store, ArrowLeftRight, Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useRealtime } from '../lib/useRealtime';
 import ProductModal from './ProductModal';
 import EtiquetaModal from './EtiquetaModal';
 import TransferenciaModal from './TransferenciaModal';
@@ -578,6 +579,12 @@ function HistorialTab({ sucursal }) {
 
   useEffect(() => { fetchMovimientos(); }, [diasFiltro, sucursal]);
 
+  // El historial de movimientos se alimenta solo (ventas, recepciones, ajustes).
+  useRealtime(
+    { tabla: 'movimientos_inventario', filtro: sucursal ? `sucursal_id=eq.${sucursal}` : undefined },
+    () => fetchMovimientos()
+  );
+
   const fetchMovimientos = async () => {
     setLoading(true);
     try {
@@ -748,8 +755,8 @@ export default function Inventario({ isAdmin, userProfile }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchProductos(); }, [vistaSucursal]);
 
-  const fetchProductos = async () => {
-    setLoading(true);
+  const fetchProductos = async ({ silencioso = false } = {}) => {
+    if (!silencioso) setLoading(true);
     try {
       const { data, error } = await supabase
         .rpc('productos_de_sucursal', { p_sucursal: vistaSucursal || sucursalId });
@@ -758,9 +765,20 @@ export default function Inventario({ isAdmin, userProfile }) {
     } catch (err) {
       console.error('Error fetching products:', err.message);
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   };
+
+  // Catálogo y existencias en vivo: ventas, recepciones y transferencias de
+  // cualquier dispositivo se reflejan sin recargar.
+  useRealtime(
+    [
+      { tabla: 'producto_stock', filtro: `sucursal_id=eq.${vistaSucursal || sucursalId}` },
+      { tabla: 'productos' },
+    ],
+    () => fetchProductos({ silencioso: true }),
+    { activo: !!(vistaSucursal || sucursalId) }
+  );
 
   // Único punto de cambio de stock: opera sobre la sucursal que se está viendo
   // (el admin puede gestionar cualquiera; el empleado, solo la suya).

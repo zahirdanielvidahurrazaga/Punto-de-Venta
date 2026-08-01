@@ -6,6 +6,7 @@ import {
   Building2, Wallet, DollarSign, Printer, Store, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useRealtime } from '../lib/useRealtime';
 
 const ESTADOS = [
   { key: 'todos',     label: 'Todos'      },
@@ -635,6 +636,9 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
 
   useEffect(() => { fetchPedidos(); }, []);
 
+  // Agenda en vivo: un pedido levantado en la otra caja aparece solo.
+  useRealtime(['pedidos_programados', 'pedido_items'], () => fetchPedidos());
+
   useEffect(() => {
     if (!isAdmin) return;
     supabase.from('sucursales').select('id, nombre').eq('activa', true).order('nombre')
@@ -680,9 +684,12 @@ export default function PedidosProgramados({ userProfile, isAdmin }) {
     });
   };
 
-  const pedidosScope = (isAdmin && sucursalFiltro !== 'todas')
-    ? pedidos.filter(p => p.sucursal_id === sucursalFiltro)
-    : pedidos;
+  // El admin elige qué sucursal ver; el empleado solo ve la agenda de la suya.
+  const pedidosScope = isAdmin
+    ? (sucursalFiltro !== 'todas' ? pedidos.filter(p => p.sucursal_id === sucursalFiltro) : pedidos)
+    : (userProfile?.sucursal_id
+        ? pedidos.filter(p => p.sucursal_id === userProfile.sucursal_id)
+        : pedidos);
   const filtrados   = pedidosScope.filter(p => statusFilter === 'todos' || p.estado === statusFilter);
   const urgentCount = pedidosScope.filter(p => p.estado === 'pendiente' && ['hoy','vencido'].includes(urgencia(p.fecha_entrega))).length;
 

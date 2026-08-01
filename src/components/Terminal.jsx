@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Lock, Plus, Minus, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useRealtime } from '../lib/useRealtime';
 import CheckoutModal from './CheckoutModal';
 import TicketModal from './TicketModal';
 
@@ -33,8 +34,8 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile?.sucursal_id]);
 
-  const fetchProductos = async () => {
-    setLoading(true);
+  const fetchProductos = async ({ silencioso = false } = {}) => {
+    if (!silencioso) setLoading(true);
     try {
       const { data, error } = await supabase
         .rpc('productos_de_sucursal', { p_sucursal: userProfile?.sucursal_id });
@@ -43,9 +44,21 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     } catch (error) {
       console.error('Error fetching products:', error.message);
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   };
+
+  // Stock en vivo: recepción de mercancía, transferencias entre sucursales o
+  // una venta de la otra caja se reflejan aquí sin recargar. Se refresca en
+  // silencio para no parpadear la rejilla mientras el cajero está cobrando.
+  useRealtime(
+    [
+      { tabla: 'producto_stock', filtro: `sucursal_id=eq.${userProfile?.sucursal_id}` },
+      { tabla: 'productos' },
+    ],
+    () => fetchProductos({ silencioso: true }),
+    { activo: !!userProfile?.sucursal_id }
+  );
 
   useEffect(() => {
     if (!isCheckoutOpen && !isTicketOpen && !isCartMobileOpen && !isPinModalOpen) {
@@ -142,11 +155,10 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     if (isAdmin) {
       action();
     } else {
-      if (checkPinLockout()) {
-        setPinError('');
-      } else {
-        setPinError('');
-      }
+      // Refresca el estado de bloqueo antes de abrir; el modal ya sabe mostrar
+      // la cuenta regresiva y ocultar el campo cuando está bloqueado.
+      checkPinLockout();
+      setPinError('');
       setPinAction(() => action);
       setPinInput('');
       setIsPinModalOpen(true);

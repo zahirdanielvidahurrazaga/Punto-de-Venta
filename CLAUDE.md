@@ -90,6 +90,27 @@ Avisos para el admin en 4 eventos: **stock bajo/agotado, asistencia (entrada/sal
   - La primera impresión en una PC nueva sí muestra el diálogo; hay que seleccionar POS-80, Márgenes: Ninguno, sin encabezados — Chrome lo recuerda para esa impresora.
 - **Checklist para PC nueva:** (1) instalar driver POS-80, (2) deshabilitar Cash Drawer, (3) copiar/crear `punto-de-venta.bat`, (4) crear acceso directo apuntando al `.bat` con ventana minimizada, (5) primera impresión manual para fijar ajustes en Chrome.
 
+## Sesión 2026-07-31 — limpieza previa al arranque real + realtime + auditoría
+El negocio **empieza a usar el POS de verdad el 2026-08-01**. El proyecto de Supabase había quedado **pausado** y se reactivó.
+
+**Limpieza de datos (hecha, vía API REST con service_role).** Todo lo que había era de pruebas del 16–23 de junio. Se borró: 10 ventas + detalles, 3 sesiones de caja, 1 movimiento de caja, 3 asistencias, 15 movimientos de inventario, 1 pedido programado + partida, 1 ruta + carga, notificaciones y push_tokens; stock a 0 (en `producto_stock` **y** en la columna legacy `productos.stock`); se eliminaron los 3 empleados de prueba (`ejemplo@`, `d@`, `e1@plasticos.com`). **Quedan solo** el admin `admin@plasticos.com` (Carlos Carbajal) y los 215 productos del catálogo. Poner stock a 0 dispara el trigger de aviso de stock agotado — hubo que limpiar `notificaciones` otra vez al final.
+
+**Verificado en vivo:** las 14 RPCs que usa el front existen en la BD con la firma correcta (se comparó contra el esquema OpenAPI de PostgREST, no adivinando); `productos_de_sucursal` sigue devolviendo mayoreo; las Edge Functions `crear-empleado` y `enviar-push` están desplegadas; el alta de empleado funciona de punta a punta (crear usuario → el trigger `handle_new_user` genera perfil + gafete QR → asignar sucursal → borrar limpia en cascada).
+
+**⚠️ Falta correr `scripts/realtime_y_sucursal_caja.sql`** en el SQL Editor. Sin ese script el realtime no funciona (los canales se conectan pero nunca llegan eventos). El token de la CLI en el llavero es de OTRA cuenta de Supabase (Befitlab/CARPERfit/Santuario), así que **el SQL de este proyecto no se puede aplicar por API: hay que pegarlo a mano**.
+
+### Bugs corregidos
+- **`sesiones_caja.sucursal_id` siempre en NULL.** `CajaModal` insertaba la apertura sin la sucursal. Como Reportes → "Cortes de caja" y Dashboard → "Cajas abiertas"/"Flujo" filtran con `sucursal_id = ...`, al elegir una sucursal **no aparecía ningún corte**. Los retiros/depósitos heredaban el NULL desde `registrar_movimiento_caja`. Arreglado en la app **y** con trigger `completar_sucursal_caja` en la BD (red de seguridad para apps viejas de iOS/Android).
+- **El historial de ventas estaba capado a 50 filas.** `App.fetchVentas` traía "las últimas 50 ventas" sin filtro de fecha. Con dos sucursales cobrando, 50 tickets se acaban en unas horas y el Dashboard y Pedidos mostraban **números incompletos del propio día, sin avisar**. Ahora se trae por ventana de fechas (`DIAS_HISTORIAL = 45`, tope 3000). Nota: el selector de fecha de Pedidos solo alcanza dentro de esa ventana.
+- **El empleado veía el movimiento de la otra sucursal** (ventas y pedidos programados). Las ventas ahora se piden filtradas por su `sucursal_id` y la agenda se acota igual. Ojo: la RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`), esto es alcance de UI, no de seguridad.
+- **Dashboard → Análisis usaba `productos.stock`** (columna legacy que solo sigue a la sucursal principal): al filtrar por Aviación mostraba las existencias de Centro. Ahora agrega desde `producto_stock` según el filtro.
+- **Resumen del turno por sesión.** `CajaModal` sumaba "ventas de este usuario desde tal hora"; ahora usa `sesion_caja_id`, que es la relación exacta que ya guarda `registrar_venta` y no depende del reloj.
+- **Código muerto:** en `Terminal.requireAdminAction` las dos ramas del `if` de bloqueo hacían lo mismo; y el Dashboard tenía un botón **"Filtrar"** en Transacciones Recientes que no hacía nada (se quitó).
+
+### Realtime
+Antes solo `NotificacionesCenter` estaba suscrito. Se agregó el hook **`src/lib/useRealtime.js`** (agrupa los eventos con 400 ms de espera, porque una venta dispara cambios en cuatro tablas) y se conectó en:
+`App` (ventas; y caja/asistencia del empleado) · `Terminal` (stock de su sucursal, refresco silencioso para no parpadear al cobrar) · `Inventario` (catálogo, stock e historial) · `Dashboard` (cajas abiertas, flujo, análisis y comparativo) · `Reportes` (asistencias y cortes) · `PedidosProgramados` · `Equipo`.
+
 ## Pendientes / fuera de alcance
 - **Android (pendiente, OTRA PC):** todo el flujo de Android Studio / generación del AAB se hace en la otra PC; este equipo (Mac) solo cubre iOS. Falta empaquetar/subir la versión con el código del 10-jun para Google Play.
 - **Costos y gastos**: el dueño los maneja por fuera; por eso el sistema mide ingresos, no utilidad. La valuación de inventario es a **precio de venta**.

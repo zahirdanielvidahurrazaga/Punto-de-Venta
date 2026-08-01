@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Loader2, Wallet, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useRealtime } from '../lib/useRealtime';
 
 export default function CajaModal({ userProfile, onStatusChange }) {
   const [sessionCaja, setSessionCaja] = useState(null);
@@ -57,11 +58,12 @@ export default function CajaModal({ userProfile, onStatusChange }) {
   const fetchResumenVentas = async (session) => {
     setLoadingResumen(true);
     try {
+      // Por sesión, no por "ventas del usuario desde tal hora": es la relación
+      // exacta que ya guarda registrar_venta y no depende del reloj.
       const { data, error } = await supabase
         .from('ventas')
         .select('pago_efectivo, pago_tarjeta, pago_transferencia')
-        .eq('user_id', userProfile.id)
-        .gte('fecha', session.fecha_apertura);
+        .eq('sesion_caja_id', session.id);
 
       if (error) throw error;
 
@@ -81,6 +83,21 @@ export default function CajaModal({ userProfile, onStatusChange }) {
       setLoadingResumen(false);
     }
   };
+
+  // Si se cobra o se hace un retiro desde otro dispositivo con esta misma
+  // caja abierta, el resumen y el efectivo esperado se recalculan solos.
+  useRealtime(
+    [
+      { tabla: 'ventas', filtro: `sesion_caja_id=eq.${sessionCaja?.id}` },
+      { tabla: 'movimientos_caja', filtro: `sesion_caja_id=eq.${sessionCaja?.id}` },
+    ],
+    () => {
+      if (!sessionCaja) return;
+      fetchResumenVentas(sessionCaja);
+      fetchMovimientos(sessionCaja.id);
+    },
+    { activo: !!sessionCaja?.id }
+  );
 
   const fetchMovimientos = async (sesionId) => {
     try {
@@ -127,6 +144,9 @@ export default function CajaModal({ userProfile, onStatusChange }) {
         .from('sesiones_caja')
         .insert([{
           usuario_id: userProfile.id,
+          // Sin esto la sesión quedaba con sucursal_id NULL y los cortes
+          // desaparecían al filtrar por sucursal en Reportes y Dashboard.
+          sucursal_id: userProfile.sucursal_id || null,
           fondo_inicial: totalFondo,
           estado: 'abierta',
           observaciones: observacionesApertura,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useRealtime } from '../lib/useRealtime';
 import {
   Loader2, FileText, Clock, Wallet,
   AlertTriangle, CheckCircle, Timer, ShoppingBag, ChevronDown
@@ -68,6 +69,12 @@ export default function Reportes() {
   }, []);
 
   useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTab, filtro, sucursalFiltro]);
+
+  // Reporte en vivo: una checada o un corte aparecen sin recargar.
+  useRealtime(
+    ['registro_asistencia', 'sesiones_caja', 'movimientos_caja', 'ventas'],
+    () => fetchData()
+  );
 
   const fetchData = async () => {
     setLoading(true);
