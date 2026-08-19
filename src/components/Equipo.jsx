@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Loader2, QrCode, Printer, X, UserPlus, Store, Mail, Lock, User, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Users, Loader2, QrCode, Printer, X, UserPlus, Store, Mail, Lock, User, RefreshCw, CheckCircle2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
 import QRCodeLib from 'react-qr-code';
@@ -21,6 +21,11 @@ export default function Equipo() {
   const [creando, setCreando] = useState(false);
   const [formError, setFormError] = useState('');
   const [creado, setCreado] = useState(null); // { email, password } tras crear
+
+  // Baja de empleado
+  const [bajaTarget, setBajaTarget] = useState(null); // el empleado a dar de baja
+  const [bajaBusy, setBajaBusy] = useState(false);
+  const [bajaError, setBajaError] = useState('');
 
   const abrirModal = () => {
     setForm({ nombre_completo: '', email: '', password: generarPassword(), sucursal_id: '' });
@@ -125,6 +130,26 @@ export default function Equipo() {
       ));
     } catch (error) {
       alert("Error al generar código: " + error.message);
+    }
+  };
+
+  // Da de baja al empleado: borra su cuenta y su acceso al sistema. El RPC
+  // valida que quien llama sea admin. Sus ventas y cortes de caja se conservan
+  // con el nombre congelado (ver scripts/fix_borrar_cuenta_fks.sql).
+  const handleEliminarEmpleado = async () => {
+    if (!bajaTarget) return;
+    setBajaBusy(true);
+    setBajaError('');
+    try {
+      const { error } = await supabase.rpc('eliminar_empleado', { p_usuario: bajaTarget.id });
+      if (error) throw error;
+
+      setEmpleados(prev => prev.filter(emp => emp.id !== bajaTarget.id));
+      setBajaTarget(null);
+    } catch (error) {
+      setBajaError(error.message || 'No se pudo dar de baja al empleado.');
+    } finally {
+      setBajaBusy(false);
     }
   };
 
@@ -342,7 +367,7 @@ export default function Equipo() {
                   </div>
                 )}
 
-                <div className="w-full border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
+                <div className="w-full border-t border-slate-100 dark:border-slate-800 pt-4 mt-4 space-y-2">
                   {empleado.codigo_gafete ? (
                     <button onClick={() => handlePrint(empleado.id)} className="w-full neb-btn neb-btn-primary">
                       <Printer className="w-4 h-4" /> Imprimir gafete
@@ -352,9 +377,49 @@ export default function Equipo() {
                       <QrCode className="w-4 h-4" /> Generar código
                     </button>
                   )}
+                  <button
+                    onClick={() => { setBajaError(''); setBajaTarget(empleado); }}
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-[0.625rem] font-semibold text-[0.8125rem] text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Dar de baja
+                  </button>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Confirmación de baja */}
+        {bajaTarget && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-md p-4"
+            onClick={() => !bajaBusy && setBajaTarget(null)}>
+            <div className="neb-glass-strong rounded-3xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="p-6 text-center">
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-500/15 flex items-center justify-center mb-4">
+                  <Trash2 className="w-7 h-7 text-rose-600 dark:text-rose-400" />
+                </div>
+                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">¿Dar de baja a este empleado?</h2>
+                <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200 break-words">{bajaTarget.nombre_completo}</p>
+                <p className="mt-3 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  Se elimina su cuenta y pierde el acceso al sistema. Sus
+                  ventas y cortes de caja <strong className="text-slate-700 dark:text-slate-200">se conservan</strong> a
+                  su nombre. Sus checadas de asistencia sí se borran. Esta acción no se puede deshacer.
+                </p>
+                {bajaError && (
+                  <p className="mt-4 text-[12px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 py-2.5 px-3 rounded-xl break-words">
+                    {bajaError}
+                  </p>
+                )}
+              </div>
+              <div className="p-4 pt-0 flex gap-2.5">
+                <button type="button" onClick={() => setBajaTarget(null)} disabled={bajaBusy}
+                  className="flex-1 neb-btn neb-btn-ghost py-3 disabled:opacity-50">Cancelar</button>
+                <button type="button" onClick={handleEliminarEmpleado} disabled={bajaBusy}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-[0.625rem] font-semibold text-[0.8125rem] text-white bg-rose-600 hover:bg-rose-700 transition-colors disabled:opacity-60">
+                  {bajaBusy ? <><Loader2 className="w-4 h-4 animate-spin" /> Dando de baja…</> : <><Trash2 className="w-4 h-4" /> Dar de baja</>}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

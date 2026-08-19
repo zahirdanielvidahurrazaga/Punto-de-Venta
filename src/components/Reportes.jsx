@@ -331,10 +331,11 @@ export default function Reportes() {
 
                   <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar name={caja.usuarios_perfiles?.nombre_completo} />
+                      <Avatar name={caja.usuarios_perfiles?.nombre_completo || caja.usuario_nombre} />
                       <div className="min-w-0">
                         <p className="font-medium text-slate-900 dark:text-white truncate">
-                          {caja.usuarios_perfiles?.nombre_completo || 'Desconocido'}
+                          {/* usuario_nombre es el snapshot que queda cuando se elimina la cuenta */}
+                          {caja.usuarios_perfiles?.nombre_completo || caja.usuario_nombre || 'Desconocido'}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                           <span className="flex items-center gap-1 neb-tabular">
