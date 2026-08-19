@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Lock, Plus, Minus, Sparkles } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, Minus, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
 import CheckoutModal from './CheckoutModal';
@@ -13,21 +13,11 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
 
-  // Pin Modal State
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [pinAction, setPinAction] = useState(null);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [pinLockoutTime, setPinLockoutTime] = useState(null);
-
   // Toast State
   const [toastMessage, setToastMessage] = useState(null);
 
   const [isCartMobileOpen, setIsCartMobileOpen] = useState(false);
   const inputRef = useRef(null);
-  const pinInputRef = useRef(null);
-
-  const isAdmin = userProfile?.rol === 'admin';
 
   useEffect(() => {
     fetchProductos();
@@ -61,12 +51,10 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   );
 
   useEffect(() => {
-    if (!isCheckoutOpen && !isTicketOpen && !isCartMobileOpen && !isPinModalOpen) {
+    if (!isCheckoutOpen && !isTicketOpen && !isCartMobileOpen) {
       inputRef.current?.focus();
-    } else if (isPinModalOpen) {
-      pinInputRef.current?.focus();
     }
-  }, [isCheckoutOpen, isTicketOpen, isCartMobileOpen, isPinModalOpen]);
+  }, [isCheckoutOpen, isTicketOpen, isCartMobileOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -75,7 +63,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
         handleStartCheckout();
       } else if (e.key === 'F2') {
         e.preventDefault();
-        requireAdminAction(() => setCart([]));
+        setCart([]);
       } else if (e.key === 'F4') {
         e.preventDefault();
         inputRef.current?.focus();
@@ -137,95 +125,11 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     setTimeout(() => setToastMessage(null), 2000);
   };
 
-  const checkPinLockout = () => {
-    const lockout = localStorage.getItem('pin_lockout_time');
-    if (lockout && Date.now() < parseInt(lockout)) {
-      setPinLockoutTime(parseInt(lockout));
-      return true;
-    }
-    if (lockout && Date.now() >= parseInt(lockout)) {
-      localStorage.removeItem('pin_lockout_time');
-      localStorage.setItem('pin_attempts', '0');
-      setPinLockoutTime(null);
-    }
-    return false;
-  };
-
-  const requireAdminAction = (action) => {
-    if (isAdmin) {
-      action();
-    } else {
-      // Refresca el estado de bloqueo antes de abrir; el modal ya sabe mostrar
-      // la cuenta regresiva y ocultar el campo cuando está bloqueado.
-      checkPinLockout();
-      setPinError('');
-      setPinAction(() => action);
-      setPinInput('');
-      setIsPinModalOpen(true);
-    }
-  };
-
-  const handlePinSubmit = async (e) => {
-    e.preventDefault();
-    if (checkPinLockout()) return;
-
-    try {
-      const { data: isValid, error } = await supabase
-        .rpc('verificar_codigo_admin', { codigo_ingresado: pinInput });
-
-      if (isValid && !error) {
-        localStorage.setItem('pin_attempts', '0');
-        setIsPinModalOpen(false);
-        if (pinAction) pinAction();
-      } else {
-        let attempts = parseInt(localStorage.getItem('pin_attempts') || '0') + 1;
-        localStorage.setItem('pin_attempts', attempts.toString());
-
-        if (attempts >= 3) {
-          const lockoutTime = Date.now() + 3 * 60 * 1000;
-          localStorage.setItem('pin_lockout_time', lockoutTime.toString());
-          setPinLockoutTime(lockoutTime);
-          setPinError('Demasiados intentos. Bloqueado por 3 minutos.');
-        } else {
-          setPinError(`Código incorrecto. Intentos restantes: ${3 - attempts}`);
-        }
-      }
-    } catch (err) {
-      setPinError('Error verificando el código');
-    }
-  };
-
-  useEffect(() => {
-    let interval;
-    if (pinLockoutTime) {
-      interval = setInterval(() => {
-        if (Date.now() >= pinLockoutTime) {
-          localStorage.removeItem('pin_lockout_time');
-          localStorage.setItem('pin_attempts', '0');
-          setPinLockoutTime(null);
-        } else {
-          setPinLockoutTime(parseInt(localStorage.getItem('pin_lockout_time')));
-        }
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [pinLockoutTime]);
-
   const removeFromCart = (id) => {
-    requireAdminAction(() => {
-      setCart(prev => prev.filter(item => item.id !== id));
-    });
+    setCart(prev => prev.filter(item => item.id !== id));
   };
 
   const updateQuantity = (id, delta) => {
-    if (delta < 0) {
-      requireAdminAction(() => updateQuantityLogic(id, delta));
-    } else {
-      updateQuantityLogic(id, delta);
-    }
-  };
-
-  const updateQuantityLogic = (id, delta) => {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const newQ = item.quantity + delta;
@@ -293,7 +197,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             {itemsCount} items
           </span>
           <button
-            onClick={() => requireAdminAction(() => setCart([]))}
+            onClick={() => setCart([])}
             className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-bold hover:bg-rose-100 transition-colors"
             title="Limpiar (F2)"
           >
@@ -507,65 +411,6 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
           <div className="neb-glass-strong px-5 py-3 rounded-2xl font-bold flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
             <Sparkles className="w-4 h-4 text-accent-500" />
             {toastMessage}
-          </div>
-        </div>
-      )}
-
-      {/* PIN Modal */}
-      {isPinModalOpen && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="neb-glass-strong rounded-3xl w-full max-w-sm p-7">
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-3">
-                <Lock className="w-6 h-6 text-rose-500" />
-              </div>
-              <h3 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Acción restringida</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold mt-1.5">
-                {pinLockoutTime
-                  ? 'Demasiados intentos fallidos'
-                  : 'Ingresa el código de administrador (cambia cada 30 s)'}
-              </p>
-            </div>
-            <form onSubmit={handlePinSubmit} className="space-y-3.5">
-              {pinLockoutTime ? (
-                <div className="text-center p-4 bg-rose-50 border border-rose-100 rounded-2xl">
-                  <p className="text-rose-600 font-extrabold text-sm">Bloqueado temporalmente</p>
-                  <p className="text-rose-500 text-sm mt-1 font-mono">
-                     {Math.max(0, Math.ceil((pinLockoutTime - Date.now()) / 1000))}s restantes
-                  </p>
-                </div>
-              ) : (
-                <input
-                  ref={pinInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  className="neb-input text-center text-2xl tracking-[0.5em] font-mono"
-                  placeholder="------"
-                  maxLength={6}
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-                  autoComplete="off"
-                />
-              )}
-              {pinError && <p className="text-rose-600 text-xs text-center font-bold bg-rose-50 border border-rose-100 py-2 rounded-xl">{pinError}</p>}
-              <div className="flex gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsPinModalOpen(false)}
-                  className="flex-1 neb-btn neb-btn-ghost py-3"
-                >
-                  Cancelar
-                </button>
-                {!pinLockoutTime && (
-                  <button
-                    type="submit"
-                    className="flex-1 neb-btn neb-btn-primary py-3"
-                  >
-                    Autorizar
-                  </button>
-                )}
-              </div>
-            </form>
           </div>
         </div>
       )}
