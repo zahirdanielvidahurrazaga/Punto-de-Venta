@@ -53,8 +53,22 @@ export default function RelojChecador({ userProfile, onStatusChange }) {
 
     if (!code) return;
 
-    if (code !== userProfile.codigo_gafete) {
-      setScanError('El gafete escaneado no coincide con tu perfil actual.');
+    // El escáner se comporta como teclado y puede mandar todo en mayúsculas
+    // (Caps Lock o configuración del lector). Los gafetes que genera el trigger
+    // traen hex en minúsculas ('GAF-' + los 8 primeros del uuid), así que una
+    // comparación estricta dejaba fuera al empleado sin explicación. Se
+    // normaliza igual que la búsqueda por SKU de la Terminal, que usa el mismo
+    // lector.
+    const normalizar = (s) => (s || '').replace(/\s+/g, '').toLowerCase();
+    const gafete = userProfile.codigo_gafete;
+
+    if (!gafete) {
+      setScanError('Tu cuenta todavía no tiene gafete asignado. Pídele al administrador que lo genere en la pantalla de Equipo.');
+      return;
+    }
+
+    if (normalizar(code) !== normalizar(gafete)) {
+      setScanError(`El gafete escaneado ("${code}") no es el de esta cuenta. Si te dieron un gafete nuevo, usa ese; si el impreso ya no sirve, pide al administrador que lo reimprima desde Equipo.`);
       return;
     }
 
