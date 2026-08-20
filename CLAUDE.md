@@ -140,6 +140,18 @@ Causa: **cinco** FKs sin `ON DELETE` (no sólo la del error) → arreglar una so
 
 **Cómo se aplicó (repetible):** ensayo con `sed 's/^COMMIT;$/ROLLBACK;/'` antes de aplicar en firme — atrapó un error de tipos (`array_agg(att.attname)` da `name[]` vs `text[]`, hay que castear a `::text`) que habría fallado a media migración. Después se probó el borrado real de la cuenta de Jony dentro de `BEGIN … ROLLBACK`: cuenta eliminada, sus 2 cortes conservados con nombre, checada borrada; y los guards del RPC con `SET LOCAL request.jwt.claims` (empleado → rechazado, admin sobre sí mismo → rechazado). BD intacta al terminar.
 
+## Sesión 2026-08-20 — el gafete QR no dejaba checar entrada
+
+Reporte del dueño: los empleados no pueden entrar con el QR para abrir caja. **Dos causas distintas, ambas vigentes:**
+
+1. **Gafetes impresos huérfanos (no es bug).** El dueño estrenó el botón "Dar de baja": borró a Brenda, Empleado y Encargado Jony, y creó una cuenta nueva **"EMPLEADO"** (`GAF-91df93b7`). Los gafetes impresos que traían eran de las cuentas borradas, así que ya no corresponden a nadie. **Solución operativa: reimprimir desde Equipo → tarjeta → "Imprimir gafete".** Consecuencia general: cada baja+alta cambia el código, hay que reimprimir.
+2. **Bug real de mayúsculas (corregido, commit `cbe1625`).** El trigger genera el gafete como `'GAF-' || substring(uuid,1,8)` → trae **hex en minúsculas**; `RelojChecador.jsx` comparaba con `!==` estricto, así que el Caps Lock o un lector configurado en mayúsculas dejaba fuera al empleado. **La Terminal, con el MISMO lector, ya normalizaba con `toLowerCase()` para el SKU** — el escáner estaba bien tratado en una pantalla y mal en la otra. Ahora se normaliza (minúsculas + sin espacios) y el mensaje de error muestra el código leído en vez del inútil "no coincide con tu perfil actual"; también se distingue el caso de cuenta sin gafete asignado.
+   - ⚠️ **Ojo con los dos formatos de gafete:** el trigger produce `GAF-<8 hex>` (con letras minúsculas) y el botón "Generar código" de `Equipo.jsx` produce `GAF-<6 dígitos>`. Sólo el primero era vulnerable al problema de mayúsculas.
+
+**Verificado de paso:** la baja de ayer funcionó como se diseñó — las 2 sesiones de caja de Jony sobrevivieron con `usuario_id = NULL` y `usuario_nombre = 'Encargado Jony'`, y sus checadas se borraron en cascada.
+
+**⚠️ Quedó UNA SOLA cuenta de empleado compartida ("EMPLEADO").** Con eso, todos los cortes, checadas y ventas salen a ese mismo nombre: no se puede saber quién abrió caja, quién cobró ni a quién atribuir un faltante. Ya se le señaló al usuario; si es intencional, respetarlo, pero la trazabilidad se pierde.
+
 ## Pendientes / fuera de alcance
 - **🔴 CARGA MASIVA DE INVENTARIO INICIAL** — lo que hoy impide que el POS se use (ver hallazgo arriba).
 - **Android (pendiente, OTRA PC):** todo el flujo de Android Studio / generación del AAB se hace en la otra PC; este equipo (Mac) solo cubre iOS. Falta empaquetar/subir la versión con el código del 10-jun para Google Play.
