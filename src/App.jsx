@@ -275,8 +275,12 @@ function App() {
     } catch (error) {
       console.error('Error registering sale:', error.message, error);
 
+      // El mensaje de la BD ya dice QUÉ producto falló y con cuántas piezas
+      // ('Stock insuficiente para el producto X (Disponible: 3, Requerido: 5)').
+      // Antes se cambiaba por un texto genérico y el cajero se quedaba sin saber
+      // qué partida quitar del ticket.
       if (error.message && error.message.toLowerCase().includes('stock')) {
-        alert("Stock insuficiente para uno o más productos. Verifica el inventario.");
+        alert(`No se pudo cobrar.\n\n${error.message}\n\nQuita ese producto del ticket o recibe la mercancía antes de cobrar.`);
       } else if (error.message && error.message.includes('No tienes una caja abierta')) {
         alert("Tu caja ha sido cerrada. No puedes realizar cobros.");
         checkWorkStatus();
