@@ -156,8 +156,56 @@ Reporte del dueño: los empleados no pueden entrar con el QR para abrir caja. **
 
 **⚠️ Quedó UNA SOLA cuenta de empleado compartida ("EMPLEADO").** Con eso, todos los cortes, checadas y ventas salen a ese mismo nombre: no se puede saber quién abrió caja, quién cobró ni a quién atribuir un faltante. Ya se le señaló al usuario; si es intencional, respetarlo, pero la trazabilidad se pierde.
 
+## Sesión 2026-08-27 — auditoría del arranque real + no se podía vender sin existencia
+
+### ✅ El negocio YA está usando el POS
+Cambió todo respecto al 19-ago: **32 ventas ($4,674)**, **1,032 movimientos de inventario**, **264 de 736 renglones de `producto_stock` con existencia**, catálogo de **215 → 368 productos**. Cargaron el inventario **a mano**, en tandas (20, 21, 23 y 26 de ago; el 26 metieron 475 movimientos en un día). La cuenta compartida "EMPLEADO" ya no está; ahora es **"Equipo Centro"** (creada el 26-ago) — sigue siendo una sola cuenta compartida, con la misma pérdida de trazabilidad ya señalada.
+
+### Auditoría: todo lo registrado cuadra
+Se bajaron los datos por REST con `service_role` y se cruzaron en local (scripts efímeros, no versionados). **Ni un peso mal calculado:**
+- 32/32 ventas cuadran por tres caminos (total = suma de partidas = suma de pagos).
+- 117/117 partidas con el precio correcto; **3 cayeron en mayoreo** → el fix del 31-jul ya trabajó en ventas reales.
+- 736/736 renglones de stock explicados por su propio historial de movimientos; **0 negativos**.
+- 82/82 productos con descuento de stock exacto contra lo vendido.
+- 9/9 cortes de caja cuadrados (uno con −$6, anotado por el propio cajero).
+- Catálogo: 0 sin precio, 0 sin SKU, 0 duplicados, columna legacy sincronizada. 0 checadas colgadas.
+
+### 🔴 Hallazgo: $53,005 de mercancía salió sin ticket
+Junto a las 32 ventas hay **631 ajustes de inventario a la baja** ("Ajuste manual"), 2,180 piezas, **todos desde la cuenta del admin (Carlos)**. Valuados a precio de venta: **$53,005**, contra $4,674 cobrados en la Terminal.
+
+**No es un conteo físico, son ventas de mostrador.** El 26-ago corren de 10:20 a 18:59 con 14 s de separación mediana; 117 de los 177 productos tocados ese día se ajustaron más de una vez (ATOMIZADOR 250 ML bajó −1 a las 10:41:40 y −2 **siete segundos después**); los deltas son −1 (×420), −2 (×106), −3, −5, −12. El sábado 22 el bloque va de 22:59 a 23:38 — poniéndose al corriente ya cerrada la tienda.
+
+**Causa: el admin no tiene cómo cobrar.** Es exactamente la duda abierta del 31-jul que quedó sin resolver. `canOperateTerminal = isEmpleado && isClockedIn && isCajaOpen` (`App.jsx:309`) → el admin nunca ve el botón de Terminal. Pero `App.jsx:473` ya renderiza la Terminal con `canOperate` (que **sí** incluye al admin) y `registrar_venta` deja explícitamente que el admin venda sin caja. **Falta el botón, no el módulo.** Lo que Carlos hacía en su lugar: abrir la ficha de cada producto en Inventario y bajarle el número a mano (`Inventario.jsx:873`, de ahí la nota "Ajuste manual").
+
+**PENDIENTE — decisión del dueño**, porque cambia lo que ve el Dashboard:
+- **(A)** botón siempre visible, cobra sin caja → ventas con ticket pero `sesion_caja_id` NULL, fuera de todo corte.
+- **(B)** el admin también checa entrada y abre caja → un paso más al día, pero su efectivo cuadra contra fondo y corte. Recomendado si atiende a diario.
+
+Reporte para el dueño publicado como Artifact: https://claude.ai/code/artifact/6ecf4356-0d2a-4845-b9b0-af0bab11e772
+
+### Pedido del dueño: se podían vender productos sin existencia (commit `0afbbb3`)
+Reporte: "se pueden agregar productos al POS para venta aunque no haya en tienda".
+
+**La BD sí lo bloqueaba** — el trigger `descontar_stock` (versión multisucursal, verificada viva en prod porque los `salida_venta` traen `sucursal_id` y cuadran contra `producto_stock`) lanza `Stock insuficiente para el producto X (Disponible: N, Requerido: M)`, y `registrar_venta` lo devuelve como `{ok:false, error:...}`. Nunca hubo sobreventa: **0 existencias en negativo**.
+
+**El problema era dónde y cómo fallaba.** La Terminal no miraba el stock en ningún punto: ni al escanear, ni al subir cantidad, ni en la tarjeta del producto (no mostraba existencia). El cajero armaba el ticket completo, cobraba, y hasta ese momento saltaba un `alert` genérico ("uno o más productos") que **no decía cuál** — y se perdía la venta entera.
+
+Ahora el corte está al escanear, con el cliente enfrente:
+- **Tarjeta de producto:** muestra existencia de la sucursal; en cero sale "Sin existencia" y queda `disabled`. Umbrales alineados con Inventario (≤5 crítico, ≤20 bajo).
+- **`addToCart` / botón `+`:** bloquean y topan en lo disponible ("Sólo quedan 3 pz de X").
+- **Partida del ticket:** si el stock cae con el ticket abierto (otra caja, transferencia), se marca en rojo y **COBRAR se bloquea** nombrando el producto. `sinExistencia` se recalcula en cada render y el realtime de `producto_stock` ya refresca `productos`.
+- **Al cobrar se RELEE el stock de la BD** (`fetchProductos` ahora devuelve los datos), no el de la pantalla: un ticket puede llevar minutos abierto.
+- **Toast con tipo** (`ok` 2 s / `error` 4 s en rojo).
+- **`App.handleRegisterSale`** deja pasar el mensaje real de la BD, que sí nombra producto y piezas.
+
+⚠️ **Efecto operativo esperado:** los **103 productos que nunca se capturaron** quedan visibles pero no vendibles. No se pierde ninguna venta que antes funcionara (la BD ya las rechazaba), pero el hueco se vuelve visible en la pantalla de cobro — es la señal para que los capturen.
+
+⚠️ **NO se probó en la app corriendo:** entrar a la Terminal exige checar entrada y abrir caja, y hacerlo habría dejado una `sesiones_caja` y una checada reales en producción con la tienda vendiendo. Verificado con build limpio y revisión de código.
+
 ## Pendientes / fuera de alcance
-- **🔴 CARGA MASIVA DE INVENTARIO INICIAL** — lo que hoy impide que el POS se use (ver hallazgo arriba).
+- **🔴 EXPONERLE LA TERMINAL AL ADMIN** — falta que el dueño elija (A) o (B); ver sesión 2026-08-27. Mientras no exista, cada venta que atienda Carlos sigue saliendo por "Ajuste manual", sin ticket ni ingreso registrado.
+- **🟡 CARGA MASIVA DE INVENTARIO INICIAL** — ya no bloquea el arranque (cargaron 264 renglones a mano), pero faltan **103 productos en cero en Centro** y **Tito Aviación entera** (0 de 368). Sigue faltando importar CSV/Excel + pantalla de conteo rápido; también sirve para los reabastos.
+- **TIT-0178 BASTON CON ROSCA** tiene precio de mayoreo igual al de menudeo ($15 desde 12 pzas). Error de captura, no cobra de más.
 - **Android (pendiente, OTRA PC):** todo el flujo de Android Studio / generación del AAB se hace en la otra PC; este equipo (Mac) solo cubre iOS. Falta empaquetar/subir la versión con el código del 10-jun para Google Play.
 - **iOS 1.0.2 (build 5)** preparado desde el 31-jul: falta Archive + Upload en Xcode y crear la versión en App Store Connect.
 - **Basura pendiente:** `usuarios_perfiles.pin_seguridad` del admin sigue guardado en **texto plano** (`"1234"`); es residuo del PIN muerto que reemplazó el TOTP y no se usa para nada. No hay forma de cerrar una checada colgada desde la UI (la de Jony lleva días abierta). La RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`). El folio del ticket sigue siendo aleatorio, no el id real de la venta.
