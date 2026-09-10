@@ -262,12 +262,27 @@ indexa una vez por carga, no en cada tecla.
   escanear creyendo que no había leído; ahora avisa.
 - Botón de **borrar la búsqueda** en el buscador.
 
-### Verificación
-`npm run build` limpio. `src/lib/*.js` nuevos pasan ESLint sin nada (el proyecto bajó
-de 10 a 8 problemas preexistentes). Probado con Node: 18 casos de búsqueda y 8 de
-precios, incluida la prueba dura de que **la suma de renglones == TOTAL**.
-**NO se probó en la app corriendo** (entrar a la Terminal exige checar entrada y
-abrir caja en producción, con la tienda vendiendo).
+### Verificación — SÍ se probó la app corriendo
+`npm run build` limpio; los `src/lib/*.js` nuevos pasan ESLint sin nada (el proyecto
+bajó de 10 a 8 problemas preexistentes). Node: 18 casos de búsqueda y 8 de precios.
+
+Para probar sin credenciales ni tocar producción se montó un **banco de pruebas
+temporal** (`verify.html` + `src/verify-harness.jsx`, ya borrados): monta la Terminal
+REAL con un catálogo falso y `supabase.rpc/channel` sustituidos, así no hay red ni
+hace falta checar entrada ni abrir caja. Si hay que volver a probar, se rehace igual.
+
+Comprobado en el navegador: **el bug del scroll se REPRODUJO con el código viejo**
+(scroll 800 → 0 al teclear una letra en el buscador y al agregar un producto, con el
+`<div>` de la lista sustituido en el DOM) y **queda en 800 → 800 con el nuevo**, con
+la partida nueva resaltada y traída a la vista. Además: mayoreo en carrito y ticket
+(renglones suman el TOTAL, $515.00 en la prueba), aviso "con 1 pieza más…" y su
+reverso al bajar la cantidad, 13 búsquedas incluidas cruzadas/acentos/errores de dedo,
+tope por existencia (2 pz → el 3.º rebota), escáner con código desconocido, F2/F4,
+cobro completo → ticket → nueva venta, vista móvil con el carrito en modal, y la
+**reimpresión desde Pedidos** (marca MAYOREO, no anuncia ahorro, renglones cuadran).
+Cero errores y cero warnings de React en consola.
+
+Lo único NO probado: la **impresora térmica física** (el `window.print()` real).
 
 ## Pendientes / fuera de alcance
 - **🔴 EXPONERLE LA TERMINAL AL ADMIN** — falta que el dueño elija (A) o (B); ver sesión 2026-08-27. Mientras no exista, cada venta que atienda Carlos sigue saliendo por "Ajuste manual", sin ticket ni ingreso registrado.

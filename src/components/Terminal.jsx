@@ -28,9 +28,11 @@ function CartPanel({
 
   // Llevar al cajero hasta la partida que acaba de tocar: con el ticket largo,
   // lo que agrega cae fuera de la pantalla y no alcanza a ver si entró.
+  // Se centra en vez de pegarla al borde ('nearest' la dejaba recortada contra
+  // el padding de la lista); centrada se lee completa y de un vistazo.
   useEffect(() => {
     if (!resaltado) return;
-    filas.current.get(resaltado)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    filas.current.get(resaltado)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [resaltado, cart]);
 
   return (
