@@ -1,9 +1,186 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, Minus, Sparkles, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, Minus, Sparkles, AlertTriangle, TrendingDown } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
+import { precioUnitario, aplicaMayoreo, faltanParaMayoreo, ahorroTotal, desglosePartida } from '../lib/precios';
+import { indexarProductos, buscarEnIndice, esCoincidenciaAproximada, normaliza } from '../lib/buscar';
 import CheckoutModal from './CheckoutModal';
 import TicketModal from './TicketModal';
+
+const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+// ────────────────────────────────────────────────────────────────────────────
+// El carrito vive FUERA de Terminal a propósito.
+//
+// Antes se declaraba dentro del render (`const CartContent = () => …`): en cada
+// render nacía una función nueva, así que para React era un componente DISTINTO
+// y desmontaba y volvía a montar todo el carrito. Eso es lo que reportó el
+// dueño ("cuando llevas muchos productos se sube de golpe a los primeros"): al
+// montarse de nuevo, la lista es un `<div>` nuevo y el scroll arranca en cero.
+// Pasaba al agregar un producto, al teclear en el buscador y hasta cuando se
+// iba solo el aviso flotante.
+// ────────────────────────────────────────────────────────────────────────────
+function CartPanel({
+  cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado,
+  onLimpiar, onQuitar, onCantidad, onCobrar,
+}) {
+  const filas = useRef(new Map());
+
+  // Llevar al cajero hasta la partida que acaba de tocar: con el ticket largo,
+  // lo que agrega cae fuera de la pantalla y no alcanza a ver si entró.
+  useEffect(() => {
+    if (!resaltado) return;
+    filas.current.get(resaltado)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [resaltado, cart]);
+
+  return (
+    <div className="grid grid-rows-[auto_1fr_auto] h-full w-full overflow-hidden">
+      {/* Header del carrito */}
+      <div className="px-5 pt-5 pb-4 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Ticket actual</p>
+          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2 mt-0.5">
+            <ShoppingCart className="w-4 h-4 text-accent-600" />
+            Carrito
+          </h2>
+        </div>
+        <div className="flex gap-2 items-center">
+          <span className="neb-chip neb-chip-info">
+            {itemsCount} items
+          </span>
+          <button
+            onClick={onLimpiar}
+            className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-bold hover:bg-rose-100 transition-colors"
+            title="Limpiar (F2)"
+          >
+            F2 · Limpiar
+          </button>
+        </div>
+      </div>
+
+      {/* Items */}
+      <div className="overflow-y-auto neb-scroll px-4 pb-2 space-y-2.5">
+        {cart.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 space-y-3 py-12">
+            <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <ShoppingCart className="w-7 h-7 opacity-50" />
+            </div>
+            <p className="text-sm font-bold">El ticket está vacío</p>
+            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">Escanea o busca productos para empezar</p>
+          </div>
+        ) : (
+          cart.map((item) => {
+            // Mismo desglose que el ticket impreso: un solo cálculo para lo que
+            // ve el cajero, lo que ve el cliente y lo que cobra la base.
+            const { unitario, importe, mayoreo: enMayoreo, normal } = desglosePartida(item);
+            const disponible = stockDe(item.id);
+            // Aviso de "una más y le sale más barato". Solo si de verdad se
+            // puede surtir: no tiene caso ofrecer lo que no hay en piso.
+            const faltan = faltanParaMayoreo(item);
+            const ofrecerMayoreo = faltan !== null && disponible >= Number(item.cantidad_mayoreo);
+
+            return (
+              <div
+                key={item.id}
+                ref={(el) => { if (el) filas.current.set(item.id, el); else filas.current.delete(item.id); }}
+                className={`neb-card-soft p-3.5 group transition-all duration-300 ${
+                  resaltado === item.id ? 'ring-2 ring-accent-400 bg-accent-50/60 dark:bg-accent-950/30' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm truncate leading-tight">{item.nombre}</h3>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">{item.sku}</span>
+                      <span className="text-[10px] font-bold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
+                        {money(unitario)} c/u
+                      </span>
+                      {enMayoreo && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Tag className="w-3 h-3" /> Mayoreo · antes {money(normal)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => onQuitar(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {ofrecerMayoreo && (
+                  <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                    <TrendingDown className="w-3.5 h-3.5 shrink-0" />
+                    {faltan === 1 ? 'Con 1 pieza más' : `Con ${faltan} piezas más`} baja a {money(item.precio_mayoreo)} c/u
+                  </div>
+                )}
+
+                {item.quantity > disponible && (
+                  <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-2 py-1.5 text-[11px] font-bold text-rose-700 dark:text-rose-300">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    Sólo hay {disponible} en existencia
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 gap-1">
+                    <button onClick={() => onCantidad(item.id, -1)} className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white active:scale-90 transition-transform">
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="w-7 text-center font-extrabold text-slate-900 dark:text-white text-sm">{item.quantity}</span>
+                    <button onClick={() => onCantidad(item.id, 1)} className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white active:scale-90 transition-transform">
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                    {money(importe)}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer con total */}
+      <div className="p-5 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Total</span>
+          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">{itemsCount} items</span>
+        </div>
+        {ahorro > 0 && (
+          <div className="flex justify-between items-center mb-2 text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> Ahorro por mayoreo</span>
+            <span>−{money(ahorro)}</span>
+          </div>
+        )}
+        <div className="flex items-end justify-between mb-4">
+          <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            {money(total)}
+          </span>
+          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">MXN</span>
+        </div>
+        <button
+          onClick={onCobrar}
+          disabled={cart.length === 0 || sinExistencia.length > 0 || verificando}
+          className="w-full neb-btn neb-btn-primary py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {verificando ? (
+            <><Loader2 className="w-5 h-5 animate-spin" /> Revisando existencias...</>
+          ) : sinExistencia.length > 0 ? (
+            <><AlertTriangle className="w-5 h-5" /> Revisa el ticket</>
+          ) : (
+            <><CreditCard className="w-5 h-5" /> COBRAR · F1</>
+          )}
+        </button>
+        {sinExistencia.length > 0 && (
+          <p className="mt-2.5 text-center text-[11px] font-bold leading-snug text-rose-600 dark:text-rose-400">
+            No hay existencia para {sinExistencia.map(i => i.nombre).join(', ')}. Bájale la cantidad o quítalo del ticket.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Terminal({ onRegisterSale, cart, setCart, userProfile }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +193,10 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   // Aviso flotante. `tipo` distingue una confirmación de un bloqueo de venta.
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
+
+  // Partida recién tocada: se resalta y se trae a la vista un momento.
+  const [resaltado, setResaltado] = useState(null);
+  const resaltadoTimer = useRef(null);
 
   // Comprobación de existencias contra la BD justo antes de abrir el cobro.
   const [verificando, setVerificando] = useState(false);
@@ -56,12 +237,21 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     { activo: !!userProfile?.sucursal_id }
   );
 
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => () => {
+    clearTimeout(toastTimer.current);
+    clearTimeout(resaltadoTimer.current);
+  }, []);
 
   const showToast = (texto, tipo = 'ok') => {
     setToast({ texto, tipo });
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), tipo === 'error' ? 4000 : 2000);
+  };
+
+  const resaltar = (id) => {
+    setResaltado(id);
+    clearTimeout(resaltadoTimer.current);
+    resaltadoTimer.current = setTimeout(() => setResaltado(null), 1500);
   };
 
   // Existencia VIVA en la sucursal. El carrito guarda una copia del producto al
@@ -95,41 +285,45 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart]);
 
-  // Filtrado en vivo: sin búsqueda muestra los "frecuentes"; al escribir filtra
-  // por nombre o SKU, priorizando los que INICIAN con el término.
+  // El catálogo se normaliza una sola vez (sin acentos, en palabras) y se
+  // reusa en cada tecla; con ~370 productos rehacerlo por pulsación es tirar
+  // trabajo. Ver src/lib/buscar.js para las reglas de coincidencia.
+  const indice = useMemo(() => indexarProductos(productos), [productos]);
+
   const buscando = searchTerm.trim().length > 0;
   const filtered = useMemo(() => {
-    const t = searchTerm.trim().toLowerCase();
-    if (!t) return productos.slice(0, 16);
-    const empieza = (p) =>
-      p.nombre.toLowerCase().startsWith(t) || (p.sku || '').toLowerCase().startsWith(t);
-    return productos
-      .filter(p => p.nombre.toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t))
-      .sort((a, b) => {
-        const ai = empieza(a), bi = empieza(b);
-        if (ai !== bi) return ai ? -1 : 1;
-        return a.nombre.localeCompare(b.nombre);
-      })
-      .slice(0, 24);
-  }, [productos, searchTerm]);
+    if (!buscando) return productos.slice(0, 16);
+    return buscarEnIndice(indice, searchTerm, 24);
+  }, [productos, indice, searchTerm, buscando]);
+
+  // Cuando lo escrito no aparece tal cual en ningún producto, los resultados
+  // vienen del rescate por errores de dedo: hay que decirlo, para que el cajero
+  // confirme que es el producto que quería y no cobre otro.
+  const aproximado = useMemo(
+    () => (buscando && filtered.length > 0 ? esCoincidenciaAproximada(indice, searchTerm) : false),
+    [indice, searchTerm, buscando, filtered.length]
+  );
 
   const handleSearch = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const termino = searchTerm.trim().toLowerCase();
-      if (!termino) return;
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const termino = normaliza(searchTerm);
+    if (!termino) return;
 
-      // 1) Coincidencia exacta de SKU (escáner). 2) Si la búsqueda deja un solo
-      //    resultado, ese. Si hay varios, dejamos que el cajero toque la tarjeta.
-      let product = productos.find(p => p.sku?.toLowerCase() === termino);
-      if (!product && filtered.length === 1) product = filtered[0];
+    // 1) Coincidencia exacta de SKU (escáner). 2) Si la búsqueda deja un solo
+    //    resultado, ese. Si hay varios, dejamos que el cajero toque la tarjeta.
+    let product = productos.find(p => normaliza(p.sku) === termino);
+    if (!product && filtered.length === 1) product = filtered[0];
 
-      if (product) {
-        addToCart(product);
-        setSearchTerm('');
-      }
-      inputRef.current?.focus();
+    if (product) {
+      addToCart(product);
+      setSearchTerm('');
+    } else if (filtered.length === 0) {
+      // El escáner leyendo un código que no está en el catálogo antes no
+      // decía nada: el cajero volvía a escanear creyendo que no leyó.
+      showToast(`No se encontró “${searchTerm.trim()}”. Revisa el nombre o dalo de alta.`, 'error');
     }
+    inputRef.current?.focus();
   };
 
   // No se puede vender lo que no hay. La BD ya rechaza la venta (el trigger
@@ -159,7 +353,18 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
       return [...prev, { ...product, quantity: 1 }];
     });
 
-    showToast(`Se agregó ${product.nombre}`);
+    resaltar(product.id);
+
+    // Al llegar al mayoreo con el cliente enfrente, decirlo en voz alta: es la
+    // diferencia entre que se lleve 2 y que se lleve 3.
+    const baja = Number(product.precio_mayoreo) > 0 && Number(product.precio_mayoreo) < Number(product.precio);
+    const enMayoreo = baja && aplicaMayoreo(product, enCarrito + 1);
+    const antes = baja && aplicaMayoreo(product, enCarrito);
+    if (enMayoreo && !antes) {
+      showToast(`${product.nombre} · ya es MAYOREO a ${money(product.precio_mayoreo)} c/u`);
+    } else {
+      showToast(`Se agregó ${product.nombre}`);
+    }
   };
 
   const removeFromCart = (id) => {
@@ -182,17 +387,14 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
       }
       return item;
     }));
+    resaltar(id);
   };
 
-  const getItemPrice = (item) => {
-    if (item.cantidad_mayoreo && item.precio_mayoreo && item.quantity >= item.cantidad_mayoreo) {
-      return Number(item.precio_mayoreo);
-    }
-    return Number(item.precio);
-  };
-
-  const total = cart.reduce((acc, item) => acc + (getItemPrice(item) * item.quantity), 0);
+  // El precio (con o sin mayoreo) sale de src/lib/precios.js, que aplica la
+  // MISMA regla que `registrar_venta` en la base y que el ticket impreso.
+  const total = cart.reduce((acc, item) => acc + (precioUnitario(item) * item.quantity), 0);
   const itemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const ahorro = ahorroTotal(cart);
 
   // Partidas que ya no alcanzan: el stock pudo bajar (otra caja, una
   // transferencia) con el ticket abierto.
@@ -250,121 +452,13 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     fetchProductos();
   };
 
-  const CartContent = () => (
-    <div className="grid grid-rows-[auto_1fr_auto] h-full w-full overflow-hidden">
-      {/* Header del carrito */}
-      <div className="px-5 pt-5 pb-4 flex items-center justify-between">
-        <div>
-          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Ticket actual</p>
-          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2 mt-0.5">
-            <ShoppingCart className="w-4 h-4 text-accent-600" />
-            Carrito
-          </h2>
-        </div>
-        <div className="flex gap-2 items-center">
-          <span className="neb-chip neb-chip-info">
-            {itemsCount} items
-          </span>
-          <button
-            onClick={() => setCart([])}
-            className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-bold hover:bg-rose-100 transition-colors"
-            title="Limpiar (F2)"
-          >
-            F2 · Limpiar
-          </button>
-        </div>
-      </div>
-
-      {/* Items */}
-      <div className="overflow-y-auto neb-scroll px-4 pb-2 space-y-2.5">
-        {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 space-y-3 py-12">
-            <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <ShoppingCart className="w-7 h-7 opacity-50" />
-            </div>
-            <p className="text-sm font-bold">El ticket está vacío</p>
-            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">Escanea o busca productos para empezar</p>
-          </div>
-        ) : (
-          cart.map((item) => (
-            <div key={item.id} className="neb-card-soft p-3.5 group">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-sm truncate leading-tight">{item.nombre}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">{item.sku}</span>
-                    <span className="text-[10px] font-bold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded">
-                      ${getItemPrice(item).toFixed(2)} c/u
-                    </span>
-                    {item.cantidad_mayoreo && item.quantity >= item.cantidad_mayoreo && (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Tag className="w-3 h-3" /> Mayoreo aplicado
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-              {item.quantity > stockDe(item.id) && (
-                <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-2 py-1.5 text-[11px] font-bold text-rose-700 dark:text-rose-300">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  Sólo hay {stockDe(item.id)} en existencia
-                </div>
-              )}
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 gap-1">
-                  <button onClick={() => updateQuantity(item.id, -1)} className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white active:scale-90 transition-transform">
-                    <Minus className="w-3 h-3" />
-                  </button>
-                  <span className="w-7 text-center font-extrabold text-slate-900 dark:text-white text-sm">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, 1)} className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white active:scale-90 transition-transform">
-                    <Plus className="w-3 h-3" />
-                  </button>
-                </div>
-                <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                  ${(item.quantity * getItemPrice(item)).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Footer con total */}
-      <div className="p-5 border-t border-slate-100 dark:border-slate-800">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Total</span>
-          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">{itemsCount} items</span>
-        </div>
-        <div className="flex items-end justify-between mb-4">
-          <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            ${total.toFixed(2)}
-          </span>
-          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">MXN</span>
-        </div>
-        <button
-          onClick={handleStartCheckout}
-          disabled={cart.length === 0 || sinExistencia.length > 0 || verificando}
-          className="w-full neb-btn neb-btn-primary py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {verificando ? (
-            <><Loader2 className="w-5 h-5 animate-spin" /> Revisando existencias...</>
-          ) : sinExistencia.length > 0 ? (
-            <><AlertTriangle className="w-5 h-5" /> Revisa el ticket</>
-          ) : (
-            <><CreditCard className="w-5 h-5" /> COBRAR · F1</>
-          )}
-        </button>
-        {sinExistencia.length > 0 && (
-          <p className="mt-2.5 text-center text-[11px] font-bold leading-snug text-rose-600 dark:text-rose-400">
-            No hay existencia para {sinExistencia.map(i => i.nombre).join(', ')}. Bájale la cantidad o quítalo del ticket.
-          </p>
-        )}
-      </div>
-    </div>
-  );
+  const propsCarrito = {
+    cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado,
+    onLimpiar: () => setCart([]),
+    onQuitar: removeFromCart,
+    onCantidad: updateQuantity,
+    onCobrar: handleStartCheckout,
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-full relative overflow-hidden">
@@ -397,7 +491,16 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             onKeyDown={handleSearch}
             autoComplete="off"
           />
-          <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+          <div className="absolute inset-y-0 right-0 pr-4 flex items-center gap-2">
+            {buscando && (
+              <button
+                onClick={() => { setSearchTerm(''); inputRef.current?.focus(); }}
+                className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 transition-colors"
+                title="Borrar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
             <kbd className="hidden sm:inline-flex px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800">F4</kbd>
           </div>
         </div>
@@ -411,6 +514,12 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             </h2>
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">Tap para agregar</span>
           </div>
+          {aproximado && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-[12px] font-bold text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              No hay nada escrito así. Esto es lo más parecido — confirma que sea el producto.
+            </div>
+          )}
           {loading ? (
              <div className="flex flex-col items-center justify-center p-10 text-slate-400 dark:text-slate-500">
                <Loader2 className="w-7 h-7 animate-spin mb-3 text-accent-500" />
@@ -420,13 +529,17 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             <div className="flex flex-col items-center justify-center p-10 text-slate-400 dark:text-slate-500">
               <Search className="w-7 h-7 mb-3 opacity-50" />
               <p className="text-sm font-bold">Sin resultados para “{searchTerm.trim()}”</p>
-              <p className="text-[12px]">Revisa el nombre o el SKU.</p>
+              <p className="text-[12px]">Prueba con una sola palabra del nombre, o con el SKU.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {filtered.map((product) => {
                 const disponible = Number(product.stock ?? 0);
                 const agotado = disponible <= 0;
+                const tieneMayoreo =
+                  Number(product.precio_mayoreo) > 0 &&
+                  Number(product.cantidad_mayoreo) > 0 &&
+                  Number(product.precio_mayoreo) < Number(product.precio);
                 return (
                   <button
                     key={product.id}
@@ -450,7 +563,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                     <div className="w-full truncate text-slate-400 dark:text-slate-500 font-mono text-[10px]">{product.sku}</div>
                     <div className="w-full flex items-end justify-between gap-2 mt-auto">
                       <span className="text-slate-900 dark:text-white font-extrabold text-base">
-                        ${Number(product.precio).toFixed(2)}
+                        {money(product.precio)}
                       </span>
                       {/* Mismos umbrales que Inventario: <=5 crítico, <=20 bajo. */}
                       <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
@@ -463,6 +576,13 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                         {agotado ? 'Sin existencia' : `${disponible} pz`}
                       </span>
                     </div>
+                    {/* El mayoreo a la vista: el cajero puede ofrecerlo sin
+                        tener que acordarse de cuáles bajan de precio. */}
+                    {tieneMayoreo && (
+                      <div className="w-full text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                        {product.cantidad_mayoreo}+ pz a {money(product.precio_mayoreo)}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -473,7 +593,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
       {/* Carrito desktop */}
       <div className="hidden lg:flex w-1/3 border-l border-white/60 flex-col bg-white/60 dark:bg-slate-900/60 h-full overflow-hidden">
-        <CartContent />
+        <CartPanel {...propsCarrito} />
       </div>
 
       {/* Mobile floating cart bar */}
@@ -493,7 +613,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             </div>
             <span>Ver ticket</span>
           </div>
-          <span className="text-lg font-extrabold">${total.toFixed(2)}</span>
+          <span className="text-lg font-extrabold">{money(total)}</span>
         </button>
       </div>
 
@@ -507,7 +627,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <CartContent />
+              <CartPanel {...propsCarrito} />
             </div>
           </div>
         </div>

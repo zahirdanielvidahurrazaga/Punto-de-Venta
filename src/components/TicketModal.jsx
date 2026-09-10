@@ -1,97 +1,41 @@
 import React from 'react';
-import { Printer, X, CheckCircle, Store, Mail, Phone } from 'lucide-react';
+import { Printer, X, CheckCircle, Store, Mail, Phone, Tag } from 'lucide-react';
 import { datosTienda } from '../config/tienda';
+import { desglosePartida, ahorroTotal } from '../lib/precios';
+import { construirTicketHTML } from '../lib/ticketImpreso';
 
 export default function TicketModal({ cart, total, paymentData, sucursal, onClose }) {
   const tienda = datosTienda(sucursal);
+
+  // El precio de cada renglón sale de src/lib/precios.js, igual que el que
+  // cobra la Terminal y el que guarda `registrar_venta`. Antes aquí se usaba
+  // `item.precio` a secas: en una venta de 3 cubetas el papel imprimía el
+  // renglón a precio de MENUDEO ($150) y abajo el TOTAL ya con mayoreo ($135),
+  // así que los renglones no sumaban el total y el cliente veía un descuadre
+  // sin explicación.
+  const partidas = cart.map((item) => ({ item, ...desglosePartida(item) }));
+  const ahorro = ahorroTotal(cart);
 
   const ticketNumber = (Math.floor(Math.random() * 10000)).toString().padStart(4, '0');
   const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const time = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const totalArticulos = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
-  // Genera el HTML del ticket térmico desde los DATOS (no copia el DOM decorado),
-  // para que salga limpio en blanco y negro a 80mm.
-  const buildTicketHTML = () => {
-    const headerLines = [
-      `<div class="big center bold">${esc(tienda.negocio)}</div>`,
-      tienda.rfc ? `<div class="center">RFC: ${esc(tienda.rfc)}</div>` : '',
-      tienda.sucursalNombre ? `<div class="center bold">${esc(tienda.sucursalNombre)}</div>` : '',
-      tienda.direccion ? `<div class="center small">${esc(tienda.direccion)}</div>` : '',
-      tienda.telefono ? `<div class="center small">Tel: ${esc(tienda.telefono)}</div>` : '',
-    ].filter(Boolean).join('');
-
-    const itemsRows = cart.map((item) => `
-      <div class="item">
-        <div class="name">${esc(item.nombre)}</div>
-        <div class="row small">
-          <span>${item.quantity} x ${money(item.precio)}</span>
-          <span>${money(item.precio * item.quantity)}</span>
-        </div>
-      </div>`).join('');
-
-    const pagos = paymentData ? [
-      paymentData.efectivo > 0 ? `<div class="row"><span>Efectivo</span><span>${money(paymentData.efectivo)}</span></div>` : '',
-      paymentData.tarjeta > 0 ? `<div class="row"><span>Tarjeta</span><span>${money(paymentData.tarjeta)}</span></div>` : '',
-      paymentData.transferencia > 0 ? `<div class="row"><span>Transferencia</span><span>${money(paymentData.transferencia)}</span></div>` : '',
-      `<div class="row"><span>Recibido</span><span>${money(paymentData.totalPagado)}</span></div>`,
-      `<div class="row bold"><span>Cambio</span><span>${money(paymentData.cambio || 0)}</span></div>`,
-    ].filter(Boolean).join('') : '';
-
-    const pie = (tienda.pie || []).map((l) => `<div class="center">${esc(l)}</div>`).join('');
-
-    return `
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Ticket</title>
-          <style>
-            @page { margin: 0; size: 80mm auto; }
-            * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; background: #fff; }
-            body {
-              width: 70mm;
-              padding: 3mm 4mm 8mm;
-              color: #000;
-              font-family: 'Lucida Console', Consolas, monospace;
-              font-size: 12px;
-              font-weight: 400;
-              line-height: 1.4;
-              -webkit-font-smoothing: none;
-              word-break: break-word;
-            }
-            .center { text-align: center; }
-            .bold { font-weight: 700; }
-            .big { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; }
-            .small { font-size: 12px; }
-            .row { display: flex; justify-content: space-between; gap: 6px; }
-            .name { font-weight: 700; word-break: break-word; }
-            .item { margin-bottom: 6px; page-break-inside: avoid; }
-            .sep { border-top: 1px dashed #000; margin: 6px 0; }
-            .total { font-size: 16px; font-weight: 800; }
-            .head { margin-bottom: 4px; }
-          </style>
-        </head>
-        <body>
-          <div class="head">${headerLines}</div>
-          <div class="sep"></div>
-          <div class="row small"><span>FECHA: ${date}</span><span>CAJA: 01</span></div>
-          <div class="row small"><span>HORA: ${time}</span><span>TICKET: ${ticketNumber}</span></div>
-          <div class="sep"></div>
-          ${itemsRows}
-          <div class="sep"></div>
-          <div class="row total"><span>TOTAL</span><span>${money(total)}</span></div>
-          <div class="row small"><span>Artículos</span><span>${totalArticulos}</span></div>
-          ${pagos ? `<div class="sep"></div>${pagos}` : ''}
-          <div class="sep"></div>
-          ${pie}
-          <div style="height:6mm"></div>
-        </body>
-      </html>`;
-  };
+  // La plantilla del papel vive en src/lib/ticketImpreso.js (sin JSX), para
+  // poder generarla y revisarla sin levantar la app.
+  const buildTicketHTML = () => construirTicketHTML({
+    tienda,
+    partidas,
+    total,
+    totalArticulos,
+    ahorro,
+    paymentData,
+    fecha: date,
+    hora: time,
+    folio: ticketNumber,
+  });
 
   const handlePrint = () => {
     const iframe = document.createElement('iframe');
@@ -169,14 +113,22 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
             </div>
 
             <div className="space-y-3 mb-6 text-[12px]">
-              {cart.map(item => (
+              {partidas.map(({ item, cantidad, unitario, importe, mayoreo, normal, ahorro: ahorroItem }) => (
                 <div key={item.id} className="flex flex-col">
                   <div className="flex justify-between items-start">
                     <span className="w-3/5 text-left font-bold text-slate-800 dark:text-slate-200 pr-2">{item.nombre}</span>
-                    <span className="w-1/5 text-center text-slate-600 dark:text-slate-400">{item.quantity}</span>
-                    <span className="w-1/5 text-right font-extrabold text-slate-900 dark:text-white">${(item.precio * item.quantity).toFixed(2)}</span>
+                    <span className="w-1/5 text-center text-slate-600 dark:text-slate-400">{cantidad}</span>
+                    <span className="w-1/5 text-right font-extrabold text-slate-900 dark:text-white">{money(importe)}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">${item.precio.toFixed(2)} c/u</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    {money(unitario)} c/u
+                    {mayoreo && (
+                      <span className="font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">MAYOREO</span>
+                    )}
+                    {mayoreo && normal ? (
+                      <span>Normal {money(normal)} c/u · ahorra {money(ahorroItem)}</span>
+                    ) : null}
+                  </span>
                 </div>
               ))}
             </div>
@@ -190,6 +142,12 @@ export default function TicketModal({ cart, total, paymentData, sucursal, onClos
                 <span>Total de artículos:</span>
                 <span>{totalArticulos}</span>
               </div>
+              {ahorro > 0 && (
+                <div className="flex justify-between text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400 uppercase mt-1">
+                  <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> Ahorro por mayoreo:</span>
+                  <span>−{money(ahorro)}</span>
+                </div>
+              )}
             </div>
 
             {paymentData && (

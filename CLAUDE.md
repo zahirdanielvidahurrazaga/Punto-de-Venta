@@ -202,10 +202,77 @@ Ahora el corte está al escanear, con el cliente enfrente:
 
 ⚠️ **NO se probó en la app corriendo:** entrar a la Terminal exige checar entrada y abrir caja, y hacerlo habría dejado una `sesiones_caja` y una checada reales en producción con la tienda vendiendo. Verificado con build limpio y revisión de código.
 
+## Sesión 2026-09-09 — tres pedidos del dueño (ticket de mayoreo, el scroll y el buscador)
+
+### 🔴 El ticket impreso mentía: renglones a MENUDEO con TOTAL de mayoreo
+Reporte: "en el ticket impreso no sale que la compra fue de mayoreo".
+
+Era más grave que la etiqueta. `TicketModal` imprimía cada renglón con `item.precio`
+(el de catálogo) mientras el TOTAL venía de `Terminal.getItemPrice()`, que sí aplicaba
+mayoreo: **los renglones no sumaban el total**. En una venta de 3 cubetas ($50 / $45
+desde 3) el papel decía "3 x $50.00 = $150.00" y abajo "TOTAL $135.00", sin explicar
+los $15 de diferencia. Se cobraba bien (la BD y la pantalla de cobro siempre
+estuvieron correctas) — lo que estaba mal era el papel que se lleva el cliente.
+
+**La causa de fondo:** la regla del mayoreo estaba copiada en tres lados (Terminal,
+TicketModal y `registrar_venta`) y se desincronizó. Ahora hay **una sola fuente de
+verdad**: `src/lib/precios.js`, con la MISMA condición que la BD
+(`precio_mayoreo > 0 AND cantidad_mayoreo > 0 AND cantidad >= cantidad_mayoreo`).
+Terminal, el ticket en pantalla y el ticket impreso pasan todos por ahí.
+
+El papel ahora dice, en el renglón: `3 x $45.00 MAYOREO … $135.00` +
+`Normal $50.00 c/u · ahorra $15.00`, y al pie `AHORRO POR MAYOREO -$45.00`.
+
+Detalle fino: **TIT-0178** (mayoreo capturado igual al menudeo) NO se etiqueta como
+mayoreo, porque anunciar "ahorra $0.00" solo confunde. El precio **cobrado** no se
+tocó: sigue saliendo de la misma regla que `registrar_venta`, aunque la captura esté
+al revés.
+
+La plantilla del papel se sacó a `src/lib/ticketImpreso.js` (sin JSX) para poder
+generarla y revisarla sin levantar la app.
+
+### El carrito "se subía de golpe a los primeros"
+`CartContent` se declaraba **dentro** del render de Terminal. En cada render nacía
+una función nueva → para React era un componente DISTINTO → desmontaba y volvía a
+montar todo el carrito → la lista es un `<div>` nuevo y **el scroll vuelve a cero**.
+Pasaba al agregar un producto, al teclear en el buscador y hasta cuando se iba solo
+el aviso flotante; solo se notaba con el ticket largo, que es cuando hay scroll.
+
+Ahora `CartPanel` vive fuera del componente y recibe props. Además la partida que se
+acaba de tocar se **resalta 1.5 s y se trae a la vista** (`scrollIntoView`), que era
+el otro problema: al agregar, el renglón nuevo caía fuera de la pantalla.
+
+### Buscador que aguanta cómo escribe la gente (`src/lib/buscar.js`)
+Antes era un `includes` sobre el texto crudo: exigía el nombre TAL CUAL y EN ORDEN.
+Con el catálogo escrito a mano, "cubeta 19" o "grande escoba" no devolvían nada.
+Ahora: sin acentos, `ñ`→`n`, **palabras en cualquier orden**, número y unidad pegados
+("19lts" = "19 LTS"), errores de dedo ("cubta", "escova") como **último recurso** —
+y cuando el resultado sale de ese rescate se avisa en pantalla para que el cajero
+confirme que es el producto. Busca también por SKU y por categoría. El catálogo se
+indexa una vez por carga, no en cada tecla.
+
+### Extras para el mostrador (pedidos como "hazlo fácil, son de pueblo")
+- **Mayoreo a la vista** en la tarjeta del producto: `3+ pz a $45.00`, para poder
+  ofrecerlo sin acordarse de cuáles bajan.
+- **Empujón de venta** en el carrito: "Con 1 pieza más baja a $45.00 c/u" (solo si
+  hay existencia para surtirlo).
+- **Aviso al alcanzar el mayoreo** al escanear: "ya es MAYOREO a $45.00 c/u".
+- **Ahorro por mayoreo** visible en el carrito, no solo en el ticket.
+- **Escáner con código desconocido**: antes no decía NADA y el cajero volvía a
+  escanear creyendo que no había leído; ahora avisa.
+- Botón de **borrar la búsqueda** en el buscador.
+
+### Verificación
+`npm run build` limpio. `src/lib/*.js` nuevos pasan ESLint sin nada (el proyecto bajó
+de 10 a 8 problemas preexistentes). Probado con Node: 18 casos de búsqueda y 8 de
+precios, incluida la prueba dura de que **la suma de renglones == TOTAL**.
+**NO se probó en la app corriendo** (entrar a la Terminal exige checar entrada y
+abrir caja en producción, con la tienda vendiendo).
+
 ## Pendientes / fuera de alcance
 - **🔴 EXPONERLE LA TERMINAL AL ADMIN** — falta que el dueño elija (A) o (B); ver sesión 2026-08-27. Mientras no exista, cada venta que atienda Carlos sigue saliendo por "Ajuste manual", sin ticket ni ingreso registrado.
 - **🟡 CARGA MASIVA DE INVENTARIO INICIAL** — ya no bloquea el arranque (cargaron 264 renglones a mano), pero faltan **103 productos en cero en Centro** y **Tito Aviación entera** (0 de 368). Sigue faltando importar CSV/Excel + pantalla de conteo rápido; también sirve para los reabastos.
-- **TIT-0178 BASTON CON ROSCA** tiene precio de mayoreo igual al de menudeo ($15 desde 12 pzas). Error de captura, no cobra de más.
+- **TIT-0178 BASTON CON ROSCA** tiene precio de mayoreo igual al de menudeo ($15 desde 12 pzas). Error de captura, no cobra de más; desde el 9-sep el ticket ya no lo anuncia como mayoreo, pero **el dato sigue mal en el catálogo**.
 - **Android (pendiente, OTRA PC):** todo el flujo de Android Studio / generación del AAB se hace en la otra PC; este equipo (Mac) solo cubre iOS. Falta empaquetar/subir la versión con el código del 10-jun para Google Play.
 - **iOS 1.0.2 (build 5)** preparado desde el 31-jul: falta Archive + Upload en Xcode y crear la versión en App Store Connect.
 - **Basura pendiente:** `usuarios_perfiles.pin_seguridad` del admin sigue guardado en **texto plano** (`"1234"`); es residuo del PIN muerto que reemplazó el TOTP y no se usa para nada. No hay forma de cerrar una checada colgada desde la UI (la de Jony lleva días abierta). La RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`). El folio del ticket sigue siendo aleatorio, no el id real de la venta.
