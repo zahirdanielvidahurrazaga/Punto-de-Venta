@@ -284,6 +284,246 @@ Cero errores y cero warnings de React en consola.
 
 Lo único NO probado: la **impresora térmica física** (el `window.print()` real).
 
+## Sesión 2026-09-17 — el Dashboard no daba un resumen correcto
+
+Reporte del usuario entrando como admin: *"no está cargando todos los datos
+correctamente y no está dando un resumen correcto"*. Era verdad, y por varias
+razones a la vez.
+
+### 🔴 La causa de fondo no es el Dashboard
+El 92% del movimiento del arranque salió por **ajustes de inventario a mano**,
+no por la Terminal (auditoría del 27-ago: $53,005 contra $4,674 cobrados). El
+Dashboard sumaba honestamente las ventas registradas… que son la punta del
+negocio. Ahora **lo dice en pantalla**: bloque de aviso con el valor de la
+mercancía que salió sin ticket en el periodo, a precio de venta, desglosado por
+quién la bajó, y en rojo cuando supera lo cobrado en la Terminal. Sigue
+pendiente la decisión (A)/(B) de exponerle la Terminal al admin.
+
+### Bugs de datos corregidos (`src/components/Dashboard.jsx`)
+1. **Los porcentajes de los KPIs estaban escritos a mano**: `+12.5%`, `+4.2%`,
+   `-1.8%`, `+0.5%` fijos en el JSX desde siempre. Ahora se calculan contra el
+   periodo previo del mismo largo; sin base previa se dice "sin base previa" en
+   vez de inventar un número.
+2. **Cada bloque hablaba de un periodo distinto y ninguno lo decía**: KPIs y
+   rankings = los 45 días que carga `App` (`DIAS_HISTORIAL`), gráfica = su propio
+   selector, flujo de caja = 30 días, sucursales = otros 30. Ahora manda **un
+   solo selector (Hoy · 7 días · 30 días · 6 meses)** y el Dashboard pide sus
+   propios datos por rango; cada tarjeta trae el periodo en la etiqueta. Ya no
+   recibe `ventas` por props.
+3. **"6 meses" era imposible**: pintaba 6 barras pero los datos solo llegaban a
+   45 días → 4 meses en cero, como si el negocio se hubiera caído. Ahora la
+   consulta va por el rango elegido.
+4. **La gráfica perdía ventas**: "4 semanas" armaba cubetas por rangos
+   `[fin−6d, fin]` con la hora actual, así que **un día entero caía en el hueco
+   entre semana y semana** (y el más viejo se cortaba por la hora). Medido con el
+   código viejo: **$400 perdidos de $2,800**. Las cubetas ahora se llenan por
+   clave (hora/día/mes) y toda venta del rango cae en exactamente una.
+5. **Se cortaban los datos en silencio al pasar de 1000 filas** (límite de
+   PostgREST): `producto_stock` va en 736 renglones y llega a 1104 con una
+   tercera sucursal; las ventas de 30 días topan el límite solas. Ahora todo se
+   pagina de mil en mil y si se pasa de 20,000 filas **se avisa** en vez de
+   mentir.
+6. **Flujo de caja comparaba peras con manzanas**: enfrentaba el "efectivo
+   declarado" (dinero FÍSICO del cajón, que incluye el fondo inicial y lo mueven
+   retiros/depósitos) contra el efectivo de las ventas, así que el descuadre era
+   falso siempre — y encima con ventanas distintas (30 vs 45 días). Ahora calcula
+   **esperado = fondo + ventas en efectivo del turno + depósitos − retiros** por
+   sesión (agrupando por `sesion_caja_id`, no por usuario+hora como hace
+   Reportes) y muestra esperado / contado / diferencia, con los turnos
+   descuadrados marcados. Misma lógica que Reportes → Cortes de caja, que sí la
+   tenía bien.
+7. **Las ventas en ruta no existían para el Dashboard**: `liquidar_ruta` solo
+   guarda el dinero en `rutas`, nunca toca `ventas`. Ahora hay bloque propio
+   (liquidado, descuento de campo, rutas sin liquidar) y renglón **Total del
+   negocio = mostrador + ruta**, sin mezclarlas en los desgloses que la ruta no
+   tiene (método de pago, producto).
+8. **Ventas sin `sucursal_id`**: al filtrar por sucursal desaparecían sin dejar
+   rastro y la suma de las sucursales quedaba por debajo del total. Ahora se
+   avisa. Las ventas sin `sesion_caja_id` (el admin puede vender sin caja) se
+   marcan "Sin caja" en el listado y se suman aparte como "fuera de corte".
+9. Detalles: los negativos se imprimían `$-100.00` (ahora `−$100.00`), la
+   diferencia de arqueo va con signo, la barra "Efectivo" (navy) era invisible en
+   modo oscuro, "Sin Ventas Registradas" pintaba los 368 productos de golpe
+   (ahora 48 + conteo), y "stock bajo" ya no mete en la misma bolsa lo que está
+   en cero.
+
+### Comprobado contra la BASE REAL el mismo día (PAT del usuario, solo lectura)
+El negocio **ya está vendiendo de verdad**: **1,161 ventas / $147,076.50 en 30 días**
+(55–125 tickets diarios), todo en **efectivo** (0 en tarjeta y transferencia), todo
+en **Tito Centro** — Aviación sigue en 0 ventas y sus 408 renglones de stock en cero.
+Datos sanos: **0 ventas sin sucursal**, **0 ventas sin caja**, y **1,161 de 1,161
+ventas cuadran con la suma de sus partidas** (así que los rankings y las categorías
+ahora suman exactamente el total).
+
+- **El corte de 1000 filas ERA REAL y ya estaba mordiendo:** las 1,161 ventas de 30
+  días pasaban el límite, y la consulta vieja del comparativo de sucursales no tenía
+  ni `limit` ni `order` → **se quedaban fuera 161 tickets (≈$20,000)** en un orden
+  arbitrario. `producto_stock` va en **816 filas** (408 productos × 2 sucursales):
+  todavía cabe, pero con una tercera sucursal son 1,224 y se rompía igual.
+- **Arqueo de caja (lo que el Dashboard viejo no podía ver):** de 26 turnos,
+  **13 descuadrados** ≥$1. Los gordos: **+$6,165 el 5-sep**, **−$5,404.50 el 7-sep**
+  (ese turno se quedó abierto de un día para otro y acumuló ventas de dos días),
+  −$550 el 6-sep con un retiro de $12,748. Neto **+$4,722.50** contra un esperado de
+  $142,621.50. Todo cuadra con la fórmula nueva; con la vieja (declarado contra
+  efectivo de ventas) el descuadre era falso siempre.
+
+### 🟠 CORRECCIÓN IMPORTANTE del aviso de "salió sin ticket"
+La primera versión del bloque metía en la misma bolsa TODOS los ajustes a la baja y
+acusaba $209,467 en 30 días de "ventas sin ticket". **Los datos reales lo
+desmintieron:** el 10-sep hay un solo movimiento de **−1,430 TERMO 500 ML a las
+10:28** (stock 1504 → 74), otro de −640 platos, −240 peladores… eso no es mostrador,
+es **corrección de una carga de inventario mal capturada**. Distinto del patrón de
+agosto (−1, −2 piezas cada 14 s en horario de tienda, que sí eran ventas).
+
+Ahora el bloque **parte los ajustes por tamaño** (`PZ_VENTA_MOSTRADOR = 5`):
+- **1 a 5 piezas por movimiento** → tiene la forma de venta de mostrador sin ticket.
+  Real: **$48,938 en 30 días** (999 movs, 1,488 pz) y **$14,684 en 7 días**. Ese es
+  el hueco que sí hay que perseguir (un 33% de lo cobrado).
+- **más de 5 piezas** → corrección de carga/conteo, en tono neutral y con los 3
+  movimientos más grandes listados para poder juzgarlos. Real: **$160,529 en 30 días**
+  (155 movs) — no son ventas, pero sí mueven el valor del inventario.
+- Los ajustes **se detuvieron del 14-sep en adelante** (0, 0, 0 y $65 hoy), así que el
+  número grande es historia de la semana del 10 al 13, no algo que esté pasando hoy.
+
+### Rendimiento: cambiar de periodo ya no pide datos
+Reporte del usuario probándolo en vivo: *"tarda un poco cuando hago los cambios
+entre fechas"*. Pasaba porque cada cambio de periodo relanzaba las 7 consultas
+completas. Pero **los cuatro rangos son subconjuntos del mismo**, así que ahora:
+
+- Se carga **una ventana maestra** (la que necesite el periodo elegido más su
+  comparativo) y los cuatro periodos se **cortan en memoria**. La ventana solo se
+  **ensancha**: al abrir "30 días" o "6 meses" por primera vez se paga una carga;
+  después, cambiar de periodo son **0 consultas y 0–8 ms** (medido).
+- Las **partidas de las ventas** (`venta_detalles`, la consulta que más pesa) ya
+  no viajan en la carga principal: solo se piden al abrir **Análisis** o
+  **Sucursales**, que son las únicas que las usan, y quedan en memoria. La
+  columna "Items" del Resumen sale de una consulta chica de las últimas 30.
+- Los **ajustes de inventario** viajan sin `join`: el precio y el nombre de quien
+  los hizo salen de los catálogos (`productos`, `usuarios_perfiles`), que se
+  piden **una sola vez** por sesión.
+- El **refresco en vivo es incremental**: pide solo las ventas y ajustes
+  posteriores a lo que ya tiene y los fusiona por `id` (probado: una venta nueva
+  entra, y disparar el refresco otra vez **no la duplica**). Espera 3 s para
+  agrupar la ráfaga de eventos que dispara una sola venta.
+
+### 🐛 Bug que encontró esta prueba: el tope del rango se congelaba
+El rango se calculaba una vez al abrir la pantalla, así que su `hasta` quedaba
+clavado en ese minuto y **toda venta que entraba en vivo caía "en el futuro"** y
+el filtro del periodo la tiraba: el Dashboard se quedaba mudo aunque la venta ya
+estuviera en la BD. Ahora el rango se recalcula cada minuto (eso hace además que
+"Hoy" cambie al pasar medianoche) y se empuja en el mismo commit que los datos
+nuevos. Verificado: venta de $175 → el total pasa de $1,100 a $1,275 sin recargar.
+
+⚠️ Al armar los datos de prueba me mordió lo mismo del otro lado: escribí las
+ventas "de hoy" a las 10:00 y 14:00 estando a las 00:30, quedaron en el futuro y
+el Dashboard hizo bien en no contarlas. En el banco de pruebas, lo de "hoy" va en
+**minutos hacia atrás**, nunca a una hora fija.
+
+### 🟠 Corrección del usuario: el admin NO debe cobrar (y el bloque no debe acusar)
+Planteé reabrir la decisión (A)/(B) del 27-ago para darle Terminal al admin. El
+usuario lo corrigió: **la cuenta de Carlos es solo de administración y todas las
+ventas se hacen desde el perfil de empleado — por eso no tiene terminal de cobro.**
+Es la decisión del 31-jul y sigue en pie; **no volver a proponerlo.** Los datos le
+dan la razón: 1,161 de 1,161 ventas tienen sesión de caja, ninguna fuera de corte.
+
+Eso deja abierto qué son las **999 bajas sueltas ($48,938 en 30 días)** hechas desde
+la cuenta de admin. **El sistema no lo sabe y el Dashboard no debe adivinarlo:**
+`Inventario.jsx` guarda siempre `notas: 'Ajuste manual'`, sin motivo. El bloque se
+reescribió para decir el hecho y nombrar la duda (merma, rotura, regalo, traspaso a
+mano… o una venta sin ticket) en vez de afirmar que son ventas de mostrador. La
+constante se llama `PZ_SALIDA_SUELTA`, no `PZ_VENTA_MOSTRADOR`.
+
+**Arreglo de fondo — YA CONSTRUIDO (18-sep):** el ajuste de inventario pide **motivo
+obligatorio**. No hizo falta migración: se guarda en `movimientos_inventario.notas`,
+que ya existía y se desperdiciaba en la frase `'Ajuste manual'` repetida 999 veces.
+- `ProductModal.jsx`: si al editar un producto cambia el número de stock, aparece un
+  recuadro ámbar con el delta en palabras (*"Vas a BAJAR el stock en 6 pz. ¿Por qué?"*)
+  y un `<select required>`. Los motivos dependen del sentido: **al bajar** (corrección
+  de captura · conteo físico · merma o rotura · regalo o muestra · traspaso a otra
+  sucursal · otro) y **al subir** (corrección de captura · conteo físico · devolución
+  de cliente · otro). "Otro" abre un campo de texto, también obligatorio.
+- `Inventario.jsx` pasa ese motivo como `notas` del `ajustar_stock`. **Es el ÚNICO
+  punto de la app que crea ajustes** (`Inventario.jsx:873`), así que quedan cubiertos
+  todos. El respaldo `'Ajuste manual'` se conserva por si entra por otra ruta.
+- El Dashboard agrupa **por motivo** y a lo viejo lo llama "Sin motivo registrado".
+
+### Bloque nuevo: avance de la carga de inventario
+Como el catálogo se sigue capturando a mano, lo que más le sirve al dueño hoy no es
+una gráfica de ventas sino **cuánto le falta**. En el Resumen, arriba de todo:
+productos con existencia contra el total del catálogo, por sucursal, con barra de
+progreso (verde ≥90%, ámbar si va a medias, gris si no ha empezado), cuántos faltan
+y cuántos recibieron mercancía en el periodo elegido. **El bloque desaparece solo
+cuando ya no falta ninguno**, así que no estorba cuando terminen. Al 18-sep: Centro
+356/408, Aviación 0/408. Para medirlo, la carga maestra ahora trae también los
+movimientos con `cantidad > 0` (entradas e iniciales, ~600 filas en 30 días) y
+`producto_stock` dejó de ser perezoso (son ~800 filas de 3 columnas, una vez por
+sesión).
+
+### 🔑 CONTEXTO que explica los ajustes (dicho por el usuario, 18-sep)
+**El catálogo se sigue capturando A MANO, día a día.** Carlos tiene el negocio en un
+pueblo, con un almacén de demasiados productos para cargarlos de una vez; él captura
+desde admin y **un empleado opera el punto de venta con la cuenta de empleado**. Con
+una carga así, bajar existencias a mano ES el trabajo (se teclea 12 y eran 10; una
+caja de 24 traía 20), y eso explica el patrón de cientos de bajas chicas mezcladas
+con las grandes. **Por eso los dos avisos se fundieron en UN bloque neutral**
+("Inventario bajado a mano"), sin ámbar ni rojo y sin concluir nada: da el monto, el
+corte por tamaño, quién y los movimientos mayores. Estado de la carga al 18-sep:
+**Centro 356 de 408 productos con existencia, Aviación 0 de 408.**
+
+### `src/lib/periodos.js` (nuevo)
+Rangos, comparativo con el periodo previo y cubetas de la gráfica salieron del
+componente para poder probarlos: es la parte que se equivocaba en silencio.
+
+### Verificación — SÍ se probó la app corriendo
+- **Node, 33 casos** sobre `src/lib/periodos.js`: rangos de los 4 periodos, que
+  el periodo previo no se traslape ni deje hueco, que la suma de las cubetas sea
+  igual a la suma de las ventas, cubetas por hora/día/mes, y el caso que
+  **reproduce la pérdida del código viejo** ($400 de $2,800).
+- **Banco de pruebas temporal** (`verify.html` + `src/verify-harness.jsx`, ya
+  borrados): monta el Dashboard REAL con `supabase.from/channel` sustituidos por
+  un doble que **aplica de verdad los filtros** de la consulta, con un juego de
+  datos de números redondos calculados a mano. Sin red, sin login, sin tocar
+  producción. Cuadraron al peso las 4 pestañas y los 4 periodos: $1,100 de
+  mostrador / +120% / 4 tickets / $275 de ticket promedio, ruta $800 → total
+  $1,900, salidas sin ticket $550 (7 pz, y el movimiento de hace 20 días
+  correctamente FUERA), arqueo esperado $1,250 vs contado $1,280 = +$30 con dos
+  turnos descuadrados (+$80 y −$50), comparativo Centro $650/3 tickets vs
+  Aviación $450/1 ticket, e inventario $1,140 y $600.
+- **El banco encontró un bug que la revisión de código no vio**: en "Hoy" todas
+  las variaciones salían `+0.0%` porque la ventana del periodo previo llegaba
+  hasta *ahora* en vez de hasta *ayer a esta hora*, o sea se comparaba contra sí
+  misma. Corregido y vuelto a verificar.
+- `npm run build` limpio; el archivo bajó de 4 errores + 2 warnings de ESLint a
+  3 errores (los 3 son `set-state-in-effect`, el mismo patrón de fetch-al-montar
+  que ya usa `App.jsx`).
+- Modo oscuro revisado en pantalla.
+
+Lo único NO probado: contra la base de producción (el POS vive en la tercera
+cuenta de Supabase y no hay PAT en el llavero de esta máquina).
+
+## Sesión 2026-09-18 (cont.) — "¿por qué no sale nada en Reportes?"
+
+La pantalla decía *"No hay registros de asistencia en este período"* con el filtro en
+**Hoy**. Lo más probable es que fuera **cierto**: la captura de ese momento tenía el
+18-sep en $0 de ventas y las cajas de esta tienda se abren entre las 07:05 y las 07:20,
+o sea que nadie había checado todavía. Pero la pantalla **no podía distinguirlo**, y de
+paso tenía dos huecos reales (`src/components/Reportes.jsx`):
+
+1. **Una checada abierta de un día anterior no aparecía en "Hoy".** El filtro era
+   `fecha_entrada >= inicio del periodo`, así que quien entró ayer y no marcó salida
+   —está trabajando AHORA— no salía por ningún lado. Ahora la consulta es
+   `.or('fecha_entrada.gte.X,fecha_salida.is.null')`: lo del periodo **más** lo que
+   siga abierto, con la fila marcada *"sigue abierta desde antes del periodo"*. Mismo
+   arreglo en **Cortes de caja** (una caja sin cerrar también se queda visible).
+2. **Un error se veía idéntico a "no hay datos".** El `catch` solo escribía en la
+   consola. Si la consulta falla —permisos, red— ahora lo dice en pantalla y en rojo;
+   y cuando de verdad no hay nada, el texto es *"Nadie ha checado entrada en este
+   período"*, que es lo que pasa, no un error.
+3. Los topes silenciosos de 100 y 50 filas subieron a 500.
+
+⚠️ **NO probado contra la base** (esta máquina no tiene credenciales del POS): la
+sintaxis del `.or()` sí se verificó generando la URL de PostgREST con el cliente real.
+
 ## Pendientes / fuera de alcance
 - **🔴 EXPONERLE LA TERMINAL AL ADMIN** — falta que el dueño elija (A) o (B); ver sesión 2026-08-27. Mientras no exista, cada venta que atienda Carlos sigue saliendo por "Ajuste manual", sin ticket ni ingreso registrado.
 - **🟡 CARGA MASIVA DE INVENTARIO INICIAL** — ya no bloquea el arranque (cargaron 264 renglones a mano), pero faltan **103 productos en cero en Centro** y **Tito Aviación entera** (0 de 368). Sigue faltando importar CSV/Excel + pantalla de conteo rápido; también sirve para los reabastos.
@@ -292,3 +532,4 @@ Lo único NO probado: la **impresora térmica física** (el `window.print()` rea
 - **iOS 1.0.2 (build 5)** preparado desde el 31-jul: falta Archive + Upload en Xcode y crear la versión en App Store Connect.
 - **Basura pendiente:** `usuarios_perfiles.pin_seguridad` del admin sigue guardado en **texto plano** (`"1234"`); es residuo del PIN muerto que reemplazó el TOTP y no se usa para nada. No hay forma de cerrar una checada colgada desde la UI (la de Jony lleva días abierta). La RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`). El folio del ticket sigue siendo aleatorio, no el id real de la venta.
 - **Costos y gastos**: el dueño los maneja por fuera; por eso el sistema mide ingresos, no utilidad. La valuación de inventario es a **precio de venta**.
+- **Dashboard, lo que queda fuera:** `rutas` NO está en la publicación `supabase_realtime` (ver `scripts/realtime_y_sucursal_caja.sql`), así que una liquidación de ruta entra al cambiar de periodo o al recargar, no sola. El comparativo de sucursales ignora a propósito el filtro de sucursal de arriba (compara todas). El valor de "salió sin ticket" usa el precio ACTUAL del catálogo, no el del día del ajuste (los ajustes no guardan precio).
