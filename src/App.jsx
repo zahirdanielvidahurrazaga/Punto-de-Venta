@@ -477,7 +477,7 @@ function App() {
           {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
           {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
           {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
-          {activeTab === 'dashboard' && isAdmin && <Dashboard ventas={ventas} userName={userName} />}
+          {activeTab === 'dashboard' && isAdmin && <Dashboard userName={userName} />}
           {activeTab === 'ventas_en_ruta' && isAdmin && <VentasEnRuta userProfile={userProfile} />}
           {activeTab === 'equipo' && isAdmin && <Equipo />}
           {activeTab === 'reportes' && isAdmin && <Reportes />}
