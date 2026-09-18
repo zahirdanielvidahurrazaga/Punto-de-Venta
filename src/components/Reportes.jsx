@@ -59,6 +59,7 @@ export default function Reportes() {
   const [asistencias, setAsistencias] = useState([]);
   const [cajas, setCajas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(null);
   const [filtro, setFiltro] = useState(0);
   const [sucursales, setSucursales] = useState([]);
   const [sucursalFiltro, setSucursalFiltro] = useState('todas');
@@ -78,24 +79,31 @@ export default function Reportes() {
 
   const fetchData = async () => {
     setLoading(true);
+    setErrorCarga(null);
     try {
       const desde = getFechaInicio(FILTROS[filtro].days);
       if (activeTab === 'asistencias') await fetchAsistencias(desde);
       else await fetchCajas(desde);
     } catch (err) {
+      // Antes esto solo iba a la consola: en pantalla un error de permisos se
+      // veía EXACTAMENTE igual que "no hay registros", y son cosas distintas.
       console.error('Error fetching reportes:', err.message);
+      setErrorCarga(err.message || 'No se pudieron cargar los reportes.');
     } finally {
       setLoading(false);
     }
   };
 
   const fetchAsistencias = async (desde) => {
+    // Una checada que sigue ABIERTA se trae aunque haya empezado antes del
+    // periodo: si alguien entró ayer y no ha marcado salida, está trabajando
+    // ahora y el reporte de "Hoy" no puede decir que no hay nadie.
     const { data, error } = await supabase
       .from('registro_asistencia')
       .select('*, usuarios_perfiles (nombre_completo, sucursal_id)')
-      .gte('fecha_entrada', desde)
+      .or(`fecha_entrada.gte.${desde},fecha_salida.is.null`)
       .order('fecha_entrada', { ascending: false })
-      .limit(100);
+      .limit(500);
     if (error) throw error;
     const filtrada = sucursalFiltro === 'todas'
       ? (data || [])
@@ -104,14 +112,16 @@ export default function Reportes() {
   };
 
   const fetchCajas = async (desde) => {
+    // Igual que con las checadas: una caja sin cerrar se muestra aunque se
+    // haya abierto antes del periodo.
     let query = supabase
       .from('sesiones_caja')
       .select('*, usuarios_perfiles (id, nombre_completo)')
-      .gte('fecha_apertura', desde);
+      .or(`fecha_apertura.gte.${desde},fecha_cierre.is.null`);
     if (sucursalFiltro !== 'todas') query = query.eq('sucursal_id', sucursalFiltro);
     const { data: cajasData, error } = await query
       .order('fecha_apertura', { ascending: false })
-      .limit(50);
+      .limit(500);
     if (error) throw error;
     if (!cajasData?.length) { setCajas([]); return; }
 
@@ -244,7 +254,9 @@ export default function Reportes() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
-                  {asistencias.map((r) => (
+                  {asistencias.map((r) => {
+                    const deAntes = new Date(r.fecha_entrada) < new Date(getFechaInicio(FILTROS[filtro].days));
+                    return (
                     <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="p-4 font-medium text-slate-900 dark:text-white">
                         <div className="flex items-center gap-2.5">
@@ -259,6 +271,11 @@ export default function Reportes() {
                           <span className={`neb-status-dot ${r.estado === 'trabajando' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                           {r.estado === 'trabajando' ? 'Activo' : 'Completado'}
                         </span>
+                        {deAntes && (
+                          <span className="block text-[10px] text-amber-600 mt-1">
+                            sigue abierta desde antes del periodo
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-slate-500 dark:text-slate-400 font-mono text-[11px] neb-tabular">{fmt(r.fecha_entrada)}</td>
                       <td className="p-4 font-mono text-[11px] neb-tabular">
@@ -273,11 +290,21 @@ export default function Reportes() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {asistencias.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="p-12 text-center text-slate-400 dark:text-slate-500 text-sm">
-                        No hay registros de asistencia en este período.
+                      <td colSpan="5" className="p-12 text-center text-sm">
+                        {errorCarga ? (
+                          <span className="text-rose-600 flex items-center justify-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            No se pudieron cargar los registros: {errorCarga}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500">
+                            Nadie ha checado entrada en este período.
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )}
