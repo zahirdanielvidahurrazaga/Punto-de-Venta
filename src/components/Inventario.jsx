@@ -842,7 +842,7 @@ export default function Inventario({ isAdmin, userProfile }) {
       // productos_de_sucursal (id, sucursal_id, created_at, updated_at) que NO
       // existen en la tabla y rompían el .update() con "Could not find the
       // 'sucursal_id' column".
-      const { stock, _existingId, _addStock } = productData;
+      const { stock, _existingId, _addStock, _motivo } = productData;
       const catalogo = {
         nombre:           productData.nombre,
         sku:              productData.sku,
@@ -871,7 +871,9 @@ export default function Inventario({ isAdmin, userProfile }) {
             productoId: selectedProduct.id,
             delta:      stock - selectedProduct.stock,
             tipo:       'ajuste',
-            notas:      'Ajuste manual',
+            // El motivo lo pide el modal y es obligatorio. El respaldo es para
+            // los movimientos que se hicieran desde otra ruta de código.
+            notas:      _motivo || 'Ajuste manual',
           });
         }
       } else {

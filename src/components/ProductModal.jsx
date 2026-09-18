@@ -8,6 +8,21 @@ export default function ProductModal({ onClose, onSave, product = null, categori
   const [formData, setFormData] = useState(product || {
     nombre: '', sku: '', categoria: '', precio: '', stock: '', precio_mayoreo: '', cantidad_mayoreo: ''
   });
+  const [motivo, setMotivo] = useState('');
+  const [motivoOtro, setMotivoOtro] = useState('');
+
+  // Cuánto cambia el stock al editar un producto. Si cambia, hay que decir POR
+  // QUÉ: antes todo se guardaba como "Ajuste manual" y ni el dueño ni el
+  // Dashboard podían distinguir una merma de un error de dedo.
+  const stockAnterior = product ? (parseInt(product.stock) || 0) : 0;
+  const stockNuevo    = formData.stock === '' ? stockAnterior : (parseInt(formData.stock) || 0);
+  const delta         = product && !existingProduct ? stockNuevo - stockAnterior : 0;
+  const pideMotivo    = delta !== 0;
+
+  const MOTIVOS = delta > 0
+    ? ['Corrección de captura', 'Conteo físico', 'Devolución de cliente', 'Otro']
+    : ['Corrección de captura', 'Conteo físico', 'Merma o rotura',
+       'Regalo o muestra', 'Traspaso a otra sucursal', 'Otro'];
 
   // Genera el siguiente SKU correlativo TIT-000X a partir del catálogo actual.
   // Mantiene los códigos cortos y ordenados para imprimir barras (Code128) limpias.
@@ -46,6 +61,9 @@ export default function ProductModal({ onClose, onSave, product = null, categori
       onSave({
         ...payload,
         categoria: formData.categoria || 'General',
+        _motivo: pideMotivo
+          ? (motivo === 'Otro' ? (motivoOtro.trim() || 'Otro') : motivo)
+          : null,
       });
     }
   };
@@ -185,6 +203,40 @@ export default function ProductModal({ onClose, onSave, product = null, categori
               </div>
             </div>
           </div>
+
+          {/* Si el stock cambia, hay que decir por qué: es lo único que después
+              permite distinguir una merma de un error de captura. */}
+          {pideMotivo && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 p-3 space-y-2">
+              <label className="text-[11px] font-semibold text-amber-900 dark:text-amber-200 block">
+                {delta > 0
+                  ? `Vas a SUBIR el stock en ${delta} pz. ¿Por qué?`
+                  : `Vas a BAJAR el stock en ${Math.abs(delta)} pz. ¿Por qué?`}
+              </label>
+              <select
+                required
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                className="neb-input !py-2 text-[13px]"
+              >
+                <option value="">Elige un motivo…</option>
+                {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {motivo === 'Otro' && (
+                <input
+                  required
+                  type="text" maxLength={80}
+                  value={motivoOtro}
+                  onChange={(e) => setMotivoOtro(e.target.value)}
+                  placeholder="Escribe el motivo"
+                  className="neb-input !py-2 text-[13px]"
+                />
+              )}
+              <p className="text-[11px] text-amber-800 dark:text-amber-300/80">
+                Queda guardado en el historial de inventario y en el Dashboard.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
