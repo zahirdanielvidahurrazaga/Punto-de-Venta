@@ -524,13 +524,167 @@ paso tenía dos huecos reales (`src/components/Reportes.jsx`):
 ⚠️ **NO probado contra la base** (esta máquina no tiene credenciales del POS): la
 sintaxis del `.or()` sí se verificó generando la URL de PostgREST con el cliente real.
 
+## Sesión 2026-09-22 — "Pedidos no da los datos adecuadamente"
+
+Reporte del usuario: *"sigue sin funcionar al cien la pestaña de dashboard y de
+pedidos, ya que no da los datos adecuadamente"*. **Pedidos estaba roto de verdad
+y por varias razones; el Dashboard quedó pendiente de que el usuario diga qué
+número ve mal** (no se tocó su lógica de datos en esta sesión).
+
+Antes de nada se descartó lo barato: **producción SÍ sirve el Dashboard nuevo**
+(se buscaron textos del código del 17-sep dentro del bundle desplegado por
+Cloudflare). Lo que sí puede pasar es que la PC de la tienda tenga caché del
+service worker → **Ctrl+Shift+R**.
+
+### 🔴 El historial se cortaba en 1000 ventas, sin avisar
+`App.fetchVentas` cargaba la ventana de 45 días con `.limit(3000)` y se la pasaba
+a Pedidos por prop. **PostgREST nunca devuelve más de 1000 filas**, pida lo que
+pida el cliente, y responde 200 sin avisar de que cortó. Con 1,161 ventas en 30
+días (medidas el 17-sep), 45 días traen bastante más de 1000: llegaban solo las
+**~1000 más recientes**, ordenadas por fecha descendente. O sea, "30 días" y
+"Todas" enseñaban más o menos las últimas dos semanas **y los cuatro indicadores
+de arriba se calculaban sobre ese pedazo**. Es el mismo corte que ya había
+mordido en el Dashboard el 17-sep (161 tickets, ≈$20,000, fuera del comparativo
+de sucursales).
+
+El paginado salió de `Dashboard.jsx` a **`src/lib/paginado.js`** (`traerTodo`,
+`PAGINA`, `MAX_FILAS`) y ahora lo usan las dos pantallas. Regla: **cualquier
+consulta que pueda pasar de 1000 filas va por ahí.**
+
+### Los demás huecos de `Pedidos.jsx`
+2. **"7 días" y "30 días" no decían lo mismo que el Dashboard.** Aquí eran
+   7×24 horas hacia atrás **desde este instante**, así que metían un pedazo del
+   8.º día (todo lo posterior a las 15:30 del día 15, por ejemplo) e inflaban el
+   total frente al Dashboard, que cuenta días naturales. Ahora los dos usan la
+   misma matemática, en `src/lib/periodos.js` (`rangoPedidos`).
+3. **La fecha suelta no alcanzaba más allá de la ventana cargada.** Elegir un día
+   de hace dos meses daba "sin pedidos" — no existía la consulta, se filtraba en
+   memoria sobre los 45 días. Ahora cada periodo dispara su propia consulta.
+   De paso: `new Date('2026-09-10')` se interpreta como UTC y en México caía en
+   el día 9; la fecha se arma local.
+4. **Un error se veía idéntico a "no hay pedidos".** El `catch` solo escribía en
+   consola. Mismo hueco que tenía Reportes el 18-sep. Ahora el error sale en rojo
+   con botón de reintentar, y el vacío distingue "no se cobró nada en este
+   periodo" de "ningún pedido coincide con el filtro".
+5. **Las tarjetas no cuadraban con la lista al buscar:** los totales se calculaban
+   antes de aplicar el buscador. Ahora se calculan sobre lo que se ve, y se avisa
+   cuando hay una búsqueda activa.
+6. **La columna "Artículos" decía cosas distintas en móvil y escritorio** (número
+   de renglones vs suma de piezas). Ahora las dos suman piezas.
+7. Al pie se dice **cuántos pedidos se están viendo**, para cachar a simple vista
+   si algo se vuelve a cortar.
+
+### De paso, el rendimiento
+Esa consulta gorda traía `venta_detalles(*, productos(*))` de hasta 1000 ventas
+**y se repetía entera cada vez que el cajero cobraba** (iba colgada al realtime
+de `ventas` en `App.jsx`). Ahora:
+- La lista pide solo las columnas que pinta + `venta_detalles(cantidad)` para
+  contar piezas. **Las partidas y el producto se piden al abrir un ticket**, de
+  esa venta y nada más.
+- `App.jsx` ya no carga ventas: se fueron el estado `ventas`, `fetchVentas`,
+  `DIAS_HISTORIAL` y su suscripción de realtime. Pedidos se suscribe solo.
+- ⚠️ `rangoPedidos` deja el tope superior ABIERTO en los periodos que llegan
+  hasta hoy. Es a propósito: fijar un "hasta = ahora" lo congela y las ventas que
+  entran por realtime caen "en el futuro" y se descartan — ese bug ya pasó en el
+  Dashboard el 17-sep.
+
+### Verificación
+- **Node, 17 casos** sobre `rangoPedidos` (`src/lib/periodos.js`): los 5 periodos,
+  la fecha suelta sin corrimiento de zona horaria, **que Pedidos y Dashboard
+  arranquen en el mismo instante** para Hoy/7/30, y el caso que reproduce el
+  comportamiento viejo (metía 8 fechas bajo la etiqueta "7 días").
+- **Node, 16 casos** sobre `traerTodo` contra un PostgREST falso que **sí corta en
+  1000**: reproduce la pérdida vieja (pide 3000, recibe 1000, se pierden 758 sin
+  aviso), bordes en 0/999/1000/1001/2000/3500, el tope de seguridad que sí avisa,
+  y que un error de la BD se lance en vez de tragarse como lista vacía.
+- `npm run build` limpio. ESLint en `Pedidos.jsx`: de 10 problemas a **1**, y el
+  que queda (`set-state-in-effect`) es el patrón de fetch-al-montar que ya usan
+  `App.jsx` y `Dashboard.jsx`. De paso se sacaron `Metric`/`Metodo`/`Chips` fuera
+  del render: declarados dentro, React los ve como componentes nuevos en cada
+  render y remonta el subárbol — **es el bug del scroll del carrito del 9-sep**.
+- El banco de pruebas quedó armado por si hace falta (`verify.html` +
+  `src/verify-harness.jsx`, ya en `.gitignore`): monta el Pedidos REAL con un
+  doble de Supabase que aplica los filtros y respeta el corte de 1000.
+
+### ✅ REPRODUCIDO Y CORREGIDO CONTRA PRODUCCIÓN (el usuario abrió su sesión)
+Se comparó pantalla contra pantalla en la web de producción, mismo periodo, el
+22-sep a las ~20:00:
+
+| 30 días | Ventas | Tickets |
+|---|---|---|
+| Dashboard | $201,506.50 | 1,663 |
+| Pedidos (código viejo) | $124,483.50 | **1,000** |
+
+**Exactamente 1000**, el número redondo que delata el corte de PostgREST: a
+Pedidos le faltaban **663 tickets y $77,023.00** sin decir nada. Y **"Todas"
+mostraba lo mismo que "30 días"** ($124,483.50 / 1000), o sea que el historial
+completo del negocio se veía igual que un mes.
+
+"7 días" sí coincidía ($70,889 / 622) porque son menos de 1000 tickets y porque
+a esa hora de la noche la ventana rodante ya no alcanzaba a meter ventas del 8º
+día. **El bug de la ventana rodante existe igual, solo que no se nota de noche.**
+
+El Dashboard, en cambio, cuadra consigo mismo en las cuatro pestañas (los
+$70,889 de 7 días salen idénticos en el KPI, en "Total del negocio", en método
+de pago, en "Efectivo de ventas" del arqueo y en el comparativo de Centro; y el
+arqueo da $4,000 + $70,889 − $7,800 = $67,089 exacto). **No estaba mintiendo.**
+
+**Con el código nuevo, corriendo en local contra la MISMA base de producción:**
+Hoy $8,181.00/73 · Ayer $10,035.00/89 · 7 días $70,889.00/622 ·
+**30 días $201,506.50/1,663** (cuadra al peso con el Dashboard) ·
+Todas $201,644.50/1,665. Los $138 de diferencia entre 30 días y Todas son las
+ventas previas al arranque real, y son justo la base que hacía el +145,919%.
+
+## Sesión 2026-09-22 (2ª parte) — lo lento y el porcentaje absurdo
+
+Tres pedidos del usuario después de ver lo anterior corriendo.
+
+### Pedidos: cambiar de periodo ya no pide datos
+*"tarda cuando cambio de día a revisar"*. Cada clic relanzaba la consulta
+paginada completa (1,665 ventas = 2 viajes). Ahora hay **ventana maestra** que
+**solo se ensancha** y los cinco periodos se **cortan en memoria**, igual que el
+Dashboard: la primera vez que se pide más historia se paga una carga, después
+cambiar de botón son **0 consultas**. Medido en vivo con la sesión del usuario:
+se hizo clic en Hoy / 30 días / 7 días / Ayer capturando la pantalla **en el
+mismo instante del clic, sin esperar**, y las cuatro ya traían el número final
+sin spinner.
+
+El refresco en vivo también pasó a ser **incremental** (solo lo posterior a la
+venta más nueva que ya se tiene, fusionado por id): recargar 1,665 ventas en
+cada cobro no tenía sentido. Y el reloj avanza cada minuto para que "Hoy" cambie
+solo al pasar medianoche.
+
+### Dashboard → Análisis: de ~10 s a menos de 2 s
+`cargarDetalles` pedía las partidas de **toda la ventana maestra**, así que
+mirar "Hoy" en Análisis podía arrastrar seis meses de renglones si antes se
+había abierto ese periodo en Resumen. Ahora `detalles` es `{ desdeTs, mapa }` y
+carga **solo desde donde empieza el periodo elegido**, ensanchándose como la
+maestra (no usa el comparativo: Análisis y Sucursales no comparan periodos).
+Medido: Análisis en "Hoy" < 2 s; ensanchar a 30 días cuesta una carga de ~9 s
+una sola vez, y volver a "Hoy" es instantáneo.
+
+### El +145,919.2% de los KPIs
+Era cierto y era inútil: el negocio arrancó dentro de la ventana, así que los 30
+días previos tenían **$138** contra $201,506. `variacion()` ahora dice **"sin
+base comparable"** cuando el actual es más de **100×** el previo. Verificado en
+pantalla: las tres tarjetas absurdas lo dicen y **el ticket promedio conserva su
++75.6%**, que sí es una comparación real. 9 casos en Node, incluido el borde
+exacto (×100 todavía se muestra, ×101 ya no).
+
+### Verificación total de la sesión
+**42 casos en Node, todos pasan** (17 de periodos + 16 de paginado + 9 de
+variación), `npm run build` limpio, y **todo lo anterior comprobado en el
+navegador contra la base de producción real** con la sesión del usuario.
+ESLint: Pedidos 1 problema (el `set-state-in-effect` de siempre), Dashboard 4
+del mismo tipo.
+
 ## Pendientes / fuera de alcance
 - **Exportar a Excel/PDF: DESCARTADO** por el usuario el 18-sep-2026. No volver a proponerlo.
-- **🔴 EXPONERLE LA TERMINAL AL ADMIN** — falta que el dueño elija (A) o (B); ver sesión 2026-08-27. Mientras no exista, cada venta que atienda Carlos sigue saliendo por "Ajuste manual", sin ticket ni ingreso registrado.
+- ~~**EXPONERLE LA TERMINAL AL ADMIN**~~ — **CERRADO, no es un pendiente.** El usuario lo decidió el 17-sep-2026: la cuenta de Carlos es **solo de administración** y todas las ventas salen del perfil de empleado. **No volver a proponerlo** (ya se propuso dos veces por leer esta línea). Lo que Carlos baja a mano en Inventario es captura de catálogo, no ventas sin cobrar — ver el contexto del 18-sep.
 - **🟡 CARGA MASIVA DE INVENTARIO INICIAL** — ya no bloquea el arranque (cargaron 264 renglones a mano), pero faltan **103 productos en cero en Centro** y **Tito Aviación entera** (0 de 368). Sigue faltando importar CSV/Excel + pantalla de conteo rápido; también sirve para los reabastos.
 - **TIT-0178 BASTON CON ROSCA** tiene precio de mayoreo igual al de menudeo ($15 desde 12 pzas). Error de captura, no cobra de más; desde el 9-sep el ticket ya no lo anuncia como mayoreo, pero **el dato sigue mal en el catálogo**.
 - **Android: YA NO SE ACTUALIZA.** Decisión del usuario (18-sep-2026): no se subirán más versiones a Google Play. **No proponerlo ni prepararlo.** Las usuarias de Android se quedan con la web/PWA, que es lo que ya usaban (la app nunca llegó a estar publicada en Play).
-- **iOS: la 1.0.2 SÍ se publicó** (viva en la App Store desde el **1-ago-2026**, confirmado con `curl "https://itunes.apple.com/lookup?bundleId=com.plasticos.pos&country=mx"`). La nota vieja que decía "falta Archive + Upload desde el 31-jul" estaba equivocada. **iOS 1.1.0 (build 6) SUBIDA el 18-sep** (Archive + Upload hechos por el usuario) → falta crear/enviar la versión 1.1.0 en App Store Connect y que pase App Review. Recordatorio: la app es **Unlisted**, cada versión sí pasa por App Review, y **se abre `ios/App/App.xcodeproj`, NO hay `.xcworkspace`** (usa SPM).
+- **iOS: la 1.0.2 SÍ se publicó** (viva en la App Store desde el **1-ago-2026**, confirmado con `curl "https://itunes.apple.com/lookup?bundleId=com.plasticos.pos&country=mx"`). La nota vieja que decía "falta Archive + Upload desde el 31-jul" estaba equivocada. **iOS 1.1.0 PUBLICADA** — viva en la App Store desde el **18-sep-2026 14:56 UTC** ("Corrección en dashboard financiero"), confirmado con el lookup de iTunes el 22-sep. No hay nada pendiente de subir. Recordatorio: la app es **Unlisted**, cada versión sí pasa por App Review, y **se abre `ios/App/App.xcodeproj`, NO hay `.xcworkspace`** (usa SPM).
 - **Basura pendiente:** `usuarios_perfiles.pin_seguridad` del admin sigue guardado en **texto plano** (`"1234"`); es residuo del PIN muerto que reemplazó el TOTP y no se usa para nada. No hay forma de cerrar una checada colgada desde la UI (la de Jony lleva días abierta). La RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`). El folio del ticket sigue siendo aleatorio, no el id real de la venta.
 - **Costos y gastos**: el dueño los maneja por fuera; por eso el sistema mide ingresos, no utilidad. La valuación de inventario es a **precio de venta**.
 - **Dashboard, lo que queda fuera:** `rutas` NO está en la publicación `supabase_realtime` (ver `scripts/realtime_y_sucursal_caja.sql`), así que una liquidación de ruta entra al cambiar de periodo o al recargar, no sola. El comparativo de sucursales ignora a propósito el filtro de sucursal de arriba (compara todas). El valor de "salió sin ticket" usa el precio ACTUAL del catálogo, no el del día del ajuste (los ajustes no guardan precio).

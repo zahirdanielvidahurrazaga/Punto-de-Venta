@@ -73,9 +73,20 @@ export function rangoDe(periodo, ahora = new Date()) {
   };
 }
 
-/** Variación porcentual contra el periodo previo. */
+/**
+ * Variación porcentual contra el periodo previo.
+ *
+ * Cuando el periodo previo es una miseria al lado del actual, el porcentaje
+ * es cierto pero no informa nada: en 30 días salía **+145,919.2%** porque los
+ * 30 días previos tuvieron $138 contra $201,506 (el negocio arrancó dentro de
+ * la ventana). Un número así solo ocupa lugar, así que se dice lo que de
+ * verdad pasa.
+ */
+const SIN_BASE = 100; // el actual es más de 100× el previo
+
 export function variacion(actual, previo) {
   if (!previo) return actual > 0 ? { txt: 'sin base previa', tipo: 'neutral' } : null;
+  if (actual / previo > SIN_BASE) return { txt: 'sin base comparable', tipo: 'neutral' };
   const pct = ((actual - previo) / previo) * 100;
   return {
     txt: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
@@ -131,3 +142,39 @@ export function cubetasDe(ventas, rango) {
   }
   return cubetas;
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Pedidos usa sus propias etiquetas (Hoy · Ayer · 7 · 30 · Todas + una fecha
+// suelta), pero la matemática vive aquí por la misma razón que la del
+// Dashboard: es la que se equivoca sin que nadie se entere.
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Rango [desde, hasta) del periodo elegido.
+ *
+ * `hasta` se deja ABIERTO en los periodos que llegan hasta hoy. Es a propósito:
+ * si se fija un tope "ahora", ese tope se congela en el momento de la consulta
+ * y toda venta que entre después por realtime cae "en el futuro" y se descarta
+ * (ese bug ya nos pasó en el Dashboard el 17-sep). No hay ventas futuras, así
+ * que no acotar por arriba es correcto y además es a prueba de relojes.
+ */
+export function rangoPedidos(periodo, customDate, ahora = new Date()) {
+  const hoy = inicioDelDia(ahora);
+  switch (periodo) {
+    case 'hoy':    return { desde: hoy, hasta: null };
+    case 'ayer':   return { desde: masDias(hoy, -1), hasta: hoy };
+    case '7dias':  return { desde: masDias(hoy, -6),  hasta: null };
+    case '30dias': return { desde: masDias(hoy, -29), hasta: null };
+    case 'custom': {
+      if (!customDate) return { desde: null, hasta: null };
+      // El input date da 'YYYY-MM-DD'; se arma local para no correrse un día
+      // por zona horaria (new Date('2026-09-22') se interpreta como UTC).
+      const [a, m, d] = customDate.split('-').map(Number);
+      const dia = new Date(a, m - 1, d, 0, 0, 0, 0);
+      return { desde: dia, hasta: masDias(dia, 1) };
+    }
+    case 'todas':
+    default:       return { desde: null, hasta: null };
+  }
+}
+

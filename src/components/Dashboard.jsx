@@ -7,6 +7,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
 import { PERIODOS, rangoDe, variacion, cubetasDe } from '../lib/periodos';
+import { traerTodo, MAX_FILAS } from '../lib/paginado';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // El Dashboard pide SUS PROPIOS datos por rango de fechas.
@@ -28,13 +29,6 @@ const SUB_TABS = [
   { key: 'flujo',      label: 'Flujo de Caja' },
   { key: 'sucursales', label: 'Sucursales'    },
 ];
-
-// PostgREST devuelve como máximo 1000 filas por llamada. Sin paginar, el
-// comparativo de sucursales y el análisis se cortaban en silencio al pasar de
-// ese número (736 renglones de producto_stock hoy, 1104 al abrir una tercera
-// sucursal).
-const PAGINA   = 1000;
-const MAX_FILAS = 20000;
 
 // OJO con el contexto antes de sacar conclusiones de estos números: el catálogo
 // (408 productos) SE SIGUE CAPTURANDO A MANO, día a día, desde el almacén. Con
@@ -93,21 +87,6 @@ const fusionar = (viejas, nuevas) => {
   for (const x of nuevas) porId.set(x.id, x);
   return [...porId.values()].sort((a, b) => b.ts - a.ts);
 };
-
-// Trae TODAS las filas de una consulta, de mil en mil.
-async function traerTodo(construir) {
-  const filas = [];
-  let inicio = 0, truncado = false;
-  for (;;) {
-    const { data, error } = await construir().range(inicio, inicio + PAGINA - 1);
-    if (error) throw error;
-    filas.push(...(data || []));
-    if (!data || data.length < PAGINA) break;
-    if (filas.length >= MAX_FILAS) { truncado = true; break; }
-    inicio += PAGINA;
-  }
-  return { filas, truncado };
-}
 
 // ─── KPI Card ──────────────────────────────────────────────────────────────
 function KpiCard({ label, value, icon: Icon, delta, nota }) {
@@ -290,7 +269,11 @@ export default function Dashboard({ userName = 'Admin' }) {
   // ventana y se corta en memoria. La ventana solo se ENSANCHA (nunca se
   // vuelve a pedir lo que ya se tiene), y al abrir "6 meses" se paga una vez.
   const [maestro, setMaestro] = useState(null);
-  const [detalles, setDetalles] = useState(null);  // venta_id → partidas (solo Análisis/Sucursales)
+  // { desdeTs, mapa: venta_id → partidas }. Solo Análisis/Sucursales, y solo
+  // desde donde empieza el PERIODO elegido: antes se pedían las partidas de
+  // toda la ventana maestra, así que mirar "Hoy" en Análisis podía arrastrar
+  // seis meses de renglones. Como la maestra, esta ventana solo se ensancha.
+  const [detalles, setDetalles] = useState(null);
   const [conteos, setConteos]   = useState(new Map()); // venta_id → nº de partidas (últimas 30)
   const [stock, setStock]       = useState([]);
 
@@ -446,16 +429,22 @@ export default function Dashboard({ userName = 'Admin' }) {
         .select('id, venta_detalles(producto_id, cantidad, precio_unitario)')
         .gte('fecha', new Date(desdeTs).toISOString())
         .order('fecha', { ascending: false }));
-      setDetalles(new Map((filas || []).map(v => [v.id, v.venta_detalles || []])));
+      setDetalles({ desdeTs, mapa: new Map((filas || []).map(v => [v.id, v.venta_detalles || []])) });
     } catch (e) {
       console.error('Dashboard: error cargando partidas', e);
     } finally { setCargandoDetalles(false); }
   }, []);
 
+  // Solo el rango del periodo (no el comparativo: Análisis y Sucursales no
+  // comparan contra el periodo previo).
+  const necesitaDetallesDesde = rango.desde.getTime();
+
   useEffect(() => {
-    if (necesitaDetalles && maestro && !detalles && !cargandoDetalles) cargarDetalles(maestro.desdeTs);
+    if (!necesitaDetalles || !maestro || cargandoDetalles) return;
+    if (detalles && necesitaDetallesDesde >= detalles.desdeTs) return;  // ya está cubierto
+    cargarDetalles(necesitaDetallesDesde);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [necesitaDetalles, maestro, detalles]);
+  }, [necesitaDetalles, maestro, detalles, necesitaDetallesDesde]);
 
   const fetchStock = useCallback(async () => {
     setCargandoStock(true);
@@ -582,7 +571,7 @@ export default function Dashboard({ userName = 'Admin' }) {
 
   // Ventas con sus partidas resueltas (solo cuando ya llegaron).
   const itemsDe = useCallback((venta) => (
-    (detalles?.get(venta.id) || []).map(d => {
+    (detalles?.mapa.get(venta.id) || []).map(d => {
       const p = catalogo.get(d.producto_id);
       return {
         id: d.producto_id,

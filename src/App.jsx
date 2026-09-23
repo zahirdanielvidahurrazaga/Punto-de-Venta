@@ -17,10 +17,6 @@ import VentasEnRuta from './components/VentasEnRuta';
 import NotificacionesCenter from './components/NotificacionesCenter';
 import { initPush } from './lib/push';
 
-// Ventana de historial que la app mantiene cargada. Cubre con margen el filtro
-// más largo de Pedidos y del Dashboard (30 días).
-export const DIAS_HISTORIAL = 45;
-
 function App() {
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -32,7 +28,6 @@ function App() {
 
   const [activeTab, setActiveTab] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [ventas, setVentas] = useState([]);
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem('pos_cart');
@@ -170,74 +165,12 @@ function App() {
     await supabase.auth.signOut();
   };
 
-  const fetchVentas = async () => {
-    if (!session || !userProfile) return;
-    try {
-      // Antes se traían "las últimas 50 ventas" a secas. Con dos sucursales
-      // vendiendo, 50 tickets se acaban en unas horas: el Dashboard y Pedidos
-      // mostraban números incompletos del propio día sin avisar. Ahora se trae
-      // por ventana de fechas, que es lo que consultan los filtros de la UI.
-      const desde = new Date();
-      desde.setDate(desde.getDate() - DIAS_HISTORIAL);
-      desde.setHours(0, 0, 0, 0);
-
-      let query = supabase
-        .from('ventas')
-        .select(`
-          *,
-          venta_detalles (
-            *,
-            productos (*)
-          )
-        `)
-        .gte('fecha', desde.toISOString());
-
-      // El empleado solo ve el movimiento de su sucursal; el admin ve todo y
-      // filtra desde la UI.
-      if (userProfile.rol !== 'admin' && userProfile.sucursal_id) {
-        query = query.eq('sucursal_id', userProfile.sucursal_id);
-      }
-
-      const { data, error } = await query
-        .order('fecha', { ascending: false })
-        .limit(3000);
-
-      if (error) throw error;
-
-      const mappedVentas = (data || []).map(v => ({
-        ...v,
-        items: v.venta_detalles.map(d => ({
-          ...d.productos,
-          quantity: d.cantidad,
-          precio_unitario: d.precio_unitario,
-          precio: Number(d.precio_unitario)
-        })),
-        pagos: {
-          efectivo: Number(v.pago_efectivo) || 0,
-          tarjeta: Number(v.pago_tarjeta) || 0,
-          transferencia: Number(v.pago_transferencia) || 0,
-          totalPagado: Number(v.pago_efectivo || 0) + Number(v.pago_tarjeta || 0) + Number(v.pago_transferencia || 0),
-          cambio: 0
-        }
-      }));
-
-      setVentas(mappedVentas);
-    } catch (error) {
-      console.error('Error fetching sales:', error.message);
-    }
-  };
-
-  const puedeVerVentas = !!session && !!userProfile &&
-    (userProfile.rol === 'admin' || (isClockedIn && isCajaOpen));
-
-  useEffect(() => {
-    if (puedeVerVentas) fetchVentas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, isClockedIn, isCajaOpen, userProfile]);
-
-  // Ventas en vivo: si cobra la otra caja o la otra sucursal, el Dashboard y
-  // Pedidos se refrescan solos, sin recargar la página.
-  useRealtime('ventas', fetchVentas, { activo: puedeVerVentas });
+  // Las ventas ya NO se cargan aquí. Vivían en este estado para dárselas a
+  // Pedidos por prop, en una sola consulta con `.limit(3000)` que PostgREST
+  // cortaba en 1000 filas sin avisar, y que además se repetía entera —con las
+  // partidas y el producto de cada renglón— cada vez que el cajero cobraba.
+  // Ahora Pedidos pide lo suyo, por rango y paginado (ver Pedidos.jsx), igual
+  // que el Dashboard.
 
   // El flujo del empleado (checada y caja) también puede cambiar desde otro
   // dispositivo o desde el panel del admin.
@@ -270,7 +203,8 @@ function App() {
         throw new Error(data.error);
       }
 
-      fetchVentas();
+      // Pedidos se entera solo: está suscrito a `ventas` por realtime y, si no
+      // está montado, carga fresco al abrir la pestaña.
       return true;
     } catch (error) {
       console.error('Error registering sale:', error.message, error);
@@ -475,7 +409,7 @@ function App() {
       <main className="flex-1 overflow-hidden relative pt-[calc(60px+env(safe-area-inset-top))] lg:pt-0 pb-0 flex flex-col bg-slate-50/40 dark:bg-slate-950 transition-colors">
         <div className="h-full overflow-hidden">
           {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
-          {activeTab === 'pedidos' && canOperate && <Pedidos ventas={ventas} isAdmin={isAdmin} />}
+          {activeTab === 'pedidos' && canOperate && <Pedidos isAdmin={isAdmin} userProfile={userProfile} />}
           {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
           {activeTab === 'dashboard' && isAdmin && <Dashboard userName={userName} />}
           {activeTab === 'ventas_en_ruta' && isAdmin && <VentasEnRuta userProfile={userProfile} />}

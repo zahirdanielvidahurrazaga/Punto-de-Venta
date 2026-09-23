@@ -36,3 +36,8 @@ supabase/.temp/
 # Respaldos de base de datos (script scripts/backup_supabase.sh)
 backups/
 scripts/.backup.env
+
+# Banco de pruebas temporal (monta un componente real con Supabase simulado).
+# Se rehace cuando hace falta; no debe viajar al repo.
+verify.html
+src/verify-harness.jsx
