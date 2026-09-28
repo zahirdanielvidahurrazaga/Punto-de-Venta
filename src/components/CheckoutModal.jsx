@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { CreditCard, Banknote, Building2, X, ArrowRight, SplitSquareHorizontal, CheckCircle } from 'lucide-react';
 
 export default function CheckoutModal({ total, onClose, onComplete }) {

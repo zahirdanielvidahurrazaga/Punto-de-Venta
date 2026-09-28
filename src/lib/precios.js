@@ -47,22 +47,38 @@ export function importePartida(item, cantidad = cantidadDe(item)) {
  *  - CARRITO (venta en curso): el item es el producto del catálogo, así que
  *    `precio` es el de menudeo y podemos decir cuánto se ahorró.
  *
- *  - REIMPRESIÓN (historial de ventas): App.jsx pisa `precio` con el
- *    `precio_unitario` que quedó guardado en `venta_detalles`, que es el que
- *    de verdad se cobró. Ahí `normal` va en null a propósito: el precio de
- *    lista de hoy puede no ser el de aquel día, y no vamos a imprimirle al
- *    cliente un "ahorro" que quizá no fue el suyo.
+ *  - REIMPRESIÓN (historial de ventas): `precio_unitario` es lo que de verdad
+ *    se cobró. Desde el 27-sep-2026 cada partida guarda también
+ *    `precio_lista` (el precio normal de ESE día, lo pone la base), así que la
+ *    reimpresión dice el ahorro exacto. Las ventas anteriores no lo tienen:
+ *    ahí se marca MAYOREO pero NO se inventa un ahorro con el precio de hoy,
+ *    que puede no ser el de aquel día.
  */
 export function desglosePartida(item) {
   const cantidad = cantidadDe(item);
 
   if (item?.precio_unitario != null) {
     const unitario = num(item.precio_unitario);
+    const lista = item.precio_lista != null ? num(item.precio_lista) : null;
+
+    if (lista != null) {
+      // Se cobró por debajo del precio normal de ese día = mayoreo.
+      const mayoreo = lista > unitario;
+      return {
+        cantidad,
+        unitario,
+        importe: unitario * cantidad,
+        mayoreo,
+        normal: mayoreo ? lista : null,
+        ahorro: mayoreo ? (lista - unitario) * cantidad : 0,
+      };
+    }
+
     return {
       cantidad,
       unitario,
       importe: unitario * cantidad,
-      // Se cobró al precio de mayoreo y la cantidad daba para ello.
+      // Venta vieja (sin precio_lista): se marca si cuadra con el mayoreo de hoy.
       mayoreo:
         num(item.precio_mayoreo) > 0 &&
         num(item.cantidad_mayoreo) > 0 &&

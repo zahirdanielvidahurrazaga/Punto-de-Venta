@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, Minus, Sparkles, AlertTriangle, TrendingDown } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
@@ -191,6 +191,9 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
+  // La venta recién cobrada: su folio real para el ticket (llega un instante
+  // después del cobro, por eso arranca sin folio).
+  const [ventaHecha, setVentaHecha] = useState(null);
 
   // Aviso flotante. `tipo` distingue una confirmación de un bloqueo de venta.
   const [toast, setToast] = useState(null);
@@ -434,20 +437,40 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     setIsCheckoutOpen(false);
 
     if (onRegisterSale) {
-      const success = await onRegisterSale({
+      const venta = await onRegisterSale({
         total,
         items: cart,
         pagos: data
       });
 
-      if (success) {
+      if (venta) {
+        const cajero = userProfile?.nombre_completo || '';
+        setVentaHecha({ id: venta.venta_id, folio: null, fecha: new Date().toISOString(), cajero });
         setIsTicketOpen(true);
+        cargarFolio(venta.venta_id, cajero);
       }
+    }
+  };
+
+  // El folio lo asigna la base al guardar la venta. Si no llega (red lenta o
+  // la columna aún no existe) se usa el inicio del id: el ticket se tiene que
+  // poder imprimir sí o sí, con el cliente enfrente.
+  const cargarFolio = async (ventaId, cajero) => {
+    if (!ventaId) return;
+    try {
+      const { data, error } = await supabase
+        .from('ventas').select('folio, fecha').eq('id', ventaId).single();
+      if (error) throw error;
+      setVentaHecha(v => v && v.id === ventaId ? { ...v, folio: data.folio, fecha: data.fecha, cajero } : v);
+    } catch (e) {
+      console.error('No se pudo leer el folio de la venta:', e);
+      setVentaHecha(v => v && v.id === ventaId ? { ...v, folio: String(ventaId).slice(0, 8).toUpperCase() } : v);
     }
   };
 
   const handleNewSale = () => {
     setPaymentData(null);
+    setVentaHecha(null);
     setIsTicketOpen(false);
     setCart([]);
     inputRef.current?.focus();
@@ -664,6 +687,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
           cart={cart}
           total={total}
           paymentData={paymentData}
+          venta={ventaHecha}
           sucursal={userProfile?.sucursales}
           onClose={handleNewSale}
         />

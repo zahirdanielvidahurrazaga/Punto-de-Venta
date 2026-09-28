@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   CalendarDays, Plus, Search, X, Trash2, CheckCircle2,
   Clock, User, Phone, Package, Loader2, ShoppingBag,
-  ClipboardList, AlertCircle, Tag, Banknote, CreditCard,
+  AlertCircle, Tag, Banknote, CreditCard,
   Building2, Wallet, DollarSign, Printer, Store, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';

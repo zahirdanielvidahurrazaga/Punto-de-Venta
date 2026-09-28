@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Loader2, Wallet, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { totalesDeSesion } from '../lib/ventas';
 import { useRealtime } from '../lib/useRealtime';
 
 export default function CajaModal({ userProfile, onStatusChange }) {
@@ -58,23 +59,11 @@ export default function CajaModal({ userProfile, onStatusChange }) {
   const fetchResumenVentas = async (session) => {
     setLoadingResumen(true);
     try {
-      // Por sesión, no por "ventas del usuario desde tal hora": es la relación
-      // exacta que ya guarda registrar_venta y no depende del reloj.
-      const { data, error } = await supabase
-        .from('ventas')
-        .select('pago_efectivo, pago_tarjeta, pago_transferencia')
-        .eq('sesion_caja_id', session.id);
-
-      if (error) throw error;
-
-      const totales = (data || []).reduce(
-        (acc, v) => ({
-          efectivo: acc.efectivo + (Number(v.pago_efectivo) || 0),
-          tarjeta: acc.tarjeta + (Number(v.pago_tarjeta) || 0),
-          transferencia: acc.transferencia + (Number(v.pago_transferencia) || 0),
-        }),
-        { efectivo: 0, tarjeta: 0, transferencia: 0 }
-      );
+      // Por sesión (la relación exacta que guarda registrar_venta), calculado
+      // por la base: es la MISMA cuenta del arqueo del Dashboard y de
+      // Reportes → Cortes, y no se corta en 1000 filas si un turno se quedó
+      // abierto varios días.
+      const totales = await totalesDeSesion(session);
 
       setResumenVentas(totales);
     } catch (err) {

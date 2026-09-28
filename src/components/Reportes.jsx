@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
+import { resumenVentas } from '../lib/ventas';
 import {
   Loader2, FileText, Clock, Wallet,
   AlertTriangle, CheckCircle, Timer, ShoppingBag, ChevronDown
@@ -126,36 +127,26 @@ export default function Reportes() {
     if (!cajasData?.length) { setCajas([]); return; }
 
     const minFecha = cajasData[cajasData.length - 1].fecha_apertura;
-    const { data: ventasRaw } = await supabase
-      .from('ventas')
-      .select('user_id, pago_efectivo, pago_tarjeta, pago_transferencia, fecha')
-      .gte('fecha', minFecha);
-
-    // Sangrías (retiros/depósitos) de las sesiones listadas
-    const { data: movsRaw } = await supabase
-      .from('movimientos_caja')
-      .select('sesion_caja_id, tipo, monto')
-      .in('sesion_caja_id', cajasData.map(c => c.id));
+    // Lo cobrado en cada turno lo calcula la base, por `sesion_caja_id`, que
+    // es la relación exacta que guarda registrar_venta — la MISMA cuenta que
+    // usan el arqueo del Dashboard y el corte de CajaModal. Antes aquí se
+    // adivinaba por "mismo usuario + dentro del horario del turno", que falla
+    // con la cuenta compartida y con turnos que se enciman.
+    const [resumen, { data: movsRaw }] = await Promise.all([
+      resumenVentas({ desde: minFecha }),
+      // Sangrías (retiros/depósitos) de las sesiones listadas
+      supabase.from('movimientos_caja').select('sesion_caja_id, tipo, monto')
+        .in('sesion_caja_id', cajasData.map(c => c.id)),
+    ]);
 
     const result = cajasData.map(caja => {
-      const apertura = new Date(caja.fecha_apertura);
-      const cierre = caja.fecha_cierre ? new Date(caja.fecha_cierre) : new Date();
-
-      const ventasSesion = (ventasRaw || []).filter(v =>
-        v.user_id === caja.usuario_id &&
-        new Date(v.fecha) >= apertura &&
-        new Date(v.fecha) <= cierre
-      );
-
-      const ventas = ventasSesion.reduce(
-        (acc, v) => ({
-          efectivo:      acc.efectivo      + (Number(v.pago_efectivo)      || 0),
-          tarjeta:       acc.tarjeta       + (Number(v.pago_tarjeta)       || 0),
-          transferencia: acc.transferencia + (Number(v.pago_transferencia) || 0),
-          count:         acc.count + 1,
-        }),
-        { efectivo: 0, tarjeta: 0, transferencia: 0, count: 0 }
-      );
+      const s = resumen.porSesion.get(caja.id);
+      const ventas = {
+        efectivo:      s?.efectivo      || 0,
+        tarjeta:       s?.tarjeta       || 0,
+        transferencia: s?.transferencia || 0,
+        count:         s?.tickets       || 0,
+      };
       ventas.total = ventas.efectivo + ventas.tarjeta + ventas.transferencia;
 
       const movsCaja = (movsRaw || []).filter(m => m.sesion_caja_id === caja.id);

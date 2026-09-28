@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Loader2, ScanLine, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 

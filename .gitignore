@@ -41,3 +41,5 @@ scripts/.backup.env
 # Se rehace cuando hace falta; no debe viajar al repo.
 verify.html
 src/verify-harness.jsx
+src/verify-*
+vite.verify.config.js

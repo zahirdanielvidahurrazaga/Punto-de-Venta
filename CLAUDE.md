@@ -45,9 +45,9 @@ POS para una papelería/jarciería con **dos sucursales**: **Tito Centro** (prin
 ## Mapa de componentes (admin salvo nota)
 - `Terminal.jsx` — POS/cobro (empleado+admin). Escáner = teclado; búsqueda por SKU **case-insensitive**.
 - `Inventario.jsx` — catálogo, recepción, historial; stock por sucursal; selector de sucursal; transferencias; etiquetas de código de barras (Code128, `EtiquetaModal.jsx`); alta/edición (`ProductModal.jsx`).
-- `Dashboard.jsx` — KPIs, tendencias, rankings, flujo de caja; sub-pestaña **Sucursales** = comparativo (ventas 30d, tickets, ticket prom., unidades vendidas, valor de inventario a precio de venta, stock). Filtro por sucursal.
+- `Dashboard.jsx` — cascarón (filtros + pestañas). Todo lo demás en `components/dashboard/`: `useDashboardDatos.js` (qué se pide y realtime), `calculos.js` (cuentas puras, con pruebas), `Tab{Resumen,Analisis,Flujo,Sucursales}.jsx`, `ui.jsx`, `formato.js`. Los números de ventas salen de `resumen_ventas` (ver sesión 27-sep).
 - `Reportes.jsx` — asistencias y cortes de caja; filtro por periodo y sucursal.
-- `Pedidos.jsx` — historial de ventas con métricas; filtro por sucursal (admin).
+- `Pedidos.jsx` — historial de ventas ("Ventas"): por día, folio, productos, cajero, búsqueda, corregidas/canceladas; detalle = `TicketModal` modo historial; `EditarVentaModal.jsx` (admin) corrige/cancela.
 - `PedidosProgramados.jsx` — agenda de pedidos por sucursal.
 - `Equipo.jsx` — alta de empleados, gafetes QR, **asignación a sucursal**.
 - `CajaModal.jsx`, `RelojChecador.jsx` (asistencia), `Ajustes.jsx`, `VentasEnRuta.jsx`.
@@ -678,6 +678,47 @@ navegador contra la base de producción real** con la sesión del usuario.
 ESLint: Pedidos 1 problema (el `set-state-in-effect` de siempre), Dashboard 4
 del mismo tipo.
 
+## Sesión 2026-09-27 — la app en blanco, editar ventas, folio y UNA fuente de verdad
+
+### Qué fallaba en la app (iOS) y no en la web
+1. **Pantalla en blanco = regresión MÍA del 22-sep.** Al rehacer Pedidos dejé de mandar `totalPagado`/`cambio` en los pagos y `TicketModal` hacía `undefined.toFixed()` → al abrir cualquier ticket React desmontaba la app ENTERA (sin error boundary). Le pasaba al empleado también ("no se ven los tickets"). Reproducido en Safari con banco de pruebas.
+2. **Números viejos en el iPhone.** La app vive días en segundo plano; el websocket de realtime muere y los eventos del hueco nunca se reenvían. `useRealtime` ahora, al volver (`visibilitychange` > 5 s u `online`), renueva sesión (`getSession`), rearma el canal y manda `[{resync:true}]`; si el canal cae (`CHANNEL_ERROR`/`TIMED_OUT`) se rearma a los 5 s. El callback recibe el LOTE de payloads (`pideResync`, `idsActualizados(lote, tabla)`).
+3. **Red de seguridad:** `ErrorBoundary` por pestaña (key = pestaña) + uno global en `main.jsx`; muestra el error con "Reintentar". Todo error se reporta a la tabla **`errores_app`** (`src/lib/errores.js`, incluye plataforma y nombre del bundle) → **revisar esa tabla después de cada versión**. Si el error es de chunk viejo tras un deploy, recarga una vez sola.
+
+### Folio + corregir/cancelar ventas — `scripts/folio_y_edicion_ventas.sql` (APLICADO 27-sep)
+- `ventas.folio` consecutivo (secuencia `ventas_folio_seq`, las 2,072 existentes numeradas por fecha: #1 = 21-ago). El ticket muestra folio/fecha/hora REALES; reimpresión dice REIMPRESIÓN. La Terminal lee el folio tras cobrar (respaldo: inicio del uuid si no llega).
+- `ventas.estado` ('activa'|'cancelada'), `modificada_at`, `ediciones`. Bitácora **`ventas_ediciones`** (antes/después en JSON, motivo, quién). RPC `editar_venta(p_venta, p_items, p_pagos, p_motivo)` y `cancelar_venta(p_venta, p_motivo)`: solo admin, motivo obligatorio, pagos deben sumar el total, stock por DIFERENCIA con movimiento `devolucion_venta`/`salida_venta` que cita el folio. Precio: partida sin cambio conserva lo cobrado; nueva/cambiada usa la regla de mayoreo con el catálogo de hoy.
+- **Diseño clave:** la venta guarda sus valores VIGENTES (cancelada = $0 y pagos en 0). Así cortes, Reportes y apps viejas cuadran sin cambios. Lo de antes vive en la bitácora.
+- `descontar_stock` tiene un interruptor `pos.edicion_venta` (GUC local) para no volver a descontar al reescribir partidas. Si alguien recrea `descontar_stock`, **conservar ese IF**.
+- Ensayado con `RAISE EXCEPTION` al final (todo se deshace) y el ensayo cazó un bigint vs integer antes de aplicar.
+
+### Una sola fuente de verdad: `resumen_ventas` — `scripts/resumen_ventas.sql`
+Por qué: los resúmenes tardaron 3–4 vueltas porque cada pantalla sumaba por su cuenta (el corte de 1000 filas mordió Dashboard 17-sep, Pedidos 22-sep y seguía en Reportes). Ahora **la base suma** y devuelve totales, pagos, piezas, canceladas, fuera de corte, `por_cubeta` (hora/día/mes en America/Mexico_City), `por_sucursal`, `por_sesion`, `por_producto`. `src/lib/ventas.js` es el único acceso (`resumenVentas`, `totalesDeSesion`, `SELECT_LISTA`, `mapVentaLista`, `partidasDeVenta`, `historialDeVenta`).
+- **Regla de la casa: ninguna pantalla vuelve a sumar `ventas.total` por su cuenta.**
+- Usan `resumen_ventas`: Dashboard (todo), Pedidos (tarjetas y total de cada día), Reportes → Cortes (por turno, antes adivinaba por usuario+horario), CajaModal (corte del turno).
+- `periodos.rejillaDe(rango, porCubeta)` reemplazó a `cubetasDe`; `claveDe` usa las MISMAS claves que la SQL (mes = `YYYY-MM`, 1-based).
+- Dashboard ya no baja partidas: Análisis sale de `por_producto`. Cambiar de periodo cachea por clave.
+- Bug de paso: "Cajas Activas" nunca mostraba el nombre (pedía `select('*')` sin el join).
+
+### Pruebas y cuadre
+- **`npm test`** (vitest, 47 casos en `src/__tests__/`): periodos, paginado, precios, ventas/historial, cálculos del Dashboard y `TicketModal` con `renderToString` — ese caso falla con el ticket del 22-sep (comprobado). **`npm run build` corre las pruebas primero**; si fallan no hay build.
+- **`npm run cuadre`** (`scripts/cuadre.mjs`, solo lectura con la service_role del `.env`): compara `resumen_ventas` contra las ventas crudas en Hoy/7/30/Todo, y por venta que pagos y partidas sumen el total, por turno y folios. Sale con código 1 si algo no cuadra al centavo. Correrlo antes de publicar y cuando alguien diga "no cuadra".
+- Banco de pruebas en Safari (motor del iPhone): `vite.verify.config.js` + `src/verify-*` (gitignored). El doble de Supabase se inyecta con un plugin `resolveId` (un alias por regex dejó pasar `./supabaseClient` desde `lib/` y pegó a la base real, sin sesión y sin efecto).
+
+### Orden y limpieza
+- Carga diferida (`React.lazy`) de todo lo que no es mostrador: bundle principal de >500 kB a ~296 kB.
+- `SideItem` fuera de `App` (se rearmaba el menú en cada render). Imports muertos fuera. ESLint 63 → 42 (lo que queda es sobre todo el patrón fetch-al-montar).
+- Borrados `temp.sql` (volcaba la tabla de credenciales muerta), `test-db.js`, `test-pin.js`; los generadores de íconos se movieron a `herramientas/iconos/`.
+
+### 2ª tanda (27-sep) — `scripts/precio_lista_seguridad_avisos.sql` (APLICADO y ensayado)
+- **`venta_detalles.precio_lista`**: el precio normal del producto AL COBRAR, lo llena el trigger `trg_fijar_precio_lista` (funciona con apps viejas). La reimpresión ahora dice "Normal $X · ahorra $Y" y "Ahorro por mayoreo" (`precios.desglosePartida`). Ventas anteriores al 27-sep: NULL → solo marcan MAYOREO. `editar_venta` conserva el `precio_lista` de las partidas que ya estaban.
+- **Candado en `ventas` y `venta_detalles`**: se borraron TODAS las políticas viejas (`FOR ALL authenticated`) y quedan `leer` (authenticated) + `solo admin` (FOR ALL con `es_admin()`). Cobrar/corregir/cancelar van por funciones SECURITY DEFINER y no se afectan. Ensayado: el empleado cobra; su UPDATE/DELETE directo afecta 0 filas.
+- **`notif_resumen_dia()`** — pg_cron `resumen_dia` `0 3 * * *` (21:00 México): aviso `resumen_dia` en `notificaciones` (→ push a admins) con total, tickets, promedio, % vs el mismo día de la semana pasada, lo más vendido y desglose por sucursal si vendió más de una.
+- **`revisar_salud_ventas(p_desde, p_avisar)`** — pg_cron `salud_ventas` `10 3 * * *`: últimas 48 h; pagos≠total, partidas≠total, ventas sin partidas/sin sucursal, resumen vs crudo, cajas abiertas >24 h. Registra cada corrida en `salud_ventas` y SOLO avisa (`alerta_datos`) si algo falla. Primera corrida sobre TODO el historial (1-ago→27-sep, 2,073 ventas): **0 problemas**.
+- La campana (`NotificacionesCenter`) tiene ícono/color para `resumen_dia` y `alerta_datos`.
+- Revertir los cron: `SELECT cron.unschedule('resumen_dia'); SELECT cron.unschedule('salud_ventas');`
+- iOS **1.1.2 (build 9)** preparada con todo lo del 27-sep.
+
 ## Pendientes / fuera de alcance
 - **Exportar a Excel/PDF: DESCARTADO** por el usuario el 18-sep-2026. No volver a proponerlo.
 - ~~**EXPONERLE LA TERMINAL AL ADMIN**~~ — **CERRADO, no es un pendiente.** El usuario lo decidió el 17-sep-2026: la cuenta de Carlos es **solo de administración** y todas las ventas salen del perfil de empleado. **No volver a proponerlo** (ya se propuso dos veces por leer esta línea). Lo que Carlos baja a mano en Inventario es captura de catálogo, no ventas sin cobrar — ver el contexto del 18-sep.
@@ -685,6 +726,6 @@ del mismo tipo.
 - **TIT-0178 BASTON CON ROSCA** tiene precio de mayoreo igual al de menudeo ($15 desde 12 pzas). Error de captura, no cobra de más; desde el 9-sep el ticket ya no lo anuncia como mayoreo, pero **el dato sigue mal en el catálogo**.
 - **Android: YA NO SE ACTUALIZA.** Decisión del usuario (18-sep-2026): no se subirán más versiones a Google Play. **No proponerlo ni prepararlo.** Las usuarias de Android se quedan con la web/PWA, que es lo que ya usaban (la app nunca llegó a estar publicada en Play).
 - **iOS: la 1.0.2 SÍ se publicó** (viva en la App Store desde el **1-ago-2026**, confirmado con `curl "https://itunes.apple.com/lookup?bundleId=com.plasticos.pos&country=mx"`). La nota vieja que decía "falta Archive + Upload desde el 31-jul" estaba equivocada. **iOS 1.1.0 PUBLICADA** desde el 18-sep-2026 14:56 UTC. **iOS 1.1.1 (build 7)** preparada y ARCHIVADA por el usuario el 22-sep con el fix de Pedidos (bundle `index-D1OqpdhQ.js`, mismo hash que la web de producción → app y web con el mismo código); falta que suba, que cree la versión en App Store Connect y que pase App Review. **Verificar con el lookup de iTunes antes de dar por hecho que ya está viva.** **23-sep: App Review RECHAZÓ la 1.1.1 (7)** — Guideline 2.1(a), crash al abrir en iPad/iPadOS 27. Causa (crash log): `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption` — al compilar con Xcode 27 / SDK iOS 27, UIKit exige ciclo de vida por escenas. Fix: `SceneDelegate` (dentro de `AppDelegate.swift`) + `UIApplicationSceneManifest` en Info.plist cargando `Main.storyboard`; build subido a **1.1.1 (8)**. Cualquier app Capacitor compilada con Xcode 27 necesita lo mismo. Recordatorio: la app es **Unlisted**, cada versión sí pasa por App Review, y **se abre `ios/App/App.xcodeproj`, NO hay `.xcworkspace`** (usa SPM).
-- **Basura pendiente:** `usuarios_perfiles.pin_seguridad` del admin sigue guardado en **texto plano** (`"1234"`); es residuo del PIN muerto que reemplazó el TOTP y no se usa para nada. No hay forma de cerrar una checada colgada desde la UI (la de Jony lleva días abierta). La RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`). El folio del ticket sigue siendo aleatorio, no el id real de la venta.
+- **Basura pendiente:** `usuarios_perfiles.pin_seguridad` del admin sigue guardado en **texto plano** (`"1234"`); es residuo del PIN muerto que reemplazó el TOTP y no se usa para nada. No hay forma de cerrar una checada colgada desde la UI (la de Jony lleva días abierta). La RLS de `ventas` sigue abierta (`FOR ALL USING (authenticated)`): un empleado podría hacer UPDATE directo por la API; las correcciones oficiales van por `editar_venta`/`cancelar_venta` (admin) pero la tabla no lo impide. ~~Folio aleatorio~~ resuelto el 27-sep (`ventas.folio`).
 - **Costos y gastos**: el dueño los maneja por fuera; por eso el sistema mide ingresos, no utilidad. La valuación de inventario es a **precio de venta**.
 - **Dashboard, lo que queda fuera:** `rutas` NO está en la publicación `supabase_realtime` (ver `scripts/realtime_y_sucursal_caja.sql`), así que una liquidación de ruta entra al cambiar de periodo o al recargar, no sola. El comparativo de sucursales ignora a propósito el filtro de sucursal de arriba (compara todas). El valor de "salió sin ticket" usa el precio ACTUAL del catálogo, no el del día del ajuste (los ajustes no guardan precio).

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { User, Moon, Sun, Shield, Trash2, CheckCircle, AlertTriangle, Loader2, FileText } from 'lucide-react';
+import { User, Moon, Shield, Trash2, CheckCircle, AlertTriangle, Loader2, FileText } from 'lucide-react';
 
 export default function Ajustes({ userProfile, onProfileUpdate }) {
   const [nombre, setNombre] = useState(userProfile?.nombre_completo || '');

@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vitest run && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "sync": "vite build && cap sync"
+    "sync": "vite build && cap sync",
+    "test": "vitest run",
+    "cuadre": "node scripts/cuadre.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/messaging": "^8.2.0",
@@ -40,6 +42,7 @@
     "jimp": "^1.6.1",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.2.4",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^3.2.7"
   }
 }

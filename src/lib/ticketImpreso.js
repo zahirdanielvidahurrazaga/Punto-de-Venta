@@ -25,9 +25,12 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
  * @param {string}   datos.fecha
  * @param {string}   datos.hora
  * @param {string}   datos.folio
+ * @param {string}   [datos.cajero]      quién cobró
+ * @param {string[]} [datos.avisos]      renglones destacados (REIMPRESIÓN, CANCELADA…)
  */
 export function construirTicketHTML({
   tienda, partidas, total, totalArticulos, ahorro = 0, paymentData, fecha, hora, folio,
+  cajero = '', avisos = [],
 }) {
   const headerLines = [
     `<div class="big center bold">${esc(tienda.negocio)}</div>`,
@@ -57,7 +60,9 @@ export function construirTicketHTML({
     paymentData.efectivo > 0 ? `<div class="row"><span>Efectivo</span><span>${money(paymentData.efectivo)}</span></div>` : '',
     paymentData.tarjeta > 0 ? `<div class="row"><span>Tarjeta</span><span>${money(paymentData.tarjeta)}</span></div>` : '',
     paymentData.transferencia > 0 ? `<div class="row"><span>Transferencia</span><span>${money(paymentData.transferencia)}</span></div>` : '',
-    `<div class="row"><span>Recibido</span><span>${money(paymentData.totalPagado)}</span></div>`,
+    // Una venta del historial no guarda cuánto entregó el cliente: ahí
+    // "recibido" es la suma de los pagos y no hay cambio que reportar.
+    `<div class="row"><span>Recibido</span><span>${money(paymentData.totalPagado ?? (Number(paymentData.efectivo || 0) + Number(paymentData.tarjeta || 0) + Number(paymentData.transferencia || 0)))}</span></div>`,
     `<div class="row bold"><span>Cambio</span><span>${money(paymentData.cambio || 0)}</span></div>`,
   ].filter(Boolean).join('') : '';
 
@@ -99,8 +104,10 @@ export function construirTicketHTML({
         <body>
           <div class="head">${headerLines}</div>
           <div class="sep"></div>
-          <div class="row small"><span>FECHA: ${fecha}</span><span>CAJA: 01</span></div>
-          <div class="row small"><span>HORA: ${hora}</span><span>TICKET: ${folio}</span></div>
+          <div class="row small"><span>FECHA: ${esc(fecha)}</span><span>TICKET: ${esc(folio)}</span></div>
+          <div class="row small"><span>HORA: ${esc(hora)}</span><span></span></div>
+          ${cajero ? `<div class="small">ATENDIÓ: ${esc(cajero)}</div>` : ''}
+          ${avisos.map((a) => `<div class="center bold">${esc(a)}</div>`).join('')}
           <div class="sep"></div>
           ${itemsRows}
           <div class="sep"></div>

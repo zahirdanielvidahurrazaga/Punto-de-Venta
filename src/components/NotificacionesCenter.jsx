@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, Package, Clock, Wallet, CalendarDays, Check, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell, Package, Clock, Wallet, CalendarDays, Check, Loader2, TrendingUp, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const ICONOS = {
@@ -7,6 +7,8 @@ const ICONOS = {
   asistencia: Clock,
   corte_caja: Wallet,
   pedido: CalendarDays,
+  resumen_dia: TrendingUp,   // resumen de ventas al cierre (pg_cron)
+  alerta_datos: ShieldAlert, // la revisión nocturna encontró algo que no cuadra
 };
 
 const COLORES = {
@@ -14,6 +16,8 @@ const COLORES = {
   asistencia: 'text-sky-500 bg-sky-500/10',
   corte_caja: 'text-emerald-500 bg-emerald-500/10',
   pedido: 'text-violet-500 bg-violet-500/10',
+  resumen_dia: 'text-blue-500 bg-blue-500/10',
+  alerta_datos: 'text-rose-500 bg-rose-500/10',
 };
 
 function tiempoRelativo(fecha) {

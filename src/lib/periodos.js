@@ -1,13 +1,12 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Matemática de periodos del Dashboard: rangos, comparativo con el periodo
-// previo y las cubetas de la gráfica.
+// Matemática de periodos: rangos, comparativo con el periodo previo y la
+// rejilla de la gráfica.
 //
 // Vive aparte del componente porque es la parte que se puede equivocar en
 // silencio (y se equivocaba): la gráfica de "4 semanas" armaba cubetas por
-// rangos [fin−6d, fin] y dejaba fuera un día entero entre semana y semana,
-// así que el total de la gráfica no cuadraba con el total de las ventas.
-// Ahora las cubetas se llenan por CLAVE (hora / día / mes) y toda venta del
-// rango cae en exactamente una.
+// rangos [fin−6d, fin] y dejaba fuera un día entero entre semana y semana.
+// Desde el 27-sep-2026 la suma por cubeta la hace la base (`resumen_ventas`)
+// y aquí solo se arma la rejilla con las MISMAS claves (hora / día / mes).
 // ────────────────────────────────────────────────────────────────────────────
 
 export const PERIODOS = [
@@ -94,35 +93,37 @@ export function variacion(actual, previo) {
   };
 }
 
-const claveDe = (fecha, grano) => {
+/** Clave de cubeta de una fecha: la MISMA que arma `resumen_ventas` en la base. */
+export const claveDe = (fecha, grano) => {
   const d = new Date(fecha);
   if (grano === 'hora') return String(d.getHours());
   if (grano === 'dia')  return toLocal(d);
-  return `${d.getFullYear()}-${d.getMonth()}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
 /**
- * Cubetas de la gráfica para el rango dado. Devuelve SIEMPRE la rejilla
- * completa (días sin venta incluidos, en cero) y reparte cada venta por clave.
+ * Rejilla de la gráfica para el rango dado, rellenada con los totales que ya
+ * calculó la base (`porCubeta`: Map clave → { total, tickets }). Devuelve
+ * SIEMPRE la rejilla completa (días sin venta incluidos, en cero).
  *
- * @param ventas [{ fecha, total }]
- * @param rango  lo que devuelve rangoDe()
+ * Antes las cubetas se llenaban sumando ventas en el navegador; ahora la suma
+ * la hace la base y aquí solo se decide qué barras pintar y con qué etiqueta.
+ * Una clave que la base mande y que no esté en la rejilla NO se pierde: si es
+ * una hora fuera del horario de tienda la rejilla se estira para incluirla.
  */
-export function cubetasDe(ventas, rango) {
+export function rejillaDe(rango, porCubeta = new Map()) {
   const { desde, hasta, grano } = rango;
   const cubetas = [];
-  const indice = new Map();
   const nueva = (clave, label) => {
-    const b = { clave, label, sum: 0, count: 0 };
-    cubetas.push(b); indice.set(clave, b);
+    const c = porCubeta.get(clave);
+    cubetas.push({ clave, label, sum: c?.total || 0, count: c?.tickets || 0 });
   };
 
   if (grano === 'hora') {
-    // La rejilla cubre el horario de tienda (8–20) y se estira si hubo ventas
-    // más temprano o más tarde, para que ninguna se quede fuera.
-    const horas = ventas.map(v => new Date(v.fecha).getHours());
-    const ini = Math.min(8,  ...(horas.length ? horas : [8]));
-    const fin = Math.max(20, ...(horas.length ? horas : [20]));
+    // Horario de tienda (8–20), estirado si hubo ventas más temprano o más tarde.
+    const horas = [...porCubeta.keys()].map(Number).filter(Number.isFinite);
+    const ini = Math.min(8,  ...horas);
+    const fin = Math.max(20, ...horas);
     for (let h = ini; h <= fin; h++) nueva(String(h), `${h}h`);
   } else if (grano === 'dia') {
     for (let d = new Date(desde); d <= hasta; d = masDias(d, 1)) {
@@ -131,14 +132,8 @@ export function cubetasDe(ventas, rango) {
   } else {
     for (let i = 0; i < 6; i++) {
       const d = new Date(desde.getFullYear(), desde.getMonth() + i, 1);
-      nueva(`${d.getFullYear()}-${d.getMonth()}`,
-            d.toLocaleDateString('es-MX', { month: 'short' }));
+      nueva(claveDe(d, 'mes'), d.toLocaleDateString('es-MX', { month: 'short' }));
     }
-  }
-
-  for (const v of ventas) {
-    const b = indice.get(claveDe(v.fecha, grano));
-    if (b) { b.sum += Number(v.total) || 0; b.count++; }
   }
   return cubetas;
 }

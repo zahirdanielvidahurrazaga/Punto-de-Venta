@@ -1,21 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Box, Clock, Wallet, Users, FileText, CalendarDays, Settings, Menu, X, Truck } from 'lucide-react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { ShoppingCart, Package, BarChart3, ClipboardList, LogOut, Loader2, Clock, Wallet, Users, FileText, CalendarDays, Settings, Menu, X, Truck } from 'lucide-react';
 import Terminal from './components/Terminal';
-import Inventario from './components/Inventario';
-import Dashboard from './components/Dashboard';
-import Pedidos from './components/Pedidos';
 import Login from './components/Login';
 import CajaModal from './components/CajaModal';
 import RelojChecador from './components/RelojChecador';
-import Equipo from './components/Equipo';
-import Reportes from './components/Reportes';
-import PedidosProgramados from './components/PedidosProgramados';
 import { supabase } from './lib/supabaseClient';
 import { useRealtime } from './lib/useRealtime';
-import Ajustes from './components/Ajustes';
-import VentasEnRuta from './components/VentasEnRuta';
 import NotificacionesCenter from './components/NotificacionesCenter';
 import { initPush } from './lib/push';
+
+// Las pantallas de administración se cargan al abrirlas: así el mostrador
+// (Terminal, Caja, Checador) arranca sin bajar el Dashboard ni el Inventario.
+// El bundle único pasaba de 500 kB, que en el teléfono se nota al abrir.
+const Inventario         = lazy(() => import('./components/Inventario'));
+const Dashboard          = lazy(() => import('./components/Dashboard'));
+const Pedidos            = lazy(() => import('./components/Pedidos'));
+const Equipo             = lazy(() => import('./components/Equipo'));
+const Reportes           = lazy(() => import('./components/Reportes'));
+const PedidosProgramados = lazy(() => import('./components/PedidosProgramados'));
+const Ajustes            = lazy(() => import('./components/Ajustes'));
+const VentasEnRuta       = lazy(() => import('./components/VentasEnRuta'));
+
+const CargandoPantalla = () => (
+  <div className="h-full flex items-center justify-center">
+    <Loader2 className="w-6 h-6 animate-spin text-slate-400 dark:text-slate-500" />
+  </div>
+);
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Botón del menú lateral. Vive FUERA de App a propósito: declarado dentro del
+// render, React lo veía como un componente nuevo en cada render y rearmaba el
+// menú entero (mismo bug que el scroll del carrito del 9-sep).
+function SideItem({ id, icon: Icon, label, iconCls, activeTab, onSelect }) {
+  return (
+    <button
+      onClick={() => onSelect(id)}
+      className={`neb-side-item ${activeTab === id ? 'active' : ''}`}
+    >
+      {iconCls
+        ? <span className={`w-[22px] h-[22px] rounded-md flex items-center justify-center shrink-0 ${iconCls}`}><Icon className="w-[13px] h-[13px]" strokeWidth={2} /></span>
+        : <Icon className="w-[16px] h-[16px] shrink-0" strokeWidth={1.8} />
+      }
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
 
 function App() {
   const [session, setSession] = useState(null);
@@ -205,7 +234,9 @@ function App() {
 
       // Pedidos se entera solo: está suscrito a `ventas` por realtime y, si no
       // está montado, carga fresco al abrir la pestaña.
-      return true;
+      // Se regresa la venta ({ venta_id, total }) para que el ticket muestre
+      // su folio real.
+      return data;
     } catch (error) {
       console.error('Error registering sale:', error.message, error);
 
@@ -222,7 +253,7 @@ function App() {
         alert(`Error al registrar la venta: ${error.message}`);
       }
 
-      return false;
+      return null;
     }
   };
 
@@ -248,22 +279,11 @@ function App() {
   const canOperate = isAdmin || canOperateTerminal;
   const canSeeCaja = isEmpleado && isClockedIn;
 
-  // Helper para items de sidebar
-  const SideItem = ({ id, icon: Icon, label, iconCls }) => (
-    <button
-      onClick={() => {
-        setActiveTab(id);
-        setIsMobileMenuOpen(false);
-      }}
-      className={`neb-side-item ${activeTab === id ? 'active' : ''}`}
-    >
-      {iconCls
-        ? <span className={`w-[22px] h-[22px] rounded-md flex items-center justify-center shrink-0 ${iconCls}`}><Icon className="w-[13px] h-[13px]" strokeWidth={2} /></span>
-        : <Icon className="w-[16px] h-[16px] shrink-0" strokeWidth={1.8} />
-      }
-      <span className="truncate">{label}</span>
-    </button>
-  );
+  // Todos los botones del menú comparten esto.
+  const itemProps = {
+    activeTab,
+    onSelect: (id) => { setActiveTab(id); setIsMobileMenuOpen(false); },
+  };
 
   return (
     <div className="h-screen w-screen overflow-hidden flex font-sans">
@@ -303,7 +323,7 @@ function App() {
           {canOperateTerminal && (
             <div>
               <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operación</p>
-              <SideItem id="terminal" icon={ShoppingCart} label="Terminal" />
+              <SideItem {...itemProps} id="terminal" icon={ShoppingCart} label="Terminal" />
             </div>
           )}
 
@@ -311,9 +331,9 @@ function App() {
             <div>
               <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">General</p>
               <div className="space-y-0.5">
-                <SideItem id="pedidos" icon={ClipboardList} label="Pedidos" />
-                <SideItem id="inventario" icon={Package} label="Inventario" />
-                <SideItem id="pedidos_programados" icon={CalendarDays} label="Pedidos Programados" />
+                <SideItem {...itemProps} id="pedidos" icon={ClipboardList} label="Pedidos" />
+                <SideItem {...itemProps} id="inventario" icon={Package} label="Inventario" />
+                <SideItem {...itemProps} id="pedidos_programados" icon={CalendarDays} label="Pedidos Programados" />
               </div>
             </div>
           )}
@@ -322,10 +342,10 @@ function App() {
             <div>
               <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Administración</p>
               <div className="space-y-0.5">
-                <SideItem id="dashboard" icon={BarChart3} label="Dashboard" />
-                <SideItem id="ventas_en_ruta" icon={Truck} label="Ventas en Ruta" />
-                <SideItem id="equipo" icon={Users} label="Equipo" />
-                <SideItem id="reportes" icon={FileText} label="Reportes" />
+                <SideItem {...itemProps} id="dashboard" icon={BarChart3} label="Dashboard" />
+                <SideItem {...itemProps} id="ventas_en_ruta" icon={Truck} label="Ventas en Ruta" />
+                <SideItem {...itemProps} id="equipo" icon={Users} label="Equipo" />
+                <SideItem {...itemProps} id="reportes" icon={FileText} label="Reportes" />
               </div>
             </div>
           )}
@@ -335,10 +355,10 @@ function App() {
               <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Flujo de Turno</p>
               <div className="space-y-0.5">
                 {isClockedIn && (
-                  <SideItem id="caja" icon={Wallet} label={isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'} />
+                  <SideItem {...itemProps} id="caja" icon={Wallet} label={isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'} />
                 )}
                 {(!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
-                  <SideItem id="asistencia" icon={Clock} label={isClockedIn ? 'Registrar Salida' : 'Checar Entrada'} />
+                  <SideItem {...itemProps} id="asistencia" icon={Clock} label={isClockedIn ? 'Registrar Salida' : 'Checar Entrada'} />
                 )}
               </div>
             </div>
@@ -347,7 +367,7 @@ function App() {
           <div>
             <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Cuenta</p>
             <div className="space-y-0.5">
-              <SideItem id="ajustes" icon={Settings} label="Ajustes" />
+              <SideItem {...itemProps} id="ajustes" icon={Settings} label="Ajustes" />
             </div>
           </div>
         </div>
@@ -408,17 +428,22 @@ function App() {
       {/* ──────── Contenido principal — Apple ──────── */}
       <main className="flex-1 overflow-hidden relative pt-[calc(60px+env(safe-area-inset-top))] lg:pt-0 pb-0 flex flex-col bg-slate-50/40 dark:bg-slate-950 transition-colors">
         <div className="h-full overflow-hidden">
-          {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
-          {activeTab === 'pedidos' && canOperate && <Pedidos isAdmin={isAdmin} userProfile={userProfile} />}
-          {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
-          {activeTab === 'dashboard' && isAdmin && <Dashboard userName={userName} />}
-          {activeTab === 'ventas_en_ruta' && isAdmin && <VentasEnRuta userProfile={userProfile} />}
-          {activeTab === 'equipo' && isAdmin && <Equipo />}
-          {activeTab === 'reportes' && isAdmin && <Reportes />}
-          {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
-          {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
-          {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
-          {activeTab === 'ajustes' && <Ajustes userProfile={userProfile} onProfileUpdate={setUserProfile} />}
+          {/* key = pestaña: al cambiar de sección el error se limpia solo. */}
+          <ErrorBoundary key={activeTab} pantalla={activeTab}>
+          <Suspense fallback={<CargandoPantalla />}>
+            {activeTab === 'terminal' && canOperate && <Terminal onRegisterSale={handleRegisterSale} cart={cart} setCart={setCart} userProfile={userProfile} />}
+            {activeTab === 'pedidos' && canOperate && <Pedidos isAdmin={isAdmin} userProfile={userProfile} />}
+            {activeTab === 'inventario' && canOperate && <Inventario isAdmin={isAdmin} userProfile={userProfile} />}
+            {activeTab === 'dashboard' && isAdmin && <Dashboard userName={userName} />}
+            {activeTab === 'ventas_en_ruta' && isAdmin && <VentasEnRuta userProfile={userProfile} />}
+            {activeTab === 'equipo' && isAdmin && <Equipo />}
+            {activeTab === 'reportes' && isAdmin && <Reportes />}
+            {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
+            {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+            {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+            {activeTab === 'ajustes' && <Ajustes userProfile={userProfile} onProfileUpdate={setUserProfile} />}
+          </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
 

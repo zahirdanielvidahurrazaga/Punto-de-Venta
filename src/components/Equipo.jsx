@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Loader2, QrCode, Printer, X, UserPlus, Store, Mail, Lock, User, RefreshCw, CheckCircle2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
