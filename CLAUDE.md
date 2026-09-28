@@ -717,7 +717,9 @@ Por qué: los resúmenes tardaron 3–4 vueltas porque cada pantalla sumaba por 
 - **`revisar_salud_ventas(p_desde, p_avisar)`** — pg_cron `salud_ventas` `10 3 * * *`: últimas 48 h; pagos≠total, partidas≠total, ventas sin partidas/sin sucursal, resumen vs crudo, cajas abiertas >24 h. Registra cada corrida en `salud_ventas` y SOLO avisa (`alerta_datos`) si algo falla. Primera corrida sobre TODO el historial (1-ago→27-sep, 2,073 ventas): **0 problemas**.
 - La campana (`NotificacionesCenter`) tiene ícono/color para `resumen_dia` y `alerta_datos`.
 - Revertir los cron: `SELECT cron.unschedule('resumen_dia'); SELECT cron.unschedule('salud_ventas');`
-- iOS **1.1.2 (build 9)** preparada con todo lo del 27-sep.
+- iOS **1.1.2 (build 9)** con todo lo del 27-sep: **SUBIDA por el usuario el 27-sep** (mismo bundle que la web, `index-MKWcxtfP.js`). Falta que App Review la apruebe; confirmar con el lookup de iTunes. Warning de Xcode 'alert deprecated' viene de FirebaseMessaging (no es nuestro); el del Splash se quitó (`9aca8c8`).
+- **Al retomar:** revisar `errores_app` (¿qué tronó en los teléfonos?), `salud_ventas` (corrida de cada noche) y que haya llegado el primer `resumen_dia` como push. El usuario debe REVOCAR el PAT del 27-sep.
+- **Siguientes propuestas aceptadas en principio (no hechas):** 4) qué conviene surtir (días de inventario por producto con `por_producto` + stock), 5) folio escaneable en el ticket, 6) cerrar turnos olvidados desde admin, 7) bitácora de lo que se quita del ticket (decisión del dueño).
 
 ## Pendientes / fuera de alcance
 - **Exportar a Excel/PDF: DESCARTADO** por el usuario el 18-sep-2026. No volver a proponerlo.
