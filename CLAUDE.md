@@ -736,7 +736,7 @@ Reporte del dueño: *"a veces no siguen el flujo y no ponen cuánto reciben de l
 - **E** `notif_apertura_caja`: aviso `alerta_caja` al dueño si el fondo no cuadra o es la 2.ª+ caja del día en la sucursal. Reportes marca "⚠ debía ser $X" y "No marcó salida".
 - Columnas nuevas: `sucursales.fondo_caja`, `sesiones_caja.fondo_esperado`, `registro_asistencia.tipo_salida` ('escaneo'|'corte'|'olvidada').
 - Revertir: `DROP TRIGGER trg_validar_apertura_caja ON sesiones_caja; DROP TRIGGER trg_notif_apertura_caja ON sesiones_caja; SELECT cron.unschedule('checadas_vencidas');`
-- iOS **1.1.3 (build 10)** preparada con estos cambios (bundle `index-D8Kfq6DR.js`, mismo hash que la web); Xcode abierto, falta Archive + Upload + enviar a App Review (la 1.1.2 está viva desde el 28-sep). Confirmar con el lookup de iTunes.
+- iOS **1.1.3 (build 10)** preparada con estos cambios (bundle `index-D8Kfq6DR.js`, mismo hash que la web); **SUBIDA por el usuario el 1-oct** (antes hubo que aceptar el nuevo Program License Agreement de Apple: sin eso falla con "PLA Update available" + "No signing certificate iOS Distribution"). Falta App Review; confirmar con el lookup de iTunes y que el usuario haya enviado la versión a revisión.
 - **Pendiente:** no hay pantalla para cambiar `fondo_caja` (se edita en la base). La cuenta compartida "TIENDA CENTRO" sigue: el aviso dice qué pasó, no quién — decisión del dueño.
 
 ## Pendientes / fuera de alcance
