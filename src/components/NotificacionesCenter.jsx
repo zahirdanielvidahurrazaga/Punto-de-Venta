@@ -9,6 +9,7 @@ const ICONOS = {
   pedido: CalendarDays,
   resumen_dia: TrendingUp,   // resumen de ventas al cierre (pg_cron)
   alerta_datos: ShieldAlert, // la revisión nocturna encontró algo que no cuadra
+  alerta_caja: Wallet,       // apertura con fondo distinto o 2ª caja del día
 };
 
 const COLORES = {
@@ -18,6 +19,7 @@ const COLORES = {
   pedido: 'text-violet-500 bg-violet-500/10',
   resumen_dia: 'text-blue-500 bg-blue-500/10',
   alerta_datos: 'text-rose-500 bg-rose-500/10',
+  alerta_caja: 'text-amber-500 bg-amber-500/10',
 };
 
 function tiempoRelativo(fecha) {

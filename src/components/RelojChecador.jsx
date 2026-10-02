@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, ScanLine, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { esDeHoy } from '../lib/turno';
 
 export default function RelojChecador({ userProfile, onStatusChange }) {
   const [asistenciaActual, setAsistenciaActual] = useState(null);
@@ -25,17 +26,21 @@ export default function RelojChecador({ userProfile, onStatusChange }) {
   const fetchAsistenciaActual = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Una checada de otro día sin salida no es el turno de hoy (ver
+      // lib/turno.js): la base la cierra como 'olvidada' y aquí se pide
+      // escanear la entrada de hoy.
+      await supabase.rpc('cerrar_checadas_vencidas');
+
+      const { data } = await supabase
         .from('registro_asistencia')
         .select('*')
         .eq('usuario_id', userProfile.id)
         .eq('estado', 'trabajando')
         .order('fecha_entrada', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (data) setAsistenciaActual(data);
-      else setAsistenciaActual(null);
+      setAsistenciaActual(data && esDeHoy(data.fecha_entrada) ? data : null);
     } catch (error) {
       if (error.code !== 'PGRST116') console.error('Error fetching asistencia:', error.message);
       setAsistenciaActual(null);
@@ -114,6 +119,7 @@ export default function RelojChecador({ userProfile, onStatusChange }) {
           .update({
             estado: 'completado',
             fecha_salida: new Date().toISOString(),
+            tipo_salida: 'escaneo',
           })
           .eq('id', asistenciaActual.id);
 

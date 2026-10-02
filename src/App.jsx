@@ -4,10 +4,12 @@ import Terminal from './components/Terminal';
 import Login from './components/Login';
 import CajaModal from './components/CajaModal';
 import RelojChecador from './components/RelojChecador';
+import TurnoCerrado from './components/TurnoCerrado';
 import { supabase } from './lib/supabaseClient';
 import { useRealtime } from './lib/useRealtime';
 import NotificacionesCenter from './components/NotificacionesCenter';
 import { initPush } from './lib/push';
+import { esDeHoy } from './lib/turno';
 
 // Las pantallas de administración se cargan al abrirlas: así el mostrador
 // (Terminal, Caja, Checador) arranca sin bajar el Dashboard ni el Inventario.
@@ -54,6 +56,9 @@ function App() {
   // Estados de validación del flujo
   const [isClockedIn, setIsClockedIn] = useState(null);
   const [isCajaOpen, setIsCajaOpen] = useState(null);
+  // Caja que se quedó abierta desde otro día: no se vende en ella, solo se
+  // le hace el corte.
+  const [cajaVencida, setCajaVencida] = useState(false);
 
   const [activeTab, setActiveTab] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -121,30 +126,46 @@ function App() {
     if (!userProfile) return;
 
     try {
+      // Una checada de otro día que nunca marcó salida ya no vale: la base la
+      // cierra como 'olvidada' (y deja la que todavía tenga caja abierta, que
+      // se cierra con su corte). Antes valía para siempre y al día siguiente
+      // la app mandaba directo a abrir caja sin escanear el gafete.
+      if (userProfile.rol === 'empleado') {
+        await supabase.rpc('cerrar_checadas_vencidas');
+      }
+
       const { data: asistencia } = await supabase
         .from('registro_asistencia')
-        .select('id')
+        .select('id, fecha_entrada')
         .eq('usuario_id', userProfile.id)
         .eq('estado', 'trabajando')
+        .order('fecha_entrada', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const currentlyClockedIn = !!asistencia;
-      setIsClockedIn(currentlyClockedIn);
-
       const { data: caja } = await supabase
         .from('sesiones_caja')
-        .select('id')
+        .select('id, fecha_apertura')
         .eq('usuario_id', userProfile.id)
         .eq('estado', 'abierta')
         .limit(1)
         .maybeSingle();
 
       const currentlyCajaOpen = !!caja;
+      const cajaDeOtroDia = currentlyCajaOpen && !esDeHoy(caja.fecha_apertura);
       setIsCajaOpen(currentlyCajaOpen);
+      setCajaVencida(cajaDeOtroDia);
+
+      // La checada solo cuenta si es de hoy, o si quedó colgada de una caja
+      // vieja a la que todavía hay que hacerle el corte.
+      const currentlyClockedIn = !!asistencia && (esDeHoy(asistencia.fecha_entrada) || cajaDeOtroDia);
+      setIsClockedIn(currentlyClockedIn);
 
       if (userProfile.rol === 'empleado') {
-        if (targetTab) {
+        if (cajaDeOtroDia) {
+          // Nada más hasta cortar la caja vieja.
+          setActiveTab('caja');
+        } else if (targetTab) {
           setActiveTab(targetTab);
         } else if (isClockedIn === null) {
           if (!currentlyClockedIn) {
@@ -275,9 +296,9 @@ function App() {
   const isAdmin = role === 'admin';
   const isEmpleado = role === 'empleado';
 
-  const canOperateTerminal = isEmpleado && isClockedIn && isCajaOpen;
+  const canOperateTerminal = isEmpleado && isClockedIn && isCajaOpen && !cajaVencida;
   const canOperate = isAdmin || canOperateTerminal;
-  const canSeeCaja = isEmpleado && isClockedIn;
+  const canSeeCaja = isEmpleado && (isClockedIn || cajaVencida);
 
   // Todos los botones del menú comparten esto.
   const itemProps = {
@@ -354,10 +375,10 @@ function App() {
             <div>
               <p className="px-3 mb-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Flujo de Turno</p>
               <div className="space-y-0.5">
-                {isClockedIn && (
-                  <SideItem {...itemProps} id="caja" icon={Wallet} label={isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'} />
+                {canSeeCaja && (
+                  <SideItem {...itemProps} id="caja" icon={Wallet} label={cajaVencida ? 'Corte pendiente' : isCajaOpen ? 'Corte de Caja' : 'Apertura de Caja'} />
                 )}
-                {(!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
+                {!cajaVencida && (!isClockedIn || (isClockedIn && !isCajaOpen && activeTab === 'asistencia')) && (
                   <SideItem {...itemProps} id="asistencia" icon={Clock} label={isClockedIn ? 'Registrar Salida' : 'Checar Entrada'} />
                 )}
               </div>
@@ -439,7 +460,8 @@ function App() {
             {activeTab === 'equipo' && isAdmin && <Equipo />}
             {activeTab === 'reportes' && isAdmin && <Reportes />}
             {activeTab === 'pedidos_programados' && canOperate && <PedidosProgramados userProfile={userProfile} isAdmin={isAdmin} />}
-            {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} />}
+            {activeTab === 'caja' && canSeeCaja && <CajaModal userProfile={userProfile} onStatusChange={checkWorkStatus} cajaVencida={cajaVencida} />}
+            {activeTab === 'turno_cerrado' && <TurnoCerrado onLogout={handleLogout} onNuevoTurno={() => setActiveTab('asistencia')} />}
             {activeTab === 'asistencia' && <RelojChecador userProfile={userProfile} onStatusChange={checkWorkStatus} />}
             {activeTab === 'ajustes' && <Ajustes userProfile={userProfile} onProfileUpdate={setUserProfile} />}
           </Suspense>

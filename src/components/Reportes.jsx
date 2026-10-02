@@ -270,14 +270,20 @@ export default function Reportes() {
                       </td>
                       <td className="p-4 text-slate-500 dark:text-slate-400 font-mono text-[11px] neb-tabular">{fmt(r.fecha_entrada)}</td>
                       <td className="p-4 font-mono text-[11px] neb-tabular">
-                        {r.fecha_salida
-                          ? <span className="text-slate-500 dark:text-slate-400">{fmt(r.fecha_salida)}</span>
+                        {r.tipo_salida === 'olvidada' ? (
+                          // La cerró el sistema: nunca se marcó salida. La hora,
+                          // si la hay, es la del último corte de esa persona.
+                          <span className="text-amber-600 font-medium">
+                            No marcó salida{r.fecha_salida ? ` · corte ${fmt(r.fecha_salida)}` : ''}
+                          </span>
+                        ) : r.fecha_salida
+                          ? <span className="text-slate-500 dark:text-slate-400">{fmt(r.fecha_salida)}{r.tipo_salida === 'corte' ? ' · con el corte' : ''}</span>
                           : <span className="text-emerald-600 font-medium">En turno</span>}
                       </td>
                       <td className="p-4 text-slate-500 dark:text-slate-400 text-[12px] neb-tabular">
                         <div className="flex items-center gap-1">
                           <Timer className="w-3 h-3" />
-                          {duracion(r.fecha_entrada, r.fecha_salida)}
+                          {r.tipo_salida === 'olvidada' && !r.fecha_salida ? '—' : duracion(r.fecha_entrada, r.fecha_salida)}
                         </div>
                       </td>
                     </tr>
@@ -420,7 +426,13 @@ export default function Reportes() {
 
                         <div className="grid grid-cols-3 gap-2 mb-2">
                           {[
-                            { label: 'Fondo inicial', value: caja.fondo_inicial, hint: '' },
+                            {
+                              label: 'Fondo inicial', value: caja.fondo_inicial,
+                              // Desde el 1-oct la base guarda el fondo que debía tener la caja.
+                              hint: caja.fondo_esperado != null && Math.abs(Number(caja.fondo_inicial) - Number(caja.fondo_esperado)) >= 0.01
+                                ? `⚠ debía ser $${Number(caja.fondo_esperado).toFixed(2)}` : '',
+                              alerta: caja.fondo_esperado != null && Math.abs(Number(caja.fondo_inicial) - Number(caja.fondo_esperado)) >= 0.01,
+                            },
                             { label: 'Esperado',      value: caja.efectivoEsperado, hint: 'fondo + ventas' },
                             { label: 'Declarado',     value: caja.efectivo_declarado, hint: 'billetes + monedas' },
                           ].map(b => (
@@ -429,7 +441,7 @@ export default function Reportes() {
                               <p className="font-semibold text-base text-slate-900 dark:text-white neb-tabular">
                                 ${Number(b.value || 0).toFixed(2)}
                               </p>
-                              {b.hint && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{b.hint}</p>}
+                              {b.hint && <p className={`text-[10px] mt-0.5 ${b.alerta ? 'text-amber-600 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>{b.hint}</p>}
                             </div>
                           ))}
                         </div>

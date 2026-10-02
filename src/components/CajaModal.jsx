@@ -3,8 +3,11 @@ import { CheckCircle2, AlertCircle, Loader2, Wallet, Plus, Minus } from 'lucide-
 import { supabase } from '../lib/supabaseClient';
 import { totalesDeSesion } from '../lib/ventas';
 import { useRealtime } from '../lib/useRealtime';
+import { revisarFondo } from '../lib/turno';
 
-export default function CajaModal({ userProfile, onStatusChange }) {
+const fmtFondo = (n) => `$${Number(n).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+export default function CajaModal({ userProfile, onStatusChange, cajaVencida = false }) {
   const [sessionCaja, setSessionCaja] = useState(null);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
@@ -20,6 +23,8 @@ export default function CajaModal({ userProfile, onStatusChange }) {
   const [billetes, setBilletes] = useState('');
   const [monedas, setMonedas] = useState('');
   const [observacionesApertura, setObservacionesApertura] = useState('');
+  // Lo que el dueño deja en la caja de esta sucursal (sucursales.fondo_caja).
+  const [fondoEsperado, setFondoEsperado] = useState(null);
 
   const [billetesToCierre, setBilletesToCierre] = useState('');
   const [monedasCierre, setMonedasCierre] = useState('');
@@ -27,7 +32,17 @@ export default function CajaModal({ userProfile, onStatusChange }) {
 
   useEffect(() => {
     fetchSessionCaja();
+    fetchFondoEsperado();
   }, []);
+
+  const fetchFondoEsperado = async () => {
+    const { data } = await supabase
+      .from('sucursales')
+      .select('fondo_caja')
+      .eq('id', userProfile.sucursal_id)
+      .maybeSingle();
+    setFondoEsperado(Number(data?.fondo_caja) || 1000);
+  };
 
   const fetchSessionCaja = async () => {
     setLoading(true);
@@ -125,9 +140,18 @@ export default function CajaModal({ userProfile, onStatusChange }) {
 
   const handleAbrirCaja = async (e) => {
     e.preventDefault();
+    const totalFondo = (parseFloat(billetes) || 0) + (parseFloat(monedas) || 0);
+    // El fondo es obligatorio: se abrían cajas en $0 y el corte salía con
+    // "sobrantes" de mil pesos que en realidad eran el fondo sin anotar. La
+    // base aplica la misma regla (trigger validar_apertura_caja).
+    const revision = revisarFondo(totalFondo, fondoEsperado);
+    if (revision.vacio) { alert('Cuenta el dinero que recibes en la caja y escríbelo en billetes y monedas.'); return; }
+    if (revision.requiereMotivo && !observacionesApertura.trim()) {
+      alert(`El fondo debe ser de ${fmtFondo(fondoEsperado)}. Escribe en observaciones por qué contaste ${fmtFondo(totalFondo)}.`);
+      return;
+    }
     setLoading(true);
     try {
-      const totalFondo = (parseFloat(billetes) || 0) + (parseFloat(monedas) || 0);
 
       const { error } = await supabase
         .from('sesiones_caja')
@@ -138,7 +162,7 @@ export default function CajaModal({ userProfile, onStatusChange }) {
           sucursal_id: userProfile.sucursal_id || null,
           fondo_inicial: totalFondo,
           estado: 'abierta',
-          observaciones: observacionesApertura,
+          observaciones: observacionesApertura.trim(),
         }]);
 
       if (error) throw error;
@@ -171,8 +195,19 @@ export default function CajaModal({ userProfile, onStatusChange }) {
 
       if (error) throw error;
 
-      setSuccessMsg('¡Corte de caja realizado con éxito!');
-      setTimeout(() => { if (onStatusChange) onStatusChange('asistencia'); }, 1500);
+      // El corte cierra el turno: registra la salida aquí mismo. Antes la
+      // salida era otro escaneo que se olvidaba, y con la checada abierta al
+      // día siguiente la app se saltaba la entrada. Si esto fallara, el corte
+      // ya quedó y la checada la cierra la base esa madrugada.
+      const { error: errSalida } = await supabase
+        .from('registro_asistencia')
+        .update({ estado: 'completado', fecha_salida: new Date().toISOString(), tipo_salida: 'corte' })
+        .eq('usuario_id', userProfile.id)
+        .eq('estado', 'trabajando');
+      if (errSalida) console.error('Error registrando la salida con el corte:', errSalida.message);
+
+      setSuccessMsg('Corte de caja realizado y salida registrada.');
+      setTimeout(() => { if (onStatusChange) onStatusChange('turno_cerrado'); }, 1500);
     } catch (error) {
       alert('Error al cerrar caja: ' + error.message);
       setLoading(false);
@@ -205,6 +240,10 @@ export default function CajaModal({ userProfile, onStatusChange }) {
   }
 
   const totalFondoApertura = (parseFloat(billetes) || 0) + (parseFloat(monedas) || 0);
+  const revisionFondo = revisarFondo(totalFondoApertura, fondoEsperado);
+  const fondoCapturado = billetes !== '' || monedas !== '';
+  const puedeAbrir = fondoEsperado !== null && !revisionFondo.vacio
+    && (!revisionFondo.requiereMotivo || observacionesApertura.trim() !== '');
   const fondoInicial = parseFloat(sessionCaja?.fondo_inicial) || 0;
   const efectivoVentas = resumenVentas?.efectivo || 0;
   const totalRetiros = movimientos.filter(m => m.tipo === 'retiro').reduce((a, m) => a + Number(m.monto), 0);
@@ -235,7 +274,9 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                 {!sessionCaja ? 'Apertura de caja' : 'Corte de turno'}
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-[13px] mt-1">
-                {!sessionCaja ? 'Ingresa el fondo inicial para comenzar' : 'Cierre de operaciones y declaración'}
+                {!sessionCaja
+                  ? 'Cuenta el dinero que recibes para empezar a vender'
+                  : 'Cierre de operaciones y declaración. Al terminar se registra tu salida.'}
               </p>
             </div>
 
@@ -244,7 +285,9 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                 <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex gap-3">
                   <AlertCircle className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
                   <p className="text-[13px] text-slate-700 dark:text-slate-300">
-                    Aún no tienes una caja abierta. Registra tu fondo inicial.
+                    El fondo de esta caja es de{' '}
+                    <strong className="neb-tabular">{fondoEsperado !== null ? fmtFondo(fondoEsperado) : '…'}</strong>.
+                    Cuéntalo y escribe cuánto recibes. No podrás vender hasta abrir la caja.
                   </p>
                 </div>
 
@@ -273,8 +316,28 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                   <span className="font-semibold text-xl neb-tabular">${totalFondoApertura.toFixed(2)}</span>
                 </div>
 
+                {fondoCapturado && fondoEsperado !== null && (
+                  revisionFondo.ok ? (
+                    <div className="p-3 rounded-xl border bg-emerald-50 border-emerald-100 text-emerald-700 text-[13px] font-medium flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" /> Cuadra con el fondo de {fmtFondo(fondoEsperado)}.
+                    </div>
+                  ) : revisionFondo.requiereMotivo ? (
+                    <div className="p-3 rounded-xl border bg-amber-50 border-amber-100 text-amber-800 text-[13px] font-medium flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        {revisionFondo.diferencia < 0
+                          ? `Faltan ${fmtFondo(-revisionFondo.diferencia)}`
+                          : `Sobran ${fmtFondo(revisionFondo.diferencia)}`} contra el fondo de {fmtFondo(fondoEsperado)}.
+                        Vuelve a contar; si está bien, escribe abajo por qué. Se le avisará al administrador.
+                      </span>
+                    </div>
+                  ) : null
+                )}
+
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">Observaciones de apertura</label>
+                  <label className={`block text-[11px] font-medium mb-1.5 ${revisionFondo.requiereMotivo ? 'text-amber-700' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {revisionFondo.requiereMotivo ? `¿Por qué no es ${fmtFondo(fondoEsperado)}? (obligatorio)` : 'Observaciones de apertura'}
+                  </label>
                   <textarea
                     value={observacionesApertura} onChange={(e) => setObservacionesApertura(e.target.value)}
                     className="neb-input resize-none"
@@ -283,8 +346,8 @@ export default function CajaModal({ userProfile, onStatusChange }) {
                   />
                 </div>
 
-                <button type="submit" disabled={loading}
-                  className="w-full neb-btn neb-btn-primary py-4 text-base">
+                <button type="submit" disabled={loading || !puedeAbrir}
+                  className="w-full neb-btn neb-btn-primary py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Abrir caja'}
                 </button>
               </form>
@@ -292,6 +355,16 @@ export default function CajaModal({ userProfile, onStatusChange }) {
             ) : (
 
               <form onSubmit={handleCerrarCaja} className="space-y-5">
+                {cajaVencida && (
+                  <div className="p-4 rounded-xl border bg-amber-50 border-amber-100 text-amber-800 text-[13px] flex gap-3">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>
+                      Esta caja se abrió el{' '}
+                      <strong>{new Date(sessionCaja.fecha_apertura).toLocaleString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</strong>{' '}
+                      y no se le hizo corte. Haz el corte para poder abrir la caja de hoy.
+                    </p>
+                  </div>
+                )}
                 <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 p-4 rounded-xl flex justify-between items-center">
                   <div>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-1">Caja activa</p>

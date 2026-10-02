@@ -721,6 +721,23 @@ Por qué: los resúmenes tardaron 3–4 vueltas porque cada pantalla sumaba por 
 - **Al retomar:** revisar `errores_app` (¿qué tronó en los teléfonos?), `salud_ventas` (corrida de cada noche) y que haya llegado el primer `resumen_dia` como push. El usuario debe REVOCAR el PAT del 27-sep.
 - **Siguientes propuestas aceptadas en principio (no hechas):** 4) qué conviene surtir (días de inventario por producto con `por_producto` + stock), 5) folio escaneable en el ticket, 6) cerrar turnos olvidados desde admin, 7) bitácora de lo que se quita del ticket (decisión del dueño).
 
+## Sesión 2026-10-01 — el flujo del turno se podía saltar (fondo en $0)
+
+Reporte del dueño: *"a veces no siguen el flujo y no ponen cuánto reciben de la caja"* (deja $1,000 diarios). Datos reales 2-sep → 1-oct:
+- **7 de 30 turnos abrieron sin el fondo real** ($0 el 13, 14, 16, 17, 19 y 28-sep; $100 el 29) → los cortes salían con "sobrantes" de ~$1,000 que eran el fondo sin anotar. El campo era opcional.
+- **Checada sin salida = checada eterna.** `checkWorkStatus` aceptaba cualquier `trabajando`, aunque fuera de ayer → al día siguiente iba directo a abrir caja sin escanear (13 y 25-sep).
+- **Tras el corte se podía reabrir caja**: 10-sep corte 19:05, reabrió 19:09, y las ventas de la mañana del 11 cayeron en esa caja nocturna.
+
+**Arreglo (A+B+C+D+E):**
+- **A** `CajaModal`: fondo obligatorio (> 0) contra `sucursales.fondo_caja` (default 1000); si no cuadra, motivo obligatorio. Reglas en `src/lib/turno.js` (`revisarFondo`, `esDeHoy`, `diaTienda` en America/Mexico_City), pruebas en `src/__tests__/turno.test.js`.
+- **B** Checada y caja solo valen si son **de hoy**. `App` llama `cerrar_checadas_vencidas()` al entrar; si hay una caja de otro día abierta (`cajaVencida`), solo se permite su corte (Terminal bloqueada, banner).
+- **C** El corte registra la salida (`tipo_salida='corte'`) y lleva a `TurnoCerrado.jsx` (cerrar sesión / "empezar otro turno" = escanear de nuevo).
+- **D** `scripts/flujo_turno.sql` (**APLICADO 1-oct**, ensayado 10/10 con RAISE final): trigger `trg_validar_apertura_caja` (solo rol empleado) rechaza abrir sin checada de hoy, con $0, con otra caja abierta o con fondo ≠ esperado sin observaciones; guarda `sesiones_caja.fondo_esperado`. `cerrar_checadas_vencidas(p_todas)` cierra checadas de días anteriores como `tipo_salida='olvidada'` (hora = último corte, o NULL) salvo si tienen caja abierta; pg_cron `checadas_vencidas` `0 9 * * *` (03:00 MX). `notif_asistencia` ya no avisa de las olvidadas.
+- **E** `notif_apertura_caja`: aviso `alerta_caja` al dueño si el fondo no cuadra o es la 2.ª+ caja del día en la sucursal. Reportes marca "⚠ debía ser $X" y "No marcó salida".
+- Columnas nuevas: `sucursales.fondo_caja`, `sesiones_caja.fondo_esperado`, `registro_asistencia.tipo_salida` ('escaneo'|'corte'|'olvidada').
+- Revertir: `DROP TRIGGER trg_validar_apertura_caja ON sesiones_caja; DROP TRIGGER trg_notif_apertura_caja ON sesiones_caja; SELECT cron.unschedule('checadas_vencidas');`
+- **Pendiente:** no hay pantalla para cambiar `fondo_caja` (se edita en la base). La cuenta compartida "TIENDA CENTRO" sigue: el aviso dice qué pasó, no quién — decisión del dueño.
+
 ## Pendientes / fuera de alcance
 - **Exportar a Excel/PDF: DESCARTADO** por el usuario el 18-sep-2026. No volver a proponerlo.
 - ~~**EXPONERLE LA TERMINAL AL ADMIN**~~ — **CERRADO, no es un pendiente.** El usuario lo decidió el 17-sep-2026: la cuenta de Carlos es **solo de administración** y todas las ventas salen del perfil de empleado. **No volver a proponerlo** (ya se propuso dos veces por leer esta línea). Lo que Carlos baja a mano en Inventario es captura de catálogo, no ventas sin cobrar — ver el contexto del 18-sep.
