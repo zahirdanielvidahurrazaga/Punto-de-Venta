@@ -739,6 +739,15 @@ Reporte del dueño: *"a veces no siguen el flujo y no ponen cuánto reciben de l
 - iOS **1.1.3 (build 10)** preparada con estos cambios (bundle `index-D8Kfq6DR.js`, mismo hash que la web); **SUBIDA por el usuario el 1-oct** (antes hubo que aceptar el nuevo Program License Agreement de Apple: sin eso falla con "PLA Update available" + "No signing certificate iOS Distribution"). Falta App Review; confirmar con el lookup de iTunes y que el usuario haya enviado la versión a revisión.
 - **Pendiente:** no hay pantalla para cambiar `fondo_caja` (se edita en la base). La cuenta compartida "TIENDA CENTRO" sigue: el aviso dice qué pasó, no quién — decisión del dueño.
 
+## Sesión 2026-10-06 — blindaje de la caja (revisión de ChatGPT/Codex)
+
+Primera revisión con el plugin oficial de OpenAI (`/codex:review`, cuenta Plus) sobre el commit `94a48db` del 1-oct. Encontró 3 huecos; los 3 se comprobaron contra la base real y se cerraron en **`scripts/blindaje_caja.sql` (APLICADO 6-oct, ensayado 6/6 con RAISE final)**:
+1. **Corte sin salida.** El corte y la salida eran dos escrituras desde la app; si fallaba la segunda, la checada seguía "trabajando" hoy y se podía abrir otra caja el mismo día (lo del 10-sep). Ahora el trigger `trg_cerrar_checada_con_corte` (AFTER UPDATE abierta→cerrada) cierra la checada con `tipo_salida='corte'` en la MISMA transacción. El update de `CajaModal` quedó como respaldo.
+2. **Vender en la caja de ayer.** `registrar_venta` tomaba cualquier caja abierta; una app vieja podía vender hoy en la de ayer. Ahora devuelve `{ok:false, error:'Tu caja es de otro día. Haz su corte antes de vender.'}`. El resto de la función es idéntico a la versión viva (se leyó con `pg_get_functiondef` antes de tocarla).
+3. **Dos cajas abiertas por carrera.** Dos aperturas simultáneas (cuenta compartida en dos aparatos) pasaban ambas el `EXISTS` del trigger. Índice único parcial `uq_sesiones_caja_una_abierta (usuario_id) WHERE estado='abierta'`. Si llega a chocar, la app muestra el error crudo de llave duplicada (raro, aceptado).
+- Revertir: `DROP INDEX uq_sesiones_caja_una_abierta; DROP TRIGGER trg_cerrar_checada_con_corte ON sesiones_caja;` y volver a correr `fix_registrar_venta_mayoreo.sql`.
+- **Cómo se corre SQL ahora:** script `pos-sql archivo.sql` (`scripts/pos-sql.sh`, enlazado en `~/.local/bin/pos-sql`; toma el PAT del llavero "Supabase POS"). Lo corre el USUARIO con `!`: el clasificador no me deja leer el token ni aplicar a producción yo mismo.
+
 ## Pendientes / fuera de alcance
 - **Exportar a Excel/PDF: DESCARTADO** por el usuario el 18-sep-2026. No volver a proponerlo.
 - ~~**EXPONERLE LA TERMINAL AL ADMIN**~~ — **CERRADO, no es un pendiente.** El usuario lo decidió el 17-sep-2026: la cuenta de Carlos es **solo de administración** y todas las ventas salen del perfil de empleado. **No volver a proponerlo** (ya se propuso dos veces por leer esta línea). Lo que Carlos baja a mano en Inventario es captura de catálogo, no ventas sin cobrar — ver el contexto del 18-sep.

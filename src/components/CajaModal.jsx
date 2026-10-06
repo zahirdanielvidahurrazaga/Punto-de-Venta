@@ -197,8 +197,10 @@ export default function CajaModal({ userProfile, onStatusChange, cajaVencida = f
 
       // El corte cierra el turno: registra la salida aquí mismo. Antes la
       // salida era otro escaneo que se olvidaba, y con la checada abierta al
-      // día siguiente la app se saltaba la entrada. Si esto fallara, el corte
-      // ya quedó y la checada la cierra la base esa madrugada.
+      // día siguiente la app se saltaba la entrada. Desde el 6-oct la base ya
+      // cierra la checada en la misma transacción del corte
+      // (trg_cerrar_checada_con_corte, scripts/blindaje_caja.sql); esto queda
+      // como respaldo y normalmente no encuentra nada que actualizar.
       const { error: errSalida } = await supabase
         .from('registro_asistencia')
         .update({ estado: 'completado', fecha_salida: new Date().toISOString(), tipo_salida: 'corte' })
