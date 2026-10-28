@@ -748,6 +748,20 @@ Primera revisión con el plugin oficial de OpenAI (`/codex:review`, cuenta Plus)
 - Revertir: `DROP INDEX uq_sesiones_caja_una_abierta; DROP TRIGGER trg_cerrar_checada_con_corte ON sesiones_caja;` y volver a correr `fix_registrar_venta_mayoreo.sql`.
 - **Cómo se corre SQL ahora:** script `pos-sql archivo.sql` (`scripts/pos-sql.sh`, enlazado en `~/.local/bin/pos-sql`; toma el PAT del llavero "Supabase POS"). Lo corre el USUARIO con `!`: el clasificador no me deja leer el token ni aplicar a producción yo mismo.
 
+## Sesión 2026-10-28 — se fue el internet y la caja se quedó sin catálogo
+
+Reporte de Carlos (foto): la Terminal no dejaba cobrar; las 30 partidas del ticket decían "Sólo hay 0 en existencia", aunque en Inventario y en el almacén sí había (VOLTEADOR ESPATULA: 312 en Centro). **Causa (confirmada por Carlos): se fue el internet.** La última venta antes fue a las 15:06 y la foto es de las 15:21; volvieron a vender a las 15:59.
+- Con la red caída, `productos_de_sucursal` falló, el `catch` solo escribía en consola y `productos` quedó en `[]`. `stockDe()` devuelve 0 si no encuentra el producto → TODO el ticket en "Sólo hay 0" y COBRAR bloqueado. El carrito vive en `localStorage` (`pos_cart`), por eso sobrevivió a la recarga y el catálogo no. Nada reintentaba si la página cargó ya sin red (no hubo evento `online`).
+- **El letrero "En línea" de la Terminal estaba escrito a mano**: decía "En línea" siempre.
+- Descartado: la cuenta "TIENDA CENTRO" (GAF-ec1c0eac, otra cuenta nueva) sí está en Tito Centro; Aviación sigue en 0 de todo.
+
+**Arreglo (`Terminal.jsx`):** lista vacía = carga fallida (la tienda siempre tiene catálogo); estado `fallo`; reintento cada 5 s y en `online`, uno a la vez (`enVuelo`) y sin que una respuesta vieja pise a una nueva (`turnoCarga`); letrero real ("Sin conexión · reintentando"); aviso grande en la rejilla con "Reintentar ahora"; con el catálogo vacío NO se marca "Sólo hay 0" y COBRAR dice "Esperando conexión…"; si al cobrar no se pudo releer el stock, se dice "sin conexión" en vez de acusar falta de existencia. Probado en el banco de pruebas (`?p=terminal&sinred=1`, `window.__sinRed=false` regresa la red): se recupera sola en ~5 s con el ticket intacto.
+
+**Control de cajas a distancia (`src/lib/controlCajas.js`):** canal Realtime PRIVADO `pos-control`. Cada sesión se anuncia (presence: nombre, sucursal, versión, estado del catálogo, `ocupada`); Equipo → "Cajas conectadas ahora" lo muestra en vivo con "Versión anterior" si no coincide con la del admin, y el botón **"Recargar cajas"** (broadcast). La caja espera mientras está `ocupada` (cobrando, guardando la venta o con el ticket del cliente en pantalla) y solo entonces avisa y recarga. Versión = fecha/hora del build (`VITE_BUILD` en `vite.config.js`). Una caja con la versión anterior a esto NO aparece: hay que recargarla a mano una vez.
+- Permisos en **`scripts/control_cajas_realtime.sql` (APLICADO 28-oct, ensayado)**: leer y anunciarse = cualquier sesión; mandar "recargar" = solo `es_admin()`. Revertir: DROP de las 3 políticas `pos-control:*` en `realtime.messages`.
+- Revisión de Codex: 5 hallazgos, los 5 reales y corregidos (el aviso de recarga tapaba el cobro; podía recargar al guardar la venta o con el ticket en pantalla; canal público = cualquiera con la llave anon recargaba cajas; canal rearmado con el mismo nombre quedaba muerto; reintentos encimados con red lenta).
+- **NO probado contra Realtime real** antes de publicar (el banco no tiene canales): verificar en Equipo con la tienda conectada.
+
 ## Pendientes / fuera de alcance
 - **Exportar a Excel/PDF: DESCARTADO** por el usuario el 18-sep-2026. No volver a proponerlo.
 - ~~**EXPONERLE LA TERMINAL AL ADMIN**~~ — **CERRADO, no es un pendiente.** El usuario lo decidió el 17-sep-2026: la cuenta de Carlos es **solo de administración** y todas las ventas salen del perfil de empleado. **No volver a proponerlo** (ya se propuso dos veces por leer esta línea). Lo que Carlos baja a mano en Inventario es captura de catálogo, no ventas sin cobrar — ver el contexto del 18-sep.

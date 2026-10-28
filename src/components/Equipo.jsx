@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Loader2, QrCode, Printer, X, UserPlus, Store, Mail, Lock, User, RefreshCw, CheckCircle2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
+import { VERSION, pedirRecarga, useAhoraCada, useCajasConectadas } from '../lib/controlCajas';
 import QRCodeLib from 'react-qr-code';
 
 const QRCode = QRCodeLib.default || QRCodeLib.QRCode || QRCodeLib;
@@ -10,6 +11,75 @@ const QRCode = QRCodeLib.default || QRCodeLib.QRCode || QRCodeLib;
 function generarPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
   return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Cajas conectadas ahora (28-oct-2026). Se fue el internet en la tienda y no
+// había forma de saber desde fuera si la caja recargó. Aquí se ve en vivo cada
+// sesión abierta: dónde, con qué versión y si su catálogo cargó; y se les
+// puede mandar "Recargar cajas". Una caja con la versión de antes de esto no
+// aparece (no sabe anunciarse): esa hay que recargarla a mano una vez.
+// ────────────────────────────────────────────────────────────────────────────
+function CajasConectadas() {
+  const cajas = useCajasConectadas();
+  const ahora = useAhoraCada(30000);
+  const [estado, setEstado] = useState(null);   // null | 'enviando' | 'ok' | 'error'
+  const empleados = cajas.filter((c) => c.rol === 'empleado');
+  const hace = (t) => {
+    const m = Math.max(0, Math.round((ahora - t) / 60000));
+    return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : `hace ${Math.floor(m / 60)} h`;
+  };
+  const recargar = async () => {
+    if (!window.confirm('¿Recargar todas las cajas conectadas? Si alguna está cobrando, espera a que termine. El ticket abierto no se pierde.')) return;
+    setEstado('enviando');
+    const ok = await pedirRecarga();
+    setEstado(ok ? 'ok' : 'error');
+    setTimeout(() => setEstado(null), 6000);
+  };
+  return (
+    <section className="neb-card rounded-2xl p-5 mb-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${empleados.length ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+            Cajas conectadas ahora
+          </h3>
+          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">Tu versión: {VERSION}</p>
+        </div>
+        <button type="button" onClick={recargar} disabled={!empleados.length || estado === 'enviando'} className="neb-btn neb-btn-ghost disabled:opacity-50">
+          {estado === 'enviando' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Recargar cajas
+        </button>
+      </div>
+      {estado === 'ok' && <p className="mt-3 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">Orden enviada. En unos segundos deben volver a aparecer aquí con tu versión.</p>}
+      {estado === 'error' && <p className="mt-3 text-[13px] font-semibold text-rose-600 dark:text-rose-400">No se pudo enviar. Revisa tu conexión e inténtalo otra vez.</p>}
+      {empleados.length ? (
+        <ul className="mt-4 divide-y divide-slate-200/70 dark:divide-white/10">
+          {empleados.map((c, i) => {
+            const vieja = c.version !== VERSION;
+            const mal = c.catalogo && c.catalogo !== 'ok' && c.catalogo !== 'fuera de la terminal';
+            return (
+              <li key={`${c.id}-${i}`} className="py-3 flex items-center justify-between gap-3 flex-wrap text-[13px]">
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">{c.nombre} · {c.sucursal}</p>
+                  <p className="text-slate-500 dark:text-slate-400">Conectada {hace(c.desde)} · versión {c.version}</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {vieja && <span className="rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-300">Versión anterior</span>}
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${mal ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'}`}>
+                    {c.catalogo === 'ok' ? `Catálogo OK · ${c.productos} productos` : c.catalogo ? `Catálogo: ${c.catalogo}` : 'Fuera de la terminal'}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="mt-3 text-[13px] text-slate-500 dark:text-slate-400">
+          Ninguna caja conectada en este momento. Si la caja de la tienda está prendida y no aparece aquí, tiene la versión de antes: recárgala una vez a mano con <b>Ctrl + Shift + R</b>.
+        </p>
+      )}
+    </section>
+  );
 }
 
 export default function Equipo() {
@@ -210,6 +280,8 @@ export default function Equipo() {
             <UserPlus className="w-4 h-4" /> Añadir empleado
           </button>
         </div>
+
+        <CajasConectadas />
 
         {isAddModalOpen && (
           <div className="fixed inset-0 z-50 bg-slate-900/30 dark:bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">

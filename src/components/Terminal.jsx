@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, Minus, Sparkles, AlertTriangle, TrendingDown } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, Minus, Sparkles, AlertTriangle, TrendingDown, WifiOff, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
+import { reportarCaja } from '../lib/controlCajas';
 import { precioUnitario, aplicaMayoreo, faltanParaMayoreo, ahorroTotal, desglosePartida } from '../lib/precios';
 import { indexarProductos, buscarEnIndice, esCoincidenciaAproximada, normaliza } from '../lib/buscar';
 import CheckoutModal from './CheckoutModal';
@@ -21,7 +22,7 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 // iba solo el aviso flotante.
 // ────────────────────────────────────────────────────────────────────────────
 function CartPanel({
-  cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado,
+  cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado, sinCatalogo,
   onLimpiar, onQuitar, onCantidad, onCobrar,
 }) {
   const filas = useRef(new Map());
@@ -116,7 +117,7 @@ function CartPanel({
                   </div>
                 )}
 
-                {item.quantity > disponible && (
+                {!sinCatalogo && item.quantity > disponible && (
                   <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-2 py-1.5 text-[11px] font-bold text-rose-700 dark:text-rose-300">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     Sólo hay {disponible} en existencia
@@ -163,10 +164,12 @@ function CartPanel({
         </div>
         <button
           onClick={onCobrar}
-          disabled={cart.length === 0 || sinExistencia.length > 0 || verificando}
+          disabled={cart.length === 0 || sinExistencia.length > 0 || verificando || sinCatalogo}
           className="w-full neb-btn neb-btn-primary py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {verificando ? (
+          {sinCatalogo ? (
+            <><WifiOff className="w-5 h-5" /> Esperando conexión…</>
+          ) : verificando ? (
             <><Loader2 className="w-5 h-5 animate-spin" /> Revisando existencias...</>
           ) : sinExistencia.length > 0 ? (
             <><AlertTriangle className="w-5 h-5" /> Revisa el ticket</>
@@ -174,6 +177,11 @@ function CartPanel({
             <><CreditCard className="w-5 h-5" /> COBRAR · F1</>
           )}
         </button>
+        {sinCatalogo && cart.length > 0 && (
+          <p className="mt-2.5 text-center text-[11px] font-bold leading-snug text-amber-700 dark:text-amber-400">
+            Sin conexión: no se pudo cargar el catálogo. El ticket se queda guardado; en cuanto regrese el internet podrás cobrar.
+          </p>
+        )}
         {sinExistencia.length > 0 && (
           <p className="mt-2.5 text-center text-[11px] font-bold leading-snug text-rose-600 dark:text-rose-400">
             No hay existencia para {sinExistencia.map(i => i.nombre).join(', ')}. Bájale la cantidad o quítalo del ticket.
@@ -206,6 +214,17 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   // Comprobación de existencias contra la BD justo antes de abrir el cobro.
   const [verificando, setVerificando] = useState(false);
 
+  // ¿Falló la última carga del catálogo? (28-oct-2026: se fue el internet, la
+  // Terminal se quedó con el catálogo vacío —todo el ticket en "Sólo hay 0"—
+  // y el letrero seguía diciendo "En línea" porque estaba escrito a mano).
+  const [fallo, setFallo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  // Reintentos sin encimarse: uno a la vez, y una respuesta vieja no pisa a
+  // una más nueva (con red lenta se juntaban decenas de consultas por caja).
+  const enVuelo = useRef(false);
+  const turnoCarga = useRef(0);
+  const [enLinea, setEnLinea] = useState(() => navigator.onLine);
+
   const [isCartMobileOpen, setIsCartMobileOpen] = useState(false);
   const inputRef = useRef(null);
 
@@ -216,16 +235,23 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
   const fetchProductos = async ({ silencioso = false } = {}) => {
     if (!silencioso) setLoading(true);
+    const turno = ++turnoCarga.current;
+    enVuelo.current = true;
     try {
       const { data, error } = await supabase
         .rpc('productos_de_sucursal', { p_sucursal: userProfile?.sucursal_id });
       if (error) throw error;
-      setProductos(data || []);
-      return data || [];
+      // La tienda siempre tiene catálogo: una lista vacía es una carga fallida
+      // (sesión caída, red a medias), no "no hay productos".
+      if (!data?.length) throw new Error('El catálogo llegó vacío');
+      if (turno === turnoCarga.current) { setProductos(data); setFallo(false); }
+      return data;
     } catch (error) {
       console.error('Error fetching products:', error.message);
+      if (turno === turnoCarga.current) setFallo(true);
       return null;
     } finally {
+      if (turno === turnoCarga.current) enVuelo.current = false;
       if (!silencioso) setLoading(false);
     }
   };
@@ -258,6 +284,36 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     clearTimeout(resaltadoTimer.current);
     resaltadoTimer.current = setTimeout(() => setResaltado(null), 1500);
   };
+
+  // Sin catálogo no hay cómo saber existencias: se reintenta cada 5 s y en
+  // cuanto el navegador avisa que volvió la red, sin que nadie tenga que
+  // recargar la página.
+  useEffect(() => {
+    const on = () => { setEnLinea(true); fetchProductos({ silencioso: true }); };
+    const off = () => setEnLinea(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.sucursal_id]);
+  useEffect(() => {
+    if (!fallo) return undefined;
+    const id = setInterval(() => { if (!enVuelo.current) fetchProductos({ silencioso: true }); }, 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fallo, userProfile?.sucursal_id]);
+
+  const sinCatalogo = !loading && productos.length === 0;
+  const conectada = enLinea && !fallo;
+
+  // Lo ve el admin en Equipo → "Cajas conectadas ahora".
+  useEffect(() => {
+    reportarCaja({ catalogo: sinCatalogo ? 'sin catálogo' : fallo ? 'sin conexión' : 'ok', productos: productos.length });
+  }, [sinCatalogo, fallo, productos.length]);
+  // Ocupada = no se puede recargar sin perder algo: eligiendo el pago,
+  // guardando la venta o con el ticket del cliente en pantalla.
+  useEffect(() => { reportarCaja({ ocupada: isCheckoutOpen || guardando || isTicketOpen }); }, [isCheckoutOpen, guardando, isTicketOpen]);
+  useEffect(() => () => reportarCaja({ ocupada: false, catalogo: 'fuera de la terminal' }), []);
 
   // Existencia VIVA en la sucursal. El carrito guarda una copia del producto al
   // momento de escanearlo, así que su `stock` envejece: si la otra caja vende o
@@ -403,7 +459,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
   // Partidas que ya no alcanzan: el stock pudo bajar (otra caja, una
   // transferencia) con el ticket abierto.
-  const sinExistencia = cart.filter(item => item.quantity > stockDe(item.id));
+  const sinExistencia = sinCatalogo ? [] : cart.filter(item => item.quantity > stockDe(item.id));
 
   // Antes de cobrar se relee el stock de la BD, no el que está en pantalla: el
   // ticket puede llevar minutos abierto y la otra caja pudo vender lo mismo.
@@ -414,7 +470,11 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     const frescos = await fetchProductos({ silencioso: true });
     setVerificando(false);
 
-    const lista = frescos || productos;
+    if (!frescos) {
+      showToast('Sin conexión: no se pudieron revisar las existencias. Intenta de nuevo en unos segundos.', 'error');
+      return;
+    }
+    const lista = frescos;
     const faltantes = cart
       .map(item => {
         const p = lista.find(x => x.id === item.id);
@@ -434,14 +494,20 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
   const handleCheckoutComplete = async (data) => {
     setPaymentData(data);
+    setGuardando(true);   // antes de cerrar el cobro: que no haya hueco "libre"
     setIsCheckoutOpen(false);
 
     if (onRegisterSale) {
-      const venta = await onRegisterSale({
-        total,
-        items: cart,
-        pagos: data
-      });
+      let venta;
+      try {
+        venta = await onRegisterSale({
+          total,
+          items: cart,
+          pagos: data
+        });
+      } finally {
+        setGuardando(false);
+      }
 
       if (venta) {
         const cajero = userProfile?.nombre_completo || '';
@@ -478,7 +544,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   };
 
   const propsCarrito = {
-    cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado,
+    cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado, sinCatalogo,
     onLimpiar: () => setCart([]),
     onQuitar: removeFromCart,
     onCantidad: updateQuantity,
@@ -496,9 +562,15 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Terminal de venta</p>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Punto de cobro</h1>
           </div>
-          <span className="neb-chip neb-chip-positive hidden sm:inline-flex">
-            <span className="neb-status-dot bg-emerald-500" /> En línea
-          </span>
+          {conectada ? (
+            <span className="neb-chip neb-chip-positive hidden sm:inline-flex">
+              <span className="neb-status-dot bg-emerald-500" /> En línea
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 dark:bg-rose-950/60 px-3 py-1 text-[12px] font-bold text-rose-700 dark:text-rose-300">
+              <WifiOff className="w-3.5 h-3.5" /> Sin conexión · reintentando
+            </span>
+          )}
         </div>
 
         {/* Buscador */}
@@ -550,6 +622,15 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                <Loader2 className="w-7 h-7 animate-spin mb-3 text-accent-500" />
                <p className="text-sm font-bold">Cargando productos...</p>
              </div>
+          ) : sinCatalogo ? (
+            <div className="flex flex-col items-center justify-center text-center gap-3 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-8 text-rose-700 dark:text-rose-300">
+              <WifiOff className="w-9 h-9" />
+              <p className="text-lg font-extrabold">No se pudo cargar el catálogo</p>
+              <p className="text-sm font-bold max-w-sm">Revisa el internet de la tienda. Se vuelve a intentar solo cada 5 segundos; el ticket que ya llevas no se pierde.</p>
+              <button type="button" onClick={() => fetchProductos()} className="neb-btn neb-btn-primary mt-1">
+                <RefreshCw className="w-4 h-4" /> Reintentar ahora
+              </button>
+            </div>
           ) : buscando && filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-10 text-slate-400 dark:text-slate-500">
               <Search className="w-7 h-7 mb-3 opacity-50" />

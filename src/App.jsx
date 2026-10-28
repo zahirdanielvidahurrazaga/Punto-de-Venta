@@ -10,6 +10,7 @@ import { useRealtime } from './lib/useRealtime';
 import NotificacionesCenter from './components/NotificacionesCenter';
 import { initPush } from './lib/push';
 import { esDeHoy } from './lib/turno';
+import { useControlCajas, recargarCuandoSePueda } from './lib/controlCajas';
 
 // Las pantallas de administración se cargan al abrirlas: así el mostrador
 // (Terminal, Caja, Checador) arranca sin bajar el Dashboard ni el Inventario.
@@ -101,6 +102,13 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Control a distancia (28-oct-2026): cada sesión se anuncia para que el admin
+  // vea en Equipo qué cajas están conectadas y con qué versión, y le puede
+  // mandar "Recargar cajas". La caja avisa, espera si está cobrando y recarga
+  // (el carrito vive en localStorage, no se pierde).
+  const [avisoRecarga, setAvisoRecarga] = useState(false);
+  useControlCajas(userProfile, () => recargarCuandoSePueda(() => setAvisoRecarga(true)));
 
   const fetchUserProfile = async (userId) => {
     try {
@@ -308,6 +316,15 @@ function App() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex font-sans">
+      {avisoRecarga && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
+          <div className="neb-glass-strong rounded-3xl p-8 max-w-sm text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-500" />
+            <p className="text-lg font-bold text-slate-900 dark:text-white">Actualizando la caja…</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">El administrador pidió recargar. El ticket que llevas no se pierde.</p>
+          </div>
+        </div>
+      )}
       {/* Scrim Overlay for Mobile */}
       {isMobileMenuOpen && (
         <div 
