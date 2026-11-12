@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Loader2, Store, ChevronDown } from 'lucide-react';
-import { PERIODOS } from '../lib/periodos';
+import { PERIODOS, toLocal } from '../lib/periodos';
+import SelectorFechas from './SelectorFechas';
 import { MAX_FILAS } from '../lib/paginado';
 import { DashboardHero, Aviso, Cargando } from './dashboard/ui';
 import { useDashboardDatos } from './dashboard/useDashboardDatos';
@@ -31,9 +32,13 @@ const SUB_TABS = [
 export default function Dashboard({ userName = 'Admin' }) {
   const [subTab, setSubTab]   = useState('resumen');
   const [periodo, setPeriodo] = useState('7d');
+  const [fechas, setFechas]   = useState(() => {
+    const hoy = toLocal(new Date());
+    return { desde: toLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), hasta: hoy };
+  });
   const [sucursalFiltro, setSucursalFiltro] = useState('todas');
 
-  const datos = useDashboardDatos({ periodo, sucursalFiltro, subTab });
+  const datos = useDashboardDatos({ periodo, fechas, sucursalFiltro, subTab });
   const { rango, sucursales, cargando, refrescando, errorCarga, truncado, resumen } = datos;
 
   return (
@@ -91,6 +96,9 @@ export default function Dashboard({ userName = 'Admin' }) {
                 </button>
               ))}
             </div>
+            {periodo === 'rango' && (
+              <SelectorFechas fechas={fechas} onChange={setFechas} />
+            )}
             <p className="text-[12px] text-slate-500 dark:text-slate-400">
               {rango.desde.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}
               {' → '}
@@ -136,3 +144,4 @@ export default function Dashboard({ userName = 'Admin' }) {
     </div>
   );
 }
+

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
 import { resumenVentas } from '../lib/ventas';
+import { traerTodo } from '../lib/paginado';
+import { toLocal, rangoPersonalizado } from '../lib/periodos';
+import SelectorFechas from './SelectorFechas';
 import {
   Loader2, FileText, Clock, Wallet,
   AlertTriangle, CheckCircle, Timer, ShoppingBag, ChevronDown
@@ -11,6 +14,8 @@ const FILTROS = [
   { label: 'Hoy',     days: 0 },
   { label: '7 días',  days: 7 },
   { label: '30 días', days: 30 },
+  { label: '90 días', days: 90 },
+  { label: 'Fechas…', rango: true },
 ];
 
 function getFechaInicio(days) {
@@ -18,6 +23,35 @@ function getFechaInicio(days) {
   if (days === 0) d.setHours(0, 0, 0, 0);
   else { d.setDate(d.getDate() - days); d.setHours(0, 0, 0, 0); }
   return d.toISOString();
+}
+
+/**
+ * { desde, hasta, incluyeHoy } en ISO. `hasta` (exclusivo) solo existe cuando
+ * el rango elegido a mano ya terminó; las checadas/cajas que siguen ABIERTAS
+ * solo se muestran si el periodo llega a hoy.
+ */
+function periodoDe(filtro, fechas) {
+  const f = FILTROS[filtro];
+  if (f.rango) {
+    const r = rangoPersonalizado(fechas.desde, fechas.hasta);
+    if (r) return {
+      desde: r.desde.toISOString(),
+      hasta: r.hastaCerrado ? r.hastaCerrado.toISOString() : null,
+      incluyeHoy: !r.hastaCerrado,
+    };
+  }
+  return { desde: getFechaInicio(f.days ?? 30), hasta: null, incluyeHoy: true };
+}
+
+async function traerMovimientos(ids) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error } = await supabase.from('movimientos_caja')
+      .select('sesion_caja_id, tipo, monto').in('sesion_caja_id', ids.slice(i, i + 150));
+    if (error) throw error;
+    out.push(...(data || []));
+  }
+  return { data: out };
 }
 
 function duracion(apertura, cierre) {
@@ -62,6 +96,10 @@ export default function Reportes() {
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
   const [filtro, setFiltro] = useState(0);
+  const [fechas, setFechas] = useState(() => ({
+    desde: toLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+    hasta: toLocal(new Date()),
+  }));
   const [sucursales, setSucursales] = useState([]);
   const [sucursalFiltro, setSucursalFiltro] = useState('todas');
 
@@ -70,7 +108,7 @@ export default function Reportes() {
       .then(({ data }) => setSucursales(data || []));
   }, []);
 
-  useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTab, filtro, sucursalFiltro]);
+  useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTab, filtro, sucursalFiltro, fechas.desde, fechas.hasta]);
 
   // Reporte en vivo: una checada o un corte aparecen sin recargar.
   useRealtime(
@@ -82,9 +120,9 @@ export default function Reportes() {
     setLoading(true);
     setErrorCarga(null);
     try {
-      const desde = getFechaInicio(FILTROS[filtro].days);
-      if (activeTab === 'asistencias') await fetchAsistencias(desde);
-      else await fetchCajas(desde);
+      const per = periodoDe(filtro, fechas);
+      if (activeTab === 'asistencias') await fetchAsistencias(per);
+      else await fetchCajas(per);
     } catch (err) {
       // Antes esto solo iba a la consola: en pantalla un error de permisos se
       // veía EXACTAMENTE igual que "no hay registros", y son cosas distintas.
@@ -95,35 +133,39 @@ export default function Reportes() {
     }
   };
 
-  const fetchAsistencias = async (desde) => {
+  const fetchAsistencias = async ({ desde, hasta, incluyeHoy }) => {
     // Una checada que sigue ABIERTA se trae aunque haya empezado antes del
     // periodo: si alguien entró ayer y no ha marcado salida, está trabajando
     // ahora y el reporte de "Hoy" no puede decir que no hay nadie.
-    const { data, error } = await supabase
-      .from('registro_asistencia')
-      .select('*, usuarios_perfiles (nombre_completo, sucursal_id)')
-      .or(`fecha_entrada.gte.${desde},fecha_salida.is.null`)
-      .order('fecha_entrada', { ascending: false })
-      .limit(500);
-    if (error) throw error;
+    // Paginado: con rangos largos se pasa de las 1000 filas que corta Supabase.
+    const { filas: data } = await traerTodo(() => {
+      let q = supabase
+        .from('registro_asistencia')
+        .select('*, usuarios_perfiles (nombre_completo, sucursal_id)');
+      q = incluyeHoy
+        ? q.or(`fecha_entrada.gte.${desde},fecha_salida.is.null`)
+        : q.gte('fecha_entrada', desde).lt('fecha_entrada', hasta);
+      return q.order('fecha_entrada', { ascending: false });
+    });
     const filtrada = sucursalFiltro === 'todas'
       ? (data || [])
       : (data || []).filter(a => a.usuarios_perfiles?.sucursal_id === sucursalFiltro);
     setAsistencias(filtrada);
   };
 
-  const fetchCajas = async (desde) => {
+  const fetchCajas = async ({ desde, hasta, incluyeHoy }) => {
     // Igual que con las checadas: una caja sin cerrar se muestra aunque se
-    // haya abierto antes del periodo.
-    let query = supabase
-      .from('sesiones_caja')
-      .select('*, usuarios_perfiles (id, nombre_completo)')
-      .or(`fecha_apertura.gte.${desde},fecha_cierre.is.null`);
-    if (sucursalFiltro !== 'todas') query = query.eq('sucursal_id', sucursalFiltro);
-    const { data: cajasData, error } = await query
-      .order('fecha_apertura', { ascending: false })
-      .limit(500);
-    if (error) throw error;
+    // haya abierto antes del periodo (solo si el periodo llega a hoy).
+    const { filas: cajasData } = await traerTodo(() => {
+      let query = supabase
+        .from('sesiones_caja')
+        .select('*, usuarios_perfiles (id, nombre_completo)');
+      query = incluyeHoy
+        ? query.or(`fecha_apertura.gte.${desde},fecha_cierre.is.null`)
+        : query.gte('fecha_apertura', desde).lt('fecha_apertura', hasta);
+      if (sucursalFiltro !== 'todas') query = query.eq('sucursal_id', sucursalFiltro);
+      return query.order('fecha_apertura', { ascending: false });
+    });
     if (!cajasData?.length) { setCajas([]); return; }
 
     const minFecha = cajasData[cajasData.length - 1].fecha_apertura;
@@ -135,8 +177,8 @@ export default function Reportes() {
     const [resumen, { data: movsRaw }] = await Promise.all([
       resumenVentas({ desde: minFecha }),
       // Sangrías (retiros/depósitos) de las sesiones listadas
-      supabase.from('movimientos_caja').select('sesion_caja_id, tipo, monto')
-        .in('sesion_caja_id', cajasData.map(c => c.id)),
+      // Por tandas: un .in() con cientos de ids revienta el largo de la URL.
+      traerMovimientos(cajasData.map(c => c.id)),
     ]);
 
     const result = cajasData.map(caja => {
@@ -224,6 +266,11 @@ export default function Reportes() {
             </div>
           </div>
         </div>
+        {FILTROS[filtro].rango && (
+          <div className="flex justify-end -mt-2 mb-5">
+            <SelectorFechas fechas={fechas} onChange={setFechas} />
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-16">
@@ -246,7 +293,7 @@ export default function Reportes() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                   {asistencias.map((r) => {
-                    const deAntes = new Date(r.fecha_entrada) < new Date(getFechaInicio(FILTROS[filtro].days));
+                    const deAntes = new Date(r.fecha_entrada) < new Date(periodoDe(filtro, fechas).desde);
                     return (
                     <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="p-4 font-medium text-slate-900 dark:text-white">

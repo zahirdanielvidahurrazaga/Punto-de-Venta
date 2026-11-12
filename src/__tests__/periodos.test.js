@@ -82,3 +82,39 @@ describe('claveDe / rejillaDe (mismas claves que resumen_ventas)', () => {
     expect(rej.at(-1).sum).toBe(9);
   });
 });
+
+describe('rango de fechas elegido a mano', () => {
+  it('rango en el pasado: tope cerrado al día siguiente y comparativo del mismo largo', () => {
+    const r = rangoDe('rango', AHORA, { desde: '2026-08-01', hasta: '2026-08-31' });
+    expect(toLocal(r.desde)).toBe('2026-08-01');
+    expect(toLocal(r.hastaCerrado)).toBe('2026-09-01');
+    expect(r.dias).toBe(31);
+    expect(toLocal(r.desdePrev)).toBe('2026-07-01');
+    expect(r.hastaPrev.getTime()).toBe(r.desde.getTime());
+    expect(r.grano).toBe('dia');
+    expect(rejillaDe(r).length).toBe(31);
+  });
+  it('si llega a hoy el tope queda abierto', () => {
+    const r = rangoDe('rango', AHORA, { desde: '2026-09-01', hasta: '2026-09-27' });
+    expect(r.hastaCerrado).toBeNull();
+    expect(r.dias).toBe(27);
+  });
+  it('fechas al revés se acomodan; más de 3 meses va por mes', () => {
+    const r = rangoDe('rango', AHORA, { desde: '2026-09-20', hasta: '2026-01-01' });
+    expect(toLocal(r.desde)).toBe('2026-01-01');
+    expect(r.grano).toBe('mes');
+    expect(rejillaDe(r).map(c => c.clave)).toEqual(
+      ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09']);
+  });
+  it('un solo día en el pasado: por hora, contra el día anterior', () => {
+    const r = rangoDe('rango', AHORA, { desde: '2026-09-10', hasta: '2026-09-10' });
+    expect(r.grano).toBe('hora');
+    expect(toLocal(r.desdePrev)).toBe('2026-09-09');
+  });
+  it('fechas incompletas caen en 30 días', () => {
+    expect(rangoDe('rango', AHORA, { desde: '', hasta: '' }).etiqueta).toBe('últimos 30 días');
+  });
+  it('6 meses sigue dando 6 barras', () => {
+    expect(rejillaDe(rangoDe('6m', AHORA)).length).toBe(6);
+  });
+});

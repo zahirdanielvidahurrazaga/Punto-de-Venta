@@ -24,7 +24,7 @@ import {
 const clave = (desde, hasta, sucursal, grano) =>
   `${desde ? desde.getTime() : ''}|${hasta ? hasta.getTime() : ''}|${sucursal || ''}|${grano}`;
 
-export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
+export function useDashboardDatos({ periodo, fechas, sucursalFiltro, subTab }) {
   const sucursal = sucursalFiltro === 'todas' ? null : sucursalFiltro;
 
   // El "ahora" avanza cada minuto: "Hoy" cambia solo a medianoche y el tope
@@ -34,8 +34,9 @@ export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
     const t = setInterval(() => setTic(n => n + 1), 60 * 1000);
     return () => clearInterval(t);
   }, []);
+  const fDesde = fechas?.desde || '', fHasta = fechas?.hasta || '';
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const rango = useMemo(() => rangoDe(periodo), [periodo, tic]);
+  const rango = useMemo(() => rangoDe(periodo, new Date(), { desde: fDesde, hasta: fHasta }), [periodo, fDesde, fHasta, tic]);
 
   // ── Catálogos (una vez) ──────────────────────────────────────────────────
   const [sucursales, setSucursales] = useState([]);
@@ -76,13 +77,17 @@ export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
   }, []);
 
   const d1 = rango.desde.getTime(), p1 = rango.desdePrev.getTime(), p2 = rango.hastaPrev.getTime();
+  // Tope exclusivo solo en rangos elegidos a mano que terminan en el pasado;
+  // null = hasta ahora (no se congela).
+  const hc = rango.hastaCerrado ? rango.hastaCerrado.getTime() : null;
+  const tope = () => (hc == null ? null : new Date(hc));
 
   const cargarResumen = useCallback(async () => {
     setErrorCarga(null);
     try {
       // `hasta` en null para el periodo actual: llega hasta ahora sin congelarlo.
       const [actual, previo] = await Promise.all([
-        pedir(new Date(d1), null, sucursal, rango.grano),
+        pedir(new Date(d1), tope(), sucursal, rango.grano),
         pedir(new Date(p1), new Date(p2), sucursal, rango.grano),
       ]);
       setResumen({ actual, previo });
@@ -92,7 +97,8 @@ export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
     } finally {
       setCargando(false);
     }
-  }, [pedir, d1, p1, p2, sucursal, rango.grano]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedir, d1, p1, p2, hc, sucursal, rango.grano]);
 
   useEffect(() => { cargarResumen(); }, [cargarResumen]);
 
@@ -101,9 +107,10 @@ export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
   useEffect(() => {
     if (subTab !== 'sucursales') return;
     let vivo = true;
-    pedir(new Date(d1), null, null, rango.grano).then(r => vivo && setResumenTodas(r)).catch(() => {});
+    pedir(new Date(d1), tope(), null, rango.grano).then(r => vivo && setResumenTodas(r)).catch(() => {});
     return () => { vivo = false; };
-  }, [subTab, pedir, d1, rango.grano, resumen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab, pedir, d1, hc, rango.grano, resumen]);
 
   // Últimas ventas del periodo (tabla "Transacciones recientes").
   const [recientes, setRecientes] = useState([]);
@@ -113,10 +120,11 @@ export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
       .neq('estado', 'cancelada')
       .gte('fecha', new Date(d1).toISOString())
       .order('fecha', { ascending: false }).limit(8);
+    if (hc != null) q = q.lt('fecha', new Date(hc).toISOString());
     if (sucursal) q = q.eq('sucursal_id', sucursal);
     const { data } = await q;
     setRecientes(data || []);
-  }, [d1, sucursal]);
+  }, [d1, hc, sucursal]);
   useEffect(() => { cargarRecientes(); }, [cargarRecientes]);
 
   // ── Filas que no son ventas (ventana que solo se ensancha) ───────────────
@@ -229,7 +237,8 @@ export function useDashboardDatos({ periodo, sucursalFiltro, subTab }) {
   // El periodo actual llega hasta AHORA y no hay filas en el futuro, así que
   // no se acota por arriba (un tope "ahora" se congela y deja fuera lo que
   // entra en vivo; bug del 17-sep).
-  const enPeriodo = useCallback((arr) => (arr || []).filter(x => x.ts >= d1), [d1]);
+  // En un rango elegido a mano que ya terminó sí se acota por arriba.
+  const enPeriodo = useCallback((arr) => (arr || []).filter(x => x.ts >= d1 && (hc == null || x.ts < hc)), [d1, hc]);
   const porSucursal = useCallback((arr) => (
     sucursal ? arr.filter(x => x.sucursal_id === sucursal) : arr
   ), [sucursal]);

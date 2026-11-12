@@ -14,6 +14,7 @@ export const PERIODOS = [
   { key: '7d',  label: '7 días'   },
   { key: '30d', label: '30 días'  },
   { key: '6m',  label: '6 meses'  },
+  { key: 'rango', label: 'Fechas…' },
 ];
 
 export const toLocal = (d) => {
@@ -31,7 +32,12 @@ export const masDias      = (d, n) => { const x = new Date(d); x.setDate(x.getDa
  * @param periodo 'hoy' | '7d' | '30d' | '6m'
  * @param ahora   inyectable para poder probarlo
  */
-export function rangoDe(periodo, ahora = new Date()) {
+export function rangoDe(periodo, ahora = new Date(), fechas = null) {
+  if (periodo === 'rango') {
+    const r = rangoPersonalizado(fechas?.desde, fechas?.hasta, ahora);
+    if (r) return r;
+    periodo = '30d'; // fechas incompletas: se queda en 30 días mientras las eligen
+  }
   if (periodo === 'hoy') {
     const desde = inicioDelDia(ahora);
     return {
@@ -69,6 +75,57 @@ export function rangoDe(periodo, ahora = new Date()) {
     desdePrev, hastaPrev: desde,
     comparativa: 'vs los 6 meses previos',
     etiqueta: 'últimos 6 meses', grano: 'mes',
+  };
+}
+
+/** 'YYYY-MM-DD' → Date local a medianoche (new Date('2026-09-22') sería UTC). */
+export function fechaLocal(txt) {
+  if (!txt || !/^\d{4}-\d{2}-\d{2}$/.test(txt)) return null;
+  const [a, m, d] = txt.split('-').map(Number);
+  return new Date(a, m - 1, d, 0, 0, 0, 0);
+}
+
+const diasEntre = (a, b) => Math.round((b - a) / 86400000);
+const fmtCorta = (d) => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/**
+ * Rango elegido a mano (pedido de Carlos, 11-nov-2026: "no puedo ver más de
+ * 30 días ni un rango de fechas"). Los dos días son INCLUSIVOS.
+ *
+ * - `hastaCerrado` es el tope exclusivo (medianoche del día siguiente) cuando
+ *   el rango termina en el pasado. Si llega a hoy o más allá queda en null:
+ *   el tope abierto es el que no se congela con lo que entra en vivo.
+ * - El comparativo es el mismo número de días justo antes.
+ * - El grano de la gráfica se elige por largo: 1 día → horas, hasta ~3 meses
+ *   → días, más → meses.
+ */
+export function rangoPersonalizado(desdeTxt, hastaTxt, ahora = new Date()) {
+  let ini = fechaLocal(desdeTxt), fin = fechaLocal(hastaTxt);
+  if (!ini || !fin) return null;
+  if (fin < ini) [ini, fin] = [fin, ini];
+  const hoy = inicioDelDia(ahora);
+  if (ini > hoy) return null; // todo en el futuro: no hay nada que enseñar
+
+  const finExcl = masDias(fin, 1);
+  const abierto = finExcl > hoy;            // incluye hoy (o se pasa)
+  const hasta   = abierto ? new Date(ahora) : new Date(finExcl.getTime() - 1);
+  const dias    = diasEntre(ini, abierto ? masDias(hoy, 1) : finExcl);
+
+  const grano = dias === 1 ? 'hora' : dias <= 92 ? 'dia' : 'mes';
+  // Un solo día que es HOY: igual que "Hoy", contra ayer a esta hora.
+  const soloHoy = dias === 1 && abierto;
+  const etiqueta = dias === 1
+    ? `el ${fmtCorta(ini)}`
+    : `del ${fmtCorta(ini)} al ${fmtCorta(abierto ? hoy : fin)}`;
+
+  return {
+    desde: ini, hasta,
+    hastaCerrado: abierto ? null : finExcl,
+    desdePrev: masDias(ini, -dias),
+    hastaPrev: soloHoy ? masDias(ahora, -1) : ini,
+    comparativa: soloHoy ? 'vs ayer a esta hora'
+      : dias === 1 ? 'vs el día anterior' : `vs los ${dias} días previos`,
+    etiqueta, grano, dias,
   };
 }
 
@@ -130,9 +187,11 @@ export function rejillaDe(rango, porCubeta = new Map()) {
       nueva(toLocal(d), d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }));
     }
   } else {
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(desde.getFullYear(), desde.getMonth() + i, 1);
-      nueva(claveDe(d, 'mes'), d.toLocaleDateString('es-MX', { month: 'short' }));
+    // Un mes por barra, del mes de `desde` al de `hasta` (6 en "6 meses").
+    const varios = desde.getFullYear() !== hasta.getFullYear();
+    for (let d = new Date(desde.getFullYear(), desde.getMonth(), 1); d <= hasta;
+         d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+      nueva(claveDe(d, 'mes'), d.toLocaleDateString('es-MX', varios ? { month: 'short', year: '2-digit' } : { month: 'short' }));
     }
   }
   return cubetas;
