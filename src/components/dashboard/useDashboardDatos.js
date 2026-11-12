@@ -62,7 +62,7 @@ export function useDashboardDatos({ periodo, fechas, sucursalFiltro, subTab }) {
   // Se guarda por clave: volver a un periodo ya visto es instantáneo. Cuando
   // entra o se corrige una venta se tira la caché y se pide lo que se ve.
   const cache = useRef(new Map());
-  const [resumen, setResumen] = useState({ actual: null, previo: null });
+  const [resumen, setResumen] = useState({ actual: null, previo: null, turnos: null });
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
 
@@ -86,11 +86,16 @@ export function useDashboardDatos({ periodo, fechas, sucursalFiltro, subTab }) {
     setErrorCarga(null);
     try {
       // `hasta` en null para el periodo actual: llega hasta ahora sin congelarlo.
-      const [actual, previo] = await Promise.all([
+      const [actual, previo, turnos] = await Promise.all([
         pedir(new Date(d1), tope(), sucursal, rango.grano),
         pedir(new Date(p1), new Date(p2), sucursal, rango.grano),
+        // Arqueo: un turno que se abrió dentro del rango y siguió vendiendo
+        // después del tope se compara con TODO lo que cobró (su efectivo
+        // declarado es del turno completo). Sin esto salía una diferencia de
+        // caja falsa. Solo hace falta cuando el rango está cerrado.
+        hc == null ? null : pedir(new Date(d1), null, sucursal, rango.grano),
       ]);
-      setResumen({ actual, previo });
+      setResumen({ actual, previo, turnos });
     } catch (e) {
       console.error('Dashboard: resumen', e);
       setErrorCarga(e.message || 'No se pudieron cargar las ventas.');
@@ -267,7 +272,7 @@ export function useDashboardDatos({ periodo, fechas, sucursalFiltro, subTab }) {
       productos: calcProductos({ porProducto: actual.porProducto, stock, catalogo, sucursalFiltro }),
       flujo: calcFlujo({
         sesiones: porSucursal(enPeriodo(filas?.sesiones)),
-        porSesion: actual.porSesion,
+        porSesion: (resumen.turnos || actual).porSesion,
         movsCaja: filas?.movsCaja || [],
         personas,
         fueraDeCorte: actual.fueraDeCorte,
