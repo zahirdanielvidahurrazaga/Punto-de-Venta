@@ -133,7 +133,7 @@ export function fusionarVentas(prev, filas) {
 export async function partidasDeVenta(ventaId) {
   const { data, error } = await supabase
     .from('venta_detalles')
-    .select('producto_id, cantidad, precio_unitario, precio_lista, productos (*)')
+    .select('producto_id, cantidad, precio_unitario, precio_lista, descuento_pct, precio_antes_descuento, promocion_id, promociones (nombre), productos (*)')
     .eq('venta_id', ventaId);
   if (error) throw error;
   return (data || []).map(d => ({
@@ -143,6 +143,11 @@ export async function partidasDeVenta(ventaId) {
     precio_unitario: d.precio_unitario,
     // Precio normal de AQUEL día (desde 27-sep-2026); null en ventas anteriores.
     precio_lista: d.precio_lista,
+    // Promoción con la que se cobró (Buen Fin, nov-2026); null si no hubo.
+    promocion_id: d.promocion_id ?? null,
+    promocion_nombre: d.promociones?.nombre ?? null,
+    descuento_pct: d.descuento_pct,
+    precio_antes_descuento: d.precio_antes_descuento,
     precio: n(d.productos?.precio ?? d.precio_unitario),
   }));
 }

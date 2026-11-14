@@ -16,7 +16,8 @@ import { indexarProductos, buscarEnIndice } from '../lib/buscar';
 //
 // El precio que se enseña sigue la MISMA regla que la función:
 //   * partida que no cambió → el precio al que se cobró;
-//   * partida nueva o con otra cantidad → mayoreo/menudeo con el catálogo de hoy.
+//   * partida nueva o con otra cantidad → mayoreo/menudeo con el catálogo de hoy,
+//     y si la venta se cobró en una promoción (Buen Fin), con ESA promoción.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,10 +37,10 @@ const MOTIVOS_CANCELACION = [
   'Otro',
 ];
 
-function lineaPrecio(linea) {
+function lineaPrecio(linea, promo) {
   const o = linea.original;
   if (o && o.cantidad === linea.cantidad) return Number(o.precio_unitario) || 0;
-  return precioUnitario(linea.producto, linea.cantidad);
+  return precioUnitario({ ...linea.producto, id: linea.producto_id }, linea.cantidad, promo);
 }
 
 // Reparte el total nuevo respetando cómo se pagó: si fue un solo método, todo
@@ -88,6 +89,20 @@ export default function EditarVentaModal({ venta, items, modo = 'editar', onClos
   const [busqueda, setBusqueda] = useState('');
   const [turno, setTurno] = useState(null);
 
+  // Promoción con la que se cobró la venta (la guarda cada partida).
+  const promoId = items.find(i => i.promocion_id)?.promocion_id || null;
+  const [promo, setPromo] = useState(null);
+  useEffect(() => {
+    if (!promoId) return;
+    supabase.from('promociones')
+      .select('id, nombre, porcentaje, promocion_exclusiones (producto_id)')
+      .eq('id', promoId).maybeSingle()
+      .then(({ data }) => data && setPromo({
+        id: data.id, nombre: data.nombre, porcentaje: Number(data.porcentaje),
+        excluidos: (data.promocion_exclusiones || []).map(e => e.producto_id),
+      }));
+  }, [promoId]);
+
   const [motivo, setMotivo] = useState('');
   const [detalle, setDetalle] = useState('');
   const [pagos, setPagos] = useState(null);         // null = siguen al total
@@ -129,7 +144,7 @@ export default function EditarVentaModal({ venta, items, modo = 'editar', onClos
   );
 
   const totalAntes = Number(venta.total) || 0;
-  const totalNuevo = r2(lineas.reduce((a, l) => a + lineaPrecio(l) * l.cantidad, 0));
+  const totalNuevo = r2(lineas.reduce((a, l) => a + lineaPrecio(l, promo) * l.cantidad, 0));
   const pagosFinal = pagos || pagosSugeridos(venta.pagos, totalNuevo);
   const sumaPagos  = r2(pagosFinal.efectivo + pagosFinal.tarjeta + pagosFinal.transferencia);
   const pagosCuadran = cancelar || sumaPagos === totalNuevo;
@@ -239,7 +254,7 @@ export default function EditarVentaModal({ venta, items, modo = 'editar', onClos
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Productos</p>
                 <div className="space-y-2">
                   {lineas.map(l => {
-                    const unit = lineaPrecio(l);
+                    const unit = lineaPrecio(l, promo);
                     const cambiada = !l.original || l.original.cantidad !== l.cantidad;
                     const falta = faltantes.includes(l);
                     return (

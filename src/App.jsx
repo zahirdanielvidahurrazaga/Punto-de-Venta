@@ -248,12 +248,16 @@ function App() {
         cantidad: item.quantity
       }));
 
-      const { data, error } = await supabase.rpc('registrar_venta', {
+      const args = {
         pago_efectivo: saleData.pagos.efectivo,
         pago_tarjeta: saleData.pagos.tarjeta,
         pago_transferencia: saleData.pagos.transferencia,
         productos_json: productos_json
-      });
+      };
+      // La base solo descuenta si le decimos QUÉ promoción vio el cajero (y
+      // sigue vigente). Sin promoción se manda la llamada de siempre.
+      if (saleData.promocionId) args.p_promocion_id = saleData.promocionId;
+      const { data, error } = await supabase.rpc('registrar_venta', args);
 
       if (error) throw error;
 

@@ -21,6 +21,8 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
  * @param {number}   datos.total
  * @param {number}   datos.totalArticulos
  * @param {number}   datos.ahorro          ahorro por mayoreo (0 = no se imprime el renglón)
+ * @param {number}   [datos.descuento]     ahorro por la promoción (Buen Fin)
+ * @param {object}   [datos.promo]         { nombre, porcentaje } de la promoción aplicada
  * @param {object}   datos.paymentData     efectivo/tarjeta/transferencia/totalPagado/cambio
  * @param {string}   datos.fecha
  * @param {string}   datos.hora
@@ -29,7 +31,7 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
  * @param {string[]} [datos.avisos]      renglones destacados (REIMPRESIÓN, CANCELADA…)
  */
 export function construirTicketHTML({
-  tienda, partidas, total, totalArticulos, ahorro = 0, paymentData, fecha, hora, folio,
+  tienda, partidas, total, totalArticulos, ahorro = 0, descuento = 0, promo = null, paymentData, fecha, hora, folio,
   cajero = '', avisos = [],
 }) {
   const headerLines = [
@@ -45,7 +47,7 @@ export function construirTicketHTML({
   // antes el papel mostraba el precio de menudeo y un total más bajo, sin decir
   // por qué.
   const itemsRows = partidas.map(
-    ({ item, cantidad, unitario, importe, mayoreo, normal, ahorro: ahorroItem }) => `
+    ({ item, cantidad, unitario, importe, mayoreo, normal, ahorro: ahorroItem, descuento: dto, sinPromo, noAcumula, promoNombre }) => `
       <div class="item">
         <div class="name">${esc(item.nombre)}</div>
         <div class="row small">
@@ -53,6 +55,9 @@ export function construirTicketHTML({
           <span>${money(importe)}</span>
         </div>
         ${mayoreo && normal ? `<div class="small nota">Normal ${money(normal)} c/u · ahorra ${money(ahorroItem)}</div>` : ''}
+        ${dto ? `<div class="small nota"><b>${esc(dto.nombre).toUpperCase()} -${dto.porcentaje}%</b> antes ${money(dto.antes)} c/u · ahorra ${money(dto.ahorro)}</div>` : ''}
+        ${sinPromo ? `<div class="small nota">No aplica ${esc(promoNombre || 'promoción')}</div>` : ''}
+        ${noAcumula ? `<div class="small nota">Mayoreo: no se acumula con ${esc(promoNombre || 'la promoción')}</div>` : ''}
       </div>`
   ).join('');
 
@@ -108,12 +113,14 @@ export function construirTicketHTML({
           <div class="row small"><span>HORA: ${esc(hora)}</span><span></span></div>
           ${cajero ? `<div class="small">ATENDIÓ: ${esc(cajero)}</div>` : ''}
           ${avisos.map((a) => `<div class="center bold">${esc(a)}</div>`).join('')}
+          ${promo ? `<div class="center bold">*** ${esc(promo.nombre).toUpperCase()} · ${promo.porcentaje}% DE DESCUENTO ***</div>` : ''}
           <div class="sep"></div>
           ${itemsRows}
           <div class="sep"></div>
           <div class="row total"><span>TOTAL</span><span>${money(total)}</span></div>
           <div class="row small"><span>Artículos</span><span>${totalArticulos}</span></div>
           ${ahorro > 0 ? `<div class="row bold"><span>AHORRO POR MAYOREO</span><span>-${money(ahorro)}</span></div>` : ''}
+          ${descuento > 0 && promo ? `<div class="row bold"><span>${esc(promo.nombre).toUpperCase()} ${promo.porcentaje}%</span><span>-${money(descuento)}</span></div>` : ''}
           ${pagos ? `<div class="sep"></div>${pagos}` : ''}
           <div class="sep"></div>
           ${pie}

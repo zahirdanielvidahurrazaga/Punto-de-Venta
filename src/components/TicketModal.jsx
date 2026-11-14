@@ -1,6 +1,6 @@
 import { Printer, X, CheckCircle, Store, Phone, Tag, Loader2, Receipt, Ban, PencilLine } from 'lucide-react';
 import { datosTienda } from '../config/tienda';
-import { desglosePartida, ahorroTotal } from '../lib/precios';
+import { desglosePartida } from '../lib/precios';
 import { construirTicketHTML } from '../lib/ticketImpreso';
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
@@ -21,7 +21,7 @@ const folioTxt = (folio) => (folio != null ? `#${folio}` : '…');
  *               folio llega un instante después del cobro (se muestra "…").
  */
 export default function TicketModal({
-  cart, total, paymentData, sucursal, onClose,
+  cart, total, paymentData, sucursal, onClose, promo = null,
   modo = 'cobro', venta = null, acciones = null, extra = null,
 }) {
   const tienda = datosTienda(sucursal);
@@ -31,8 +31,13 @@ export default function TicketModal({
 
   // El precio de cada renglón sale de src/lib/precios.js, igual que el que
   // cobra la Terminal y el que guarda `registrar_venta`.
-  const partidas = cart.map((item) => ({ item, ...desglosePartida(item) }));
-  const ahorro = ahorroTotal(cart);
+  // `promo` es la promoción con la que se cobró (en historial viene guardada en
+  // cada partida, así que no se usa la de hoy).
+  const partidas = cart.map((item) => ({ item, ...desglosePartida(item, historial ? null : promo) }));
+  const ahorro = partidas.reduce((a, p) => a + p.ahorro, 0);
+  const descuento = partidas.reduce((a, p) => a + (p.descuento?.ahorro || 0), 0);
+  const dtoInfo = partidas.find(p => p.descuento)?.descuento || null;
+  const promoNombre = dtoInfo?.nombre || partidas.find(p => p.sinPromo || p.noAcumula)?.promoNombre || null;
   const totalArticulos = cart.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
   // En una cancelada la venta quedó en $0; lo que se había cobrado sale de
   // las partidas, que se conservan.
@@ -73,6 +78,8 @@ export default function TicketModal({
       total: cancelada ? 0 : total,
       totalArticulos,
       ahorro,
+      descuento,
+      promo: dtoInfo && { nombre: dtoInfo.nombre, porcentaje: dtoInfo.porcentaje },
       paymentData: pagos && { ...pagos, totalPagado: recibido, cambio },
       fecha: date,
       hora: time,
@@ -169,6 +176,9 @@ export default function TicketModal({
               <p>HORA: {time}</p>
               {venta?.cajero && <p className="truncate">ATENDIÓ: {venta.cajero}</p>}
               {avisos.map(a => <p key={a} className="text-center text-slate-900 dark:text-white mt-1">{a}</p>)}
+              {dtoInfo && (
+                <p className="text-center text-slate-900 dark:text-white mt-1 uppercase">*** {dtoInfo.nombre} · {dtoInfo.porcentaje}% de descuento ***</p>
+              )}
             </div>
 
             <div className="flex justify-between text-[11px] font-extrabold text-slate-900 dark:text-white border-b border-slate-300 dark:border-slate-700 pb-2 mb-3">
@@ -178,7 +188,7 @@ export default function TicketModal({
             </div>
 
             <div className="space-y-3 mb-6 text-[12px]">
-              {partidas.map(({ item, cantidad, unitario, importe, mayoreo, normal, ahorro: ahorroItem }, i) => (
+              {partidas.map(({ item, cantidad, unitario, importe, mayoreo, normal, ahorro: ahorroItem, descuento: dto, sinPromo, noAcumula }, i) => (
                 <div key={item.id || i} className="flex flex-col">
                   <div className="flex justify-between items-start">
                     <span className="w-3/5 text-left font-bold text-slate-800 dark:text-slate-200 pr-2 break-words">{item.nombre || 'Producto eliminado del catálogo'}</span>
@@ -193,6 +203,12 @@ export default function TicketModal({
                     {mayoreo && normal ? (
                       <span>Normal {money(normal)} c/u · ahorra {money(ahorroItem)}</span>
                     ) : null}
+                    {dto && (
+                      <span className="font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded uppercase">{dto.nombre} −{dto.porcentaje}%</span>
+                    )}
+                    {dto && <span>Antes {money(dto.antes)} c/u · ahorra {money(dto.ahorro)}</span>}
+                    {sinPromo && <span className="font-bold">No aplica {promoNombre}</span>}
+                    {noAcumula && <span className="font-bold">No se acumula con {promoNombre}</span>}
                   </span>
                 </div>
               ))}
@@ -211,6 +227,12 @@ export default function TicketModal({
                 <div className="flex justify-between text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400 uppercase mt-1">
                   <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> Ahorro por mayoreo:</span>
                   <span>−{money(ahorro)}</span>
+                </div>
+              )}
+              {descuento > 0 && (
+                <div className="flex justify-between text-[12px] font-extrabold text-rose-700 dark:text-rose-400 uppercase mt-1">
+                  <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> {dtoInfo.nombre} {dtoInfo.porcentaje}%:</span>
+                  <span>−{money(descuento)}</span>
                 </div>
               )}
             </div>

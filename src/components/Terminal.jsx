@@ -3,7 +3,8 @@ import { Search, ShoppingCart, Trash2, CreditCard, Box, Tag, X, Loader2, Plus, M
 import { supabase } from '../lib/supabaseClient';
 import { useRealtime } from '../lib/useRealtime';
 import { reportarCaja } from '../lib/controlCajas';
-import { precioUnitario, aplicaMayoreo, faltanParaMayoreo, ahorroTotal, desglosePartida } from '../lib/precios';
+import { precioUnitario, aplicaMayoreo, faltanParaMayoreo, ahorroTotal, descuentoTotal, desglosePartida, promoAplica } from '../lib/precios';
+import { usePromocion, finLegible } from '../lib/promocion';
 import { indexarProductos, buscarEnIndice, esCoincidenciaAproximada, normaliza } from '../lib/buscar';
 import CheckoutModal from './CheckoutModal';
 import TicketModal from './TicketModal';
@@ -22,7 +23,7 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 // iba solo el aviso flotante.
 // ────────────────────────────────────────────────────────────────────────────
 function CartPanel({
-  cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado, sinCatalogo,
+  cart, itemsCount, total, ahorro, descuento, promo, verificando, sinExistencia, stockDe, resaltado, sinCatalogo,
   onLimpiar, onQuitar, onCantidad, onCobrar,
 }) {
   const filas = useRef(new Map());
@@ -75,11 +76,11 @@ function CartPanel({
           cart.map((item) => {
             // Mismo desglose que el ticket impreso: un solo cálculo para lo que
             // ve el cajero, lo que ve el cliente y lo que cobra la base.
-            const { unitario, importe, mayoreo: enMayoreo, normal } = desglosePartida(item);
+            const { unitario, importe, mayoreo: enMayoreo, normal, descuento: dto, sinPromo, noAcumula } = desglosePartida(item, promo);
             const disponible = stockDe(item.id);
             // Aviso de "una más y le sale más barato". Solo si de verdad se
             // puede surtir: no tiene caso ofrecer lo que no hay en piso.
-            const faltan = faltanParaMayoreo(item);
+            const faltan = faltanParaMayoreo(item, item.quantity, promo);
             const ofrecerMayoreo = faltan !== null && disponible >= Number(item.cantidad_mayoreo);
 
             return (
@@ -101,6 +102,21 @@ function CartPanel({
                       {enMayoreo && (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded flex items-center gap-1">
                           <Tag className="w-3 h-3" /> Mayoreo · antes {money(normal)}
+                        </span>
+                      )}
+                      {dto && (
+                        <span className="text-[10px] font-bold text-white bg-rose-600 px-1.5 py-0.5 rounded">
+                          {dto.nombre} −{dto.porcentaje}% · antes {money(dto.antes)}
+                        </span>
+                      )}
+                      {sinPromo && (
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 dark:text-slate-200 px-1.5 py-0.5 rounded">
+                          No aplica {promo.nombre}
+                        </span>
+                      )}
+                      {noAcumula && (
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 dark:text-slate-200 px-1.5 py-0.5 rounded">
+                          Mayoreo · no se acumula con {promo.nombre}
                         </span>
                       )}
                     </div>
@@ -154,6 +170,12 @@ function CartPanel({
           <div className="flex justify-between items-center mb-2 text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
             <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> Ahorro por mayoreo</span>
             <span>−{money(ahorro)}</span>
+          </div>
+        )}
+        {descuento > 0 && (
+          <div className="flex justify-between items-center mb-2 text-[12px] font-bold text-rose-600 dark:text-rose-400">
+            <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> {promo.nombre} −{promo.porcentaje}%</span>
+            <span>−{money(descuento)}</span>
           </div>
         )}
         <div className="flex items-end justify-between mb-4">
@@ -227,6 +249,13 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
   const [isCartMobileOpen, setIsCartMobileOpen] = useState(false);
   const inputRef = useRef(null);
+
+  // Promoción (Buen Fin): se prende y se apaga sola con el reloj. Al abrir el
+  // cobro se CONGELA la que estaba en pantalla, para que el total que ve el
+  // cliente, el que se manda a la base y el ticket no cambien si justo en ese
+  // momento empieza o termina.
+  const promoVivo = usePromocion();
+  const [promoCobro, setPromoCobro] = useState(null);
 
   useEffect(() => {
     fetchProductos();
@@ -422,7 +451,10 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
     const enMayoreo = baja && aplicaMayoreo(product, enCarrito + 1);
     const antes = baja && aplicaMayoreo(product, enCarrito);
     if (enMayoreo && !antes) {
-      showToast(`${product.nombre} · ya es MAYOREO a ${money(product.precio_mayoreo)} c/u`);
+      const sube = promoAplica(promoVivo, product) && Number(product.precio_mayoreo) > precioUnitario(product, 1, promoVivo);
+      showToast(sube
+        ? `${product.nombre} · llegó a mayoreo: ${money(product.precio_mayoreo)} c/u, sin ${promoVivo.nombre}`
+        : `${product.nombre} · ya es MAYOREO a ${money(product.precio_mayoreo)} c/u`);
     } else {
       showToast(`Se agregó ${product.nombre}`);
     }
@@ -453,9 +485,11 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
 
   // El precio (con o sin mayoreo) sale de src/lib/precios.js, que aplica la
   // MISMA regla que `registrar_venta` en la base y que el ticket impreso.
-  const total = cart.reduce((acc, item) => acc + (precioUnitario(item) * item.quantity), 0);
+  const promo = (isCheckoutOpen || guardando || isTicketOpen) ? promoCobro : promoVivo;
+  const total = cart.reduce((acc, item) => acc + (precioUnitario(item, item.quantity, promo) * item.quantity), 0);
   const itemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const ahorro = ahorroTotal(cart);
+  const ahorro = ahorroTotal(cart, promo);
+  const descuento = descuentoTotal(cart, promo);
 
   // Partidas que ya no alcanzan: el stock pudo bajar (otra caja, una
   // transferencia) con el ticket abierto.
@@ -488,6 +522,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
       return;
     }
 
+    setPromoCobro(promoVivo);
     setIsCheckoutOpen(true);
     setIsCartMobileOpen(false);
   };
@@ -503,7 +538,8 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
         venta = await onRegisterSale({
           total,
           items: cart,
-          pagos: data
+          pagos: data,
+          promocionId: promo?.id ?? null,
         });
       } finally {
         setGuardando(false);
@@ -544,7 +580,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
   };
 
   const propsCarrito = {
-    cart, itemsCount, total, ahorro, verificando, sinExistencia, stockDe, resaltado, sinCatalogo,
+    cart, itemsCount, total, ahorro, descuento, promo, verificando, sinExistencia, stockDe, resaltado, sinCatalogo,
     onLimpiar: () => setCart([]),
     onQuitar: removeFromCart,
     onCantidad: updateQuantity,
@@ -562,6 +598,12 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.18em]">Terminal de venta</p>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Punto de cobro</h1>
           </div>
+          {promoVivo && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[12px] font-extrabold text-white">
+              <Sparkles className="w-3.5 h-3.5" /> {promoVivo.nombre} −{promoVivo.porcentaje}%
+              <span className="font-bold opacity-90 hidden md:inline">· hasta {finLegible(promoVivo.fin)}</span>
+            </span>
+          )}
           {conectada ? (
             <span className="neb-chip neb-chip-positive hidden sm:inline-flex">
               <span className="neb-status-dot bg-emerald-500" /> En línea
@@ -642,10 +684,12 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
               {filtered.map((product) => {
                 const disponible = Number(product.stock ?? 0);
                 const agotado = disponible <= 0;
+                // Con promoción solo se anuncia si el mayoreo sigue siendo más
+                // barato que el menudeo con descuento (no se acumulan).
                 const tieneMayoreo =
                   Number(product.precio_mayoreo) > 0 &&
                   Number(product.cantidad_mayoreo) > 0 &&
-                  Number(product.precio_mayoreo) < Number(product.precio);
+                  Number(product.precio_mayoreo) < precioUnitario(product, 1, promoVivo);
                 return (
                   <button
                     key={product.id}
@@ -668,9 +712,21 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
                     </div>
                     <div className="w-full truncate text-slate-400 dark:text-slate-500 font-mono text-[10px]">{product.sku}</div>
                     <div className="w-full flex items-end justify-between gap-2 mt-auto">
-                      <span className="text-slate-900 dark:text-white font-extrabold text-base">
-                        {money(product.precio)}
-                      </span>
+                      {promoAplica(promoVivo, product) ? (
+                        <span className="flex flex-col leading-tight">
+                          <span className="text-[11px] font-bold text-slate-400 line-through">{money(product.precio)}</span>
+                          <span className="text-rose-600 dark:text-rose-400 font-extrabold text-base">
+                            {money(precioUnitario(product, 1, promoVivo))}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="flex flex-col leading-tight">
+                          {promoVivo && <span className="text-[10px] font-bold text-slate-500">Sin descuento</span>}
+                          <span className="text-slate-900 dark:text-white font-extrabold text-base">
+                            {money(product.precio)}
+                          </span>
+                        </span>
+                      )}
                       {/* Mismos umbrales que Inventario: <=5 crítico, <=20 bajo. */}
                       <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
                         disponible <= 5
@@ -767,6 +823,7 @@ export default function Terminal({ onRegisterSale, cart, setCart, userProfile })
         <TicketModal
           cart={cart}
           total={total}
+          promo={promo}
           paymentData={paymentData}
           venta={ventaHecha}
           sucursal={userProfile?.sucursales}
